@@ -62,41 +62,57 @@ export default function RootLayout({
           <Footer /> 
 
           {/* JSON-LD pour le SEO Local */}
-          <script
-            type="application/ld+json"
-            dangerouslySetInnerHTML={{
-              __html: JSON.stringify({
-                "@context": "https://schema.org",
-                "@type": "Restaurant",
-                "name": "Kabuki Sushi Genève",
-                "image": "https://kabukisushi.ch/images/logo.png",
-                "address": {
-                  "@type": "PostalAddress",
-                  "streetAddress": "1 Boulevard de la Tour",
-                  "addressLocality": "Genève",
-                  "postalCode": "1205",
-                  "addressCountry": "CH"
-                },
-                "geo": {
-                  "@type": "GeoCoordinates",
-                  "latitude": 46.196,
-                  "longitude": 6.143
-                },
-                "url": "https://kabukisushi.ch",
-                "telephone": "+41220000000",
-                "priceRange": "$$",
-                "servesCuisine": "Japanese, Sushi",
-                "openingHoursSpecification": [
-                  {
-                    "@type": "OpeningHoursSpecification",
-                    "dayOfWeek": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
-                    "opens": "11:30",
-                    "closes": "22:00"
-                  }
-                ]
-              })
-            }}
-          />
+         <script
+  type="application/ld+json"
+  dangerouslySetInnerHTML={{
+    __html: JSON.stringify({
+      "@context": "https://schema.org",
+      "@type": "Restaurant",
+      "name": "Kabuki Sushi Genève",
+      "image": "https://kabuki-sushi.ch/images/logo.png",
+      "address": {
+        "@type": "PostalAddress",
+        "streetAddress": "1 Boulevard de la Tour",
+        "addressLocality": "Genève",
+        "postalCode": "1205",
+        "addressCountry": "CH"
+      },
+      "geo": {
+        "@type": "GeoCoordinates",
+        "latitude": 46.196,
+        "longitude": 6.143
+      },
+      "url": "https://kabuki-sushi.ch",
+      "telephone": "+41786041542",
+      "priceRange": "$$",
+      "servesCuisine": "Japanese, Sushi, Asian Food",
+      "openingHoursSpecification": [
+        // --- MARDI À VENDREDI : MIDI ---
+        {
+          "@type": "OpeningHoursSpecification",
+          "dayOfWeek": ["Tuesday", "Wednesday", "Thursday", "Friday"],
+          "opens": "11:20",
+          "closes": "14:00"
+        },
+        // --- MARDI À VENDREDI : SOIR ---
+        {
+          "@type": "OpeningHoursSpecification",
+          "dayOfWeek": ["Tuesday", "Wednesday", "Thursday", "Friday"],
+          "opens": "18:00",
+          "closes": "22:30"
+        },
+        // --- SAMEDI ET DIMANCHE : SOIR UNIQUEMENT ---
+        {
+          "@type": "OpeningHoursSpecification",
+          "dayOfWeek": ["Saturday", "Sunday"],
+          "opens": "18:00",
+          "closes": "22:30"
+        }
+        // Le Lundi est "Fermé" par défaut car il n'est pas listé ici.
+      ]
+    })
+  }}
+/>
         </LanguageProvider>
       </body>
     </html>

@@ -106,7 +106,6 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
     return slots;
   })() : [];
 
-  // ✅ Validation stricte du formulaire (inclut l'adresse si Livraison)
   const isDeliveryValid = formData.type !== "Livraison" || (totalPrice >= 25 && formData.address.trim() !== "" && formData.zip.trim() !== "");
   const isFormReady = selectedDate && selectedTime !== "" && formData.name.trim() !== "" && formData.phone.trim() !== "" && isDeliveryValid;
 
@@ -116,10 +115,20 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
     setIsSubmitting(true);
     try {
       const { data, error } = await supabase.from('orders').insert([{
-        customer_name: formData.name, customer_phone: formData.phone, pickup_date: selectedDate?.toISOString().split('T')[0],
-        pickup_time: selectedTime, order_type: formData.type, delivery_address: formData.type === "Livraison" ? `${formData.address} ${formData.floor ? '(Ét.'+formData.floor+')' : ''} ${formData.doorCode ? '[Code:'+formData.doorCode+']' : ''}` : null, delivery_zip: formData.type === "Livraison" ? formData.zip : null, total_amount: totalPrice,
-        items: items.map(i => ({ id: i.id, name: i.name, price: i.price, quantity: i.quantity })), status: "En attente"
+        customer_name: formData.name, 
+        customer_phone: formData.phone, 
+        pickup_date: selectedDate?.toISOString().split('T')[0],
+        pickup_time: selectedTime, 
+        order_type: formData.type, 
+        delivery_address: formData.type === "Livraison" ? `${formData.address} ${formData.floor ? '(Ét.'+formData.floor+')' : ''} ${formData.doorCode ? '[Code:'+formData.doorCode+']' : ''}` : null, 
+        delivery_zip: formData.type === "Livraison" ? formData.zip : null, 
+        total_amount: totalPrice,
+        items: items.map(i => ({ id: i.id, name: i.name, price: i.price, quantity: i.quantity })), 
+        status: "En attente",
+        // ✅ Ajout des commentaires/instructions ici
+        comments: formData.comments 
       }]).select();
+      
       if (error) throw error;
       const newId = data[0].id;
       setOrderId(newId);
@@ -154,7 +163,6 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
                 <h2 className="text-2xl font-bold text-white uppercase">{t.successTitle}</h2>
                 <div className="bg-neutral-800 p-4 rounded-xl border border-neutral-700 w-full"><p className="text-gray-300 text-sm mb-2">{t.successDesc}</p><p className="text-xl font-bold text-kabuki-red">#KBK-{orderId}</p></div>
                 
-                {/* 🔴 REDIRECTION AU LIEU DE FERMER */}
                 <button onClick={() => { onClose(); window.location.href = `/${lang}/track?order_id=${orderId}`; }} className="w-full bg-kabuki-red text-white font-bold py-4 rounded-xl uppercase shadow-lg shadow-red-900/20">Suivre ma commande</button>
               </div>
             ) : isPayment && clientSecret ? (
@@ -199,13 +207,11 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
                           <div className="grid grid-cols-4 gap-2">{availableSlots.map(s => <button key={s} type="button" onClick={() => setSelectedTime(s)} className={`py-2 rounded-lg border text-xs font-bold transition ${selectedTime === s ? "bg-kabuki-red border-kabuki-red text-white" : "bg-neutral-800 border-neutral-700 text-gray-400"}`}>{s}</button>)}</div>
                         </div>
 
-                        {/* ✅ Toggles Livraison / À Emporter */}
                         <div className="grid grid-cols-2 gap-3">
                           <button type="button" onClick={() => setFormData({...formData, type: "Click & Collect"})} className={`py-3 rounded-xl border text-xs font-bold transition ${formData.type !== "Livraison" ? "bg-kabuki-red border-kabuki-red text-white" : "bg-black border-neutral-800 text-gray-400"}`}>{t.takeaway}</button>
                           <button type="button" onClick={() => setFormData({...formData, type: "Livraison"})} className={`py-3 rounded-xl border text-xs font-bold transition ${formData.type === "Livraison" ? "bg-kabuki-red border-kabuki-red text-white" : "bg-black border-neutral-800 text-gray-400"}`}>{t.delivery}</button>
                         </div>
 
-                        {/* ✅ Champs de livraison animés */}
                         <AnimatePresence>
                           {formData.type === "Livraison" && (
                             <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="space-y-4 overflow-hidden">

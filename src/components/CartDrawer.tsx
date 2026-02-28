@@ -119,7 +119,7 @@ const cartTranslations = {
     floorPlaceholder: "Ej: 4",
     code: "Código de puerta",
     codePlaceholder: "Ej: A123",
-    comments: "Instrucciones especiales",
+    comments: "Instrucciones spéciales",
     commentsPlaceholder: "Sin wasabi, alergia al sésamo...",
     totalEstimated: "Total a pagar",
     btnValidate: "Ir a la caja",
@@ -154,10 +154,9 @@ interface CartDrawerProps {
   onClose: () => void;
 }
 
-// ✅ TYPAGE DU FORMULAIRE DE PAIEMENT POUR ESLINT
+// ✅ TYPAGE DU FORMULAIRE DE PAIEMENT SANS ORDERID (Inutile ici car géré par le Webhook)
 interface StripeCheckoutFormProps {
   total: number;
-  orderId: number | null;
   onSuccess: () => void;
   onCancel: () => void;
   t: Record<string, string>;
@@ -166,7 +165,7 @@ interface StripeCheckoutFormProps {
 // ============================================================================
 // SOUS-COMPOSANT : FORMULAIRE DE PAIEMENT STRIPE
 // ============================================================================
-function StripeCheckoutForm({ total, orderId, onSuccess, onCancel, t }: StripeCheckoutFormProps) {
+function StripeCheckoutForm({ total, onSuccess, onCancel, t }: StripeCheckoutFormProps) {
   const stripe = useStripe();
   const elements = useElements();
   const [isProcessing, setIsProcessing] = useState(false);
@@ -180,25 +179,16 @@ function StripeCheckoutForm({ total, orderId, onSuccess, onCancel, t }: StripeCh
     setErrorMessage("");
 
     // 1. On tente de confirmer le paiement
-    const { error, paymentIntent } = await stripe.confirmPayment({
+    const result = await stripe.confirmPayment({
       elements,
-      redirect: "if_required", // Évite de recharger toute la page
+      redirect: "if_required", 
     });
 
-    if (error) {
-      setErrorMessage(error.message || t.paymentError);
+    if (result.error) {
+      setErrorMessage(result.error.message || t.paymentError);
       setIsProcessing(false);
-    } else if (paymentIntent && paymentIntent.status === "succeeded") {
-      // 2. Paiement réussi ! On met à jour la base de données
-      if (error) {
-      setErrorMessage(error.message || t.paymentError);
-      setIsProcessing(false);
-    } else if (paymentIntent && paymentIntent.status === "succeeded") {
-      // ✅ On se contente d'afficher l'écran de succès. Le Webhook s'occupe de la BDD.
-      onSuccess();
-    } else {
-      setIsProcessing(false);
-    }
+    } else if (result.paymentIntent && result.paymentIntent.status === "succeeded") {
+      // ✅ Succès ! Le Webhook s'occupe de mettre à jour le statut dans la BDD
       onSuccess();
     } else {
       setIsProcessing(false);
@@ -213,7 +203,6 @@ function StripeCheckoutForm({ total, orderId, onSuccess, onCancel, t }: StripeCh
           <p className="text-xs font-bold uppercase tracking-widest">Connexion chiffrée SSL</p>
         </div>
         
-        {/* Composant Stripe Magique */}
         <PaymentElement options={{ layout: "tabs" }} />
         
         {errorMessage && (
@@ -249,12 +238,10 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
   const { lang } = useTranslation();
   const t = cartTranslations[lang as keyof typeof cartTranslations] || cartTranslations.fr;
 
-  // États de navigation
   const [isCheckout, setIsCheckout] = useState(false);
   const [isPayment, setIsPayment] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
 
-  // États de données
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [orderId, setOrderId] = useState<number | null>(null);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
@@ -274,14 +261,11 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
     if (!date) return [];
     const day = date.getDay();
     const slots: string[] = [];
-
     if (day >= 2 && day <= 5) {
-      slots.push("11:30", "12:00", "12:30", "13:00", "13:30");
-      slots.push("18:00", "18:30", "19:00", "19:30", "20:00", "20:30", "21:00", "21:30", "22:00");
+      slots.push("11:30", "12:00", "12:30", "13:00", "13:30", "18:00", "18:30", "19:00", "19:30", "20:00", "20:30", "21:00", "21:30", "22:00");
     } else if (day === 0 || day === 6) {
       slots.push("18:00", "18:30", "19:00", "19:30", "20:00", "20:30", "21:00", "21:30", "22:00");
     }
-
     const now = new Date();
     if (date.toDateString() === now.toDateString()) {
       const currentTimeVal = now.getHours() + now.getMinutes() / 60;
@@ -300,7 +284,6 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
     const tomorrow = new Date(); tomorrow.setDate(today.getDate() + 1);
     if (d.toDateString() === today.toDateString()) return t.today;
     if (d.toDateString() === tomorrow.toDateString()) return t.tomorrow;
-    
     const formatted = new Intl.DateTimeFormat(lang, { weekday: 'short', day: 'numeric', month: 'short' }).format(d);
     return formatted.charAt(0).toUpperCase() + formatted.slice(1);
   };
@@ -309,71 +292,47 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
   const isDeliveryValid = !isDelivery || totalPrice >= MIN_DELIVERY_AMOUNT;
   const isFormReady = isDeliveryValid && selectedDate !== null && selectedTime !== "";
 
-  // ✅ ÉTAPE 1 : Sauvegarde BDD "En attente" + Récupération clé Stripe
   const handlePreparePayment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isFormReady) return;
-
     setIsSubmitting(true);
-
     try {
-      const cleanItems = items.map(item => ({
-        id: item.id,
-        name: item.name,
-        price: item.price,
-        quantity: item.quantity
-      }));
-
-      // 1. Sauvegarde dans Supabase avec statut temporaire
-      const { data, error } = await supabase
-        .from('orders')
-        .insert([{
-          customer_name: formData.name,
-          customer_phone: formData.phone,
-          pickup_date: selectedDate ? selectedDate.toISOString().split('T')[0] : null,
-          pickup_time: selectedTime,
-          order_type: formData.type,
-          delivery_address: isDelivery ? formData.address : null,
-          delivery_zip: isDelivery ? formData.zip : null,
-          delivery_floor: isDelivery ? formData.floor : null,
-          delivery_code: isDelivery ? formData.doorCode : null,
-          special_instructions: formData.comments,
-          total_amount: totalPrice,
-          items: cleanItems,
-          status: "En attente de paiement" // Nouveau statut
-        }])
-        .select();
-
+      const cleanItems = items.map(item => ({ id: item.id, name: item.name, price: item.price, quantity: item.quantity }));
+      const { data, error } = await supabase.from('orders').insert([{
+        customer_name: formData.name,
+        customer_phone: formData.phone,
+        pickup_date: selectedDate ? selectedDate.toISOString().split('T')[0] : null,
+        pickup_time: selectedTime,
+        order_type: formData.type,
+        delivery_address: isDelivery ? formData.address : null,
+        delivery_zip: isDelivery ? formData.zip : null,
+        delivery_floor: isDelivery ? formData.floor : null,
+        delivery_code: isDelivery ? formData.doorCode : null,
+        special_instructions: formData.comments,
+        total_amount: totalPrice,
+        items: cleanItems,
+        status: "En attente de paiement"
+      }]).select();
       if (error) throw error;
-      if (!data || data.length === 0) throw new Error("Erreur base de données");
-
       const newOrderId = data[0].id;
       setOrderId(newOrderId);
-
-      // 2. Demande de la clé secrète à notre API Stripe
       const res = await fetch("/api/create-payment-intent", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ amount: totalPrice, orderId: newOrderId }),
       });
-
       const paymentData = await res.json();
       if (paymentData.error) throw new Error(paymentData.error);
-
-      // 3. On ouvre le module de paiement
       setClientSecret(paymentData.clientSecret);
       setIsPayment(true);
-
     } catch (error) {
       const err = error as Error;
-      console.error("Erreur d'initialisation du paiement :", err);
       alert(`Erreur : ${err.message || "Impossible de contacter la banque."}`);
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // ✅ ÉTAPE 2 : Action quand le paiement est validé
   const handlePaymentSuccess = () => {
     clearCart();
     setIsPayment(false);
@@ -388,17 +347,11 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
     onClose();
   };
 
-  // Options de design pour intégrer Stripe dans l'UI sombre de Kabuki
   const stripeOptions = {
     clientSecret: clientSecret || "",
     appearance: {
       theme: 'night' as const,
-      variables: {
-        colorPrimary: '#dc2626', 
-        colorBackground: '#171717', 
-        colorText: '#ffffff',
-        colorDanger: '#ef4444',
-      },
+      variables: { colorPrimary: '#dc2626', colorBackground: '#171717', colorText: '#ffffff', colorDanger: '#ef4444' },
     },
   };
 
@@ -406,283 +359,75 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
     <AnimatePresence>
       {isOpen && (
         <>
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={isSuccess ? handleCloseSuccess : onClose}
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100]"
-          />
-
-          <motion.div 
-            initial={{ x: "100%" }}
-            animate={{ x: 0 }}
-            exit={{ x: "100%" }}
-            transition={{ type: "spring", damping: 25, stiffness: 200 }}
-            className="fixed top-0 right-0 h-full w-full md:w-[450px] bg-neutral-900 border-l border-neutral-800 shadow-2xl z-[101] flex flex-col"
-          >
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={isSuccess ? handleCloseSuccess : onClose} className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100]" />
+          <motion.div initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }} transition={{ type: "spring", damping: 25, stiffness: 200 }} className="fixed top-0 right-0 h-full w-full md:w-[450px] bg-neutral-900 border-l border-neutral-800 shadow-2xl z-[101] flex flex-col">
             {!isSuccess && (
               <div className="flex items-center justify-between p-6 border-b border-neutral-800 shrink-0">
                 <h2 className="text-xl font-display font-bold text-white uppercase tracking-widest flex items-center gap-3">
-                  {isPayment ? (
-                    <>
-                      <ShieldCheck size={20} className="text-green-500" />
-                      {t.titlePayment}
-                    </>
-                  ) : isCheckout ? (
-                    <>
-                      <button onClick={() => setIsCheckout(false)} className="hover:text-kabuki-red transition"><ArrowLeft size={20} /></button>
-                      {t.titleCheckout}
-                    </>
-                  ) : (
-                    <>
-                      <ShoppingBag size={20} className="text-kabuki-red" />
-                      {t.titleCart}
-                    </>
-                  )}
+                  {isPayment ? <><ShieldCheck size={20} className="text-green-500" />{t.titlePayment}</> : isCheckout ? <><button onClick={() => setIsCheckout(false)} className="hover:text-kabuki-red transition"><ArrowLeft size={20} /></button>{t.titleCheckout}</> : <><ShoppingBag size={20} className="text-kabuki-red" />{t.titleCart}</>}
                 </h2>
-                <button onClick={onClose} className="p-2 text-gray-400 hover:text-white bg-neutral-800 rounded-full transition">
-                  <X size={18} />
-                </button>
+                <button onClick={onClose} className="p-2 text-gray-400 hover:text-white bg-neutral-800 rounded-full transition"><X size={18} /></button>
               </div>
             )}
-
             {isSuccess ? (
-              // ✅ VUE 3 : SUCCÈS
               <div className="flex-1 flex flex-col items-center justify-center p-8 text-center space-y-6">
-                <motion.div 
-                  initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring", bounce: 0.5 }}
-                  className="w-24 h-24 bg-green-500/20 text-green-500 rounded-full flex items-center justify-center"
-                >
-                  <CheckCircle size={48} />
-                </motion.div>
-                
-                <h2 className="text-2xl font-display font-bold text-white uppercase tracking-widest">
-                  {t.successTitle}
-                </h2>
-                
+                <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring", bounce: 0.5 }} className="w-24 h-24 bg-green-500/20 text-green-500 rounded-full flex items-center justify-center"><CheckCircle size={48} /></motion.div>
+                <h2 className="text-2xl font-display font-bold text-white uppercase tracking-widest">{t.successTitle}</h2>
                 <div className="bg-neutral-800 p-4 rounded-xl border border-neutral-700 w-full">
                   <p className="text-gray-300 text-sm mb-2">{t.successDesc}</p>
                   <p className="text-xl font-bold text-kabuki-red">#KBK-{orderId}</p>
                 </div>
-
-                <div className="pt-8 space-y-4 w-full">
-                  <button 
-                    onClick={handleCloseSuccess}
-                    className="w-full bg-neutral-800 text-white font-bold py-4 rounded-xl uppercase tracking-widest hover:bg-neutral-700 transition"
-                  >
-                    {t.btnClose}
-                  </button>
-                </div>
+                <button onClick={handleCloseSuccess} className="w-full bg-neutral-800 text-white font-bold py-4 rounded-xl uppercase tracking-widest hover:bg-neutral-700 transition">{t.btnClose}</button>
               </div>
             ) : isPayment && clientSecret ? (
-              // ✅ VUE 2.5 : PAIEMENT STRIPE
               <Elements options={stripeOptions} stripe={stripePromise}>
-                <StripeCheckoutForm 
-                  total={totalPrice} 
-                  orderId={orderId} 
-                  onSuccess={handlePaymentSuccess} 
-                  onCancel={() => { setIsPayment(false); setClientSecret(null); }} 
-                  t={t} 
-                />
+                <StripeCheckoutForm total={totalPrice} onSuccess={handlePaymentSuccess} onCancel={() => { setIsPayment(false); setClientSecret(null); }} t={t} />
               </Elements>
             ) : (
-              // ✅ VUE 1 & 2 : PANIER / FORMULAIRE
               <>
                 <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
                   {items.length === 0 ? (
                     <div className="flex flex-col items-center justify-center h-full text-gray-500 space-y-4">
-                      <ShoppingBag size={48} className="opacity-20" />
-                      <p className="uppercase tracking-widest text-sm">{t.emptyCart}</p>
+                      <ShoppingBag size={48} className="opacity-20" /><p className="uppercase tracking-widest text-sm">{t.emptyCart}</p>
                     </div>
                   ) : (
                     <>
                       {!isCheckout ? (
                         <div className="space-y-6">
                           <div className="flex justify-between items-center pb-2 border-b border-neutral-800/50">
-                            <span className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">
-                              {totalItems} {totalItems > 1 ? t.itemsPlural : t.items}
-                            </span>
-                            <button 
-                              onClick={clearCart}
-                              className="text-[10px] text-gray-400 hover:text-kabuki-red font-bold uppercase tracking-widest flex items-center gap-1.5 transition-colors"
-                            >
-                              <Trash2 size={12} />
-                              {t.clearCart}
-                            </button>
+                            <span className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">{totalItems} {totalItems > 1 ? t.itemsPlural : t.items}</span>
+                            <button onClick={clearCart} className="text-[10px] text-gray-400 hover:text-kabuki-red font-bold uppercase tracking-widest flex items-center gap-1.5 transition-colors"><Trash2 size={12} /> {t.clearCart}</button>
                           </div>
-
                           {items.map((item) => (
                             <div key={item.id} className="flex gap-4 items-center bg-black/40 p-3 rounded-2xl border border-neutral-800/50">
-                              <div className="w-16 h-16 relative bg-neutral-800 rounded-xl overflow-hidden shrink-0">
-                                {item.image_url && <Image src={item.image_url} alt={item.name} fill className="object-cover" />}
-                              </div>
-                              <div className="flex-1">
-                                <h4 className="text-white font-bold text-sm uppercase line-clamp-1">{item.name}</h4>
-                                <div className="text-kabuki-red font-bold text-xs mt-1">{(item.price * item.quantity).toFixed(2)} CHF</div>
-                              </div>
-                              <div className="flex items-center gap-3 bg-neutral-800 rounded-full px-2 py-1">
-                                <button type="button" onClick={() => updateQuantity(item.id, item.quantity - 1)} className="text-white hover:text-kabuki-red"><Minus size={14} /></button>
-                                <span className="text-white text-xs font-bold w-4 text-center">{item.quantity}</span>
-                                <button type="button" onClick={() => updateQuantity(item.id, item.quantity + 1)} className="text-white hover:text-kabuki-red"><Plus size={14} /></button>
-                              </div>
-                              <button type="button" onClick={() => removeFromCart(item.id)} className="text-gray-500 hover:text-kabuki-red p-2 transition">
-                                <Trash2 size={16} />
-                              </button>
+                              <div className="w-16 h-16 relative bg-neutral-800 rounded-xl overflow-hidden shrink-0">{item.image_url && <Image src={item.image_url} alt={item.name} fill className="object-cover" />}</div>
+                              <div className="flex-1"><h4 className="text-white font-bold text-sm uppercase line-clamp-1">{item.name}</h4><div className="text-kabuki-red font-bold text-xs mt-1">{(item.price * item.quantity).toFixed(2)} CHF</div></div>
+                              <div className="flex items-center gap-3 bg-neutral-800 rounded-full px-2 py-1"><button type="button" onClick={() => updateQuantity(item.id, item.quantity - 1)} className="text-white hover:text-kabuki-red"><Minus size={14} /></button><span className="text-white text-xs font-bold w-4 text-center">{item.quantity}</span><button type="button" onClick={() => updateQuantity(item.id, item.quantity + 1)} className="text-white hover:text-kabuki-red"><Plus size={14} /></button></div>
+                              <button type="button" onClick={() => removeFromCart(item.id)} className="text-gray-500 hover:text-kabuki-red p-2 transition"><Trash2 size={16} /></button>
                             </div>
                           ))}
                         </div>
                       ) : (
                         <form id="checkout-form" onSubmit={handlePreparePayment} className="space-y-6 pb-8">
                           <div className="space-y-4">
-                            <div className="space-y-1">
-                              <label className="text-[10px] font-bold text-kabuki-red uppercase tracking-widest">{t.name}</label>
-                              <input required type="text" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full bg-black text-white border border-neutral-800 focus:border-kabuki-red rounded-xl px-4 py-3 outline-none transition" placeholder={t.namePlaceholder} />
-                            </div>
-                            
-                            <div className="space-y-1">
-                              <label className="text-[10px] font-bold text-kabuki-red uppercase tracking-widest">{t.phone}</label>
-                              <input required type="tel" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} className="w-full bg-black text-white border border-neutral-800 focus:border-kabuki-red rounded-xl px-4 py-3 outline-none transition" placeholder="079..." />
-                            </div>
-
-                            <div className="space-y-2 pt-2">
-                              <label className="text-[10px] font-bold text-kabuki-red uppercase tracking-widest flex items-center gap-1">
-                                <Calendar size={12} /> {t.date}
-                              </label>
-                              <div className="flex gap-2 overflow-x-auto pb-2 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-                                {availableDays.map((d, idx) => {
-                                  const isSelected = selectedDate?.toDateString() === d.toDateString();
-                                  return (
-                                    <button
-                                      key={idx} type="button"
-                                      onClick={() => { setSelectedDate(d); setSelectedTime(""); }}
-                                      className={`shrink-0 px-4 py-2.5 rounded-xl border text-xs font-bold transition-all whitespace-nowrap ${isSelected ? "bg-kabuki-red border-kabuki-red text-white shadow-lg shadow-red-900/20" : "bg-neutral-800 border-neutral-700 text-gray-400 hover:text-white"}`}
-                                    >
-                                      {getDayLabel(d)}
-                                    </button>
-                                  );
-                                })}
-                              </div>
-                            </div>
-
-                            <AnimatePresence mode="wait">
-                              {selectedDate && (
-                                <motion.div 
-                                  key={selectedDate.toISOString()}
-                                  initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} 
-                                  className="space-y-2"
-                                >
-                                  <label className="text-[10px] font-bold text-kabuki-red uppercase tracking-widest flex items-center gap-1">
-                                    <Clock size={12} /> {t.time}
-                                  </label>
-                                  {availableSlots.length > 0 ? (
-                                    <div className="grid grid-cols-4 gap-2">
-                                      {availableSlots.map(slot => (
-                                        <button
-                                          key={slot} type="button"
-                                          onClick={() => setSelectedTime(slot)}
-                                          className={`py-2 rounded-lg border text-xs font-bold transition-all ${selectedTime === slot ? "bg-kabuki-red border-kabuki-red text-white" : "bg-neutral-800 border-neutral-700 text-gray-400 hover:bg-neutral-700"}`}
-                                        >
-                                          {slot}
-                                        </button>
-                                      ))}
-                                    </div>
-                                  ) : (
-                                    <p className="text-red-400 text-xs italic bg-red-900/20 p-3 rounded-lg border border-red-900/30">
-                                      {t.noTimeSlots}
-                                    </p>
-                                  )}
-                                </motion.div>
-                              )}
-                            </AnimatePresence>
-                            
-                            <div className="space-y-1 pt-2">
-                              <label className="text-[10px] font-bold text-kabuki-red uppercase tracking-widest">{t.pickupMode}</label>
-                              <div className="grid grid-cols-2 gap-3">
-                                <button type="button" onClick={() => setFormData({...formData, type: "Click & Collect"})} className={`py-3 rounded-xl border text-xs font-bold uppercase transition ${!isDelivery ? "bg-kabuki-red border-kabuki-red text-white" : "bg-black border-neutral-800 text-gray-400"}`}>{t.takeaway}</button>
-                                <button type="button" onClick={() => setFormData({...formData, type: "Livraison"})} className={`py-3 rounded-xl border text-xs font-bold uppercase transition ${isDelivery ? "bg-kabuki-red border-kabuki-red text-white" : "bg-black border-neutral-800 text-gray-400"}`}>{t.delivery}</button>
-                              </div>
-                            </div>
-
-                            <AnimatePresence>
-                              {isDelivery && (
-                                <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="space-y-4 overflow-hidden pt-2">
-                                  <div className="space-y-1">
-                                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{t.address}</label>
-                                    <input required type="text" value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} className="w-full bg-black text-white border border-neutral-800 focus:border-kabuki-red rounded-xl px-4 py-3 outline-none transition" placeholder={t.addressPlaceholder} />
-                                  </div>
-                                  <div className="grid grid-cols-3 gap-3">
-                                    <div className="space-y-1 col-span-1">
-                                      <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{t.zip}</label>
-                                      <input required type="text" value={formData.zip} onChange={e => setFormData({...formData, zip: e.target.value})} className="w-full bg-black text-white border border-neutral-800 focus:border-kabuki-red rounded-xl px-4 py-3 outline-none transition" placeholder="1201" />
-                                    </div>
-                                    <div className="space-y-1 col-span-1">
-                                      <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{t.floor}</label>
-                                      <input type="text" value={formData.floor} onChange={e => setFormData({...formData, floor: e.target.value})} className="w-full bg-black text-white border border-neutral-800 focus:border-kabuki-red rounded-xl px-4 py-3 outline-none transition" placeholder={t.floorPlaceholder} />
-                                    </div>
-                                    <div className="space-y-1 col-span-1">
-                                      <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{t.code}</label>
-                                      <input type="text" value={formData.doorCode} onChange={e => setFormData({...formData, doorCode: e.target.value})} className="w-full bg-black text-white border border-neutral-800 focus:border-kabuki-red rounded-xl px-4 py-3 outline-none transition" placeholder={t.codePlaceholder} />
-                                    </div>
-                                  </div>
-                                </motion.div>
-                              )}
-                            </AnimatePresence>
-
-                            <div className="space-y-1 pt-4 border-t border-neutral-800">
-                              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1">
-                                <MessageSquare size={12} /> {t.comments}
-                              </label>
-                              <textarea 
-                                value={formData.comments} 
-                                onChange={e => setFormData({...formData, comments: e.target.value})} 
-                                className="w-full bg-black text-white border border-neutral-800 focus:border-kabuki-red rounded-xl px-4 py-3 outline-none transition resize-none h-20 text-sm" 
-                                placeholder={t.commentsPlaceholder} 
-                              />
-                            </div>
+                            <div className="space-y-1"><label className="text-[10px] font-bold text-kabuki-red uppercase tracking-widest">{t.name}</label><input required type="text" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full bg-black text-white border border-neutral-800 focus:border-kabuki-red rounded-xl px-4 py-3 outline-none transition" placeholder={t.namePlaceholder} /></div>
+                            <div className="space-y-1"><label className="text-[10px] font-bold text-kabuki-red uppercase tracking-widest">{t.phone}</label><input required type="tel" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} className="w-full bg-black text-white border border-neutral-800 focus:border-kabuki-red rounded-xl px-4 py-3 outline-none transition" placeholder="079..." /></div>
+                            <div className="space-y-2 pt-2"><label className="text-[10px] font-bold text-kabuki-red uppercase tracking-widest flex items-center gap-1"><Calendar size={12} /> {t.date}</label><div className="flex gap-2 overflow-x-auto pb-2 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">{availableDays.map((d, idx) => { const isSelected = selectedDate?.toDateString() === d.toDateString(); return (<button key={idx} type="button" onClick={() => { setSelectedDate(d); setSelectedTime(""); }} className={`shrink-0 px-4 py-2.5 rounded-xl border text-xs font-bold transition-all whitespace-nowrap ${isSelected ? "bg-kabuki-red border-kabuki-red text-white shadow-lg shadow-red-900/20" : "bg-neutral-800 border-neutral-700 text-gray-400 hover:text-white"}`}>{getDayLabel(d)}</button>); })}</div></div>
+                            <AnimatePresence mode="wait">{selectedDate && (<motion.div key={selectedDate.toISOString()} initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-2"><label className="text-[10px] font-bold text-kabuki-red uppercase tracking-widest flex items-center gap-1"><Clock size={12} /> {t.time}</label>{availableSlots.length > 0 ? (<div className="grid grid-cols-4 gap-2">{availableSlots.map(slot => (<button key={slot} type="button" onClick={() => setSelectedTime(slot)} className={`py-2 rounded-lg border text-xs font-bold transition-all ${selectedTime === slot ? "bg-kabuki-red border-kabuki-red text-white" : "bg-neutral-800 border-neutral-700 text-gray-400 hover:bg-neutral-700"}`}>{slot}</button>))}</div>) : (<p className="text-red-400 text-xs italic bg-red-900/20 p-3 rounded-lg border border-red-900/30">{t.noTimeSlots}</p>)}</motion.div>)}</AnimatePresence>
+                            <div className="space-y-1 pt-2"><label className="text-[10px] font-bold text-kabuki-red uppercase tracking-widest">{t.pickupMode}</label><div className="grid grid-cols-2 gap-3"><button type="button" onClick={() => setFormData({...formData, type: "Click & Collect"})} className={`py-3 rounded-xl border text-xs font-bold uppercase transition ${!isDelivery ? "bg-kabuki-red border-kabuki-red text-white" : "bg-black border-neutral-800 text-gray-400"}`}>{t.takeaway}</button><button type="button" onClick={() => setFormData({...formData, type: "Livraison"})} className={`py-3 rounded-xl border text-xs font-bold uppercase transition ${isDelivery ? "bg-kabuki-red border-kabuki-red text-white" : "bg-black border-neutral-800 text-gray-400"}`}>{t.delivery}</button></div></div>
+                            <AnimatePresence>{isDelivery && (<motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="space-y-4 overflow-hidden pt-2"><div className="space-y-1"><label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{t.address}</label><input required type="text" value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} className="w-full bg-black text-white border border-neutral-800 focus:border-kabuki-red rounded-xl px-4 py-3 outline-none transition" placeholder={t.addressPlaceholder} /></div><div className="grid grid-cols-3 gap-3"><div className="space-y-1 col-span-1"><label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{t.zip}</label><input required type="text" value={formData.zip} onChange={e => setFormData({...formData, zip: e.target.value})} className="w-full bg-black text-white border border-neutral-800 focus:border-kabuki-red rounded-xl px-4 py-3 outline-none transition" placeholder="1201" /></div><div className="space-y-1 col-span-1"><label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{t.floor}</label><input type="text" value={formData.floor} onChange={e => setFormData({...formData, floor: e.target.value})} className="w-full bg-black text-white border border-neutral-800 focus:border-kabuki-red rounded-xl px-4 py-3 outline-none transition" placeholder={t.floorPlaceholder} /></div><div className="space-y-1 col-span-1"><label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{t.code}</label><input type="text" value={formData.doorCode} onChange={e => setFormData({...formData, doorCode: e.target.value})} className="w-full bg-black text-white border border-neutral-800 focus:border-kabuki-red rounded-xl px-4 py-3 outline-none transition" placeholder={t.codePlaceholder} /></div></div></motion.div>)}</AnimatePresence>
+                            <div className="space-y-1 pt-4 border-t border-neutral-800"><label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1"><MessageSquare size={12} /> {t.comments}</label><textarea value={formData.comments} onChange={e => setFormData({...formData, comments: e.target.value})} className="w-full bg-black text-white border border-neutral-800 focus:border-kabuki-red rounded-xl px-4 py-3 outline-none transition resize-none h-20 text-sm" placeholder={t.commentsPlaceholder} /></div>
                           </div>
                         </form>
                       )}
                     </>
                   )}
                 </div>
-
-                {/* --- FOOTER DES BOUTONS --- */}
                 {items.length > 0 && (
                   <div className="p-6 border-t border-neutral-800 bg-neutral-900 shrink-0">
-                    <div className="flex justify-between items-center mb-4">
-                      <span className="text-gray-400 uppercase tracking-widest text-xs font-bold">{t.totalEstimated}</span>
-                      <span className="text-2xl font-bold text-white font-display">{totalPrice.toFixed(2)} <span className="text-kabuki-red text-sm">CHF</span></span>
-                    </div>
-                    
-                    {isCheckout && isDelivery && !isDeliveryValid && (
-                      <div className="text-kabuki-red text-[10px] font-bold text-center mb-4 bg-kabuki-red/10 py-2 rounded-lg border border-kabuki-red/30">
-                        ⚠️ {t.minOrderError}
-                      </div>
-                    )}
-
-                    {!isCheckout ? (
-                      <button onClick={() => setIsCheckout(true)} className="w-full bg-kabuki-red text-white font-bold py-4 rounded-xl uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-red-700 transition shadow-lg shadow-red-900/20">
-                        {t.btnValidate} <ArrowRight size={16} />
-                      </button>
-                    ) : (
-                      <button 
-                        type="submit" 
-                        form="checkout-form" 
-                        disabled={!isFormReady || isSubmitting}
-                        className={`w-full font-bold py-4 rounded-xl uppercase tracking-widest flex items-center justify-center gap-2 transition shadow-lg ${
-                          isFormReady && !isSubmitting
-                            ? "bg-kabuki-red text-white hover:bg-red-700 shadow-red-900/20" 
-                            : "bg-neutral-800 text-neutral-500 cursor-not-allowed"
-                        }`}
-                      >
-                        {isSubmitting ? (
-                          <><Loader2 size={18} className="animate-spin" /> {t.sending}</>
-                        ) : (
-                          <><ShieldCheck size={18} /> Continuer vers le paiement</>
-                        )}
-                      </button>
-                    )}
+                    <div className="flex justify-between items-center mb-4"><span className="text-gray-400 uppercase tracking-widest text-xs font-bold">{t.totalEstimated}</span><span className="text-2xl font-bold text-white font-display">{totalPrice.toFixed(2)} <span className="text-kabuki-red text-sm">CHF</span></span></div>
+                    {isCheckout && isDelivery && !isDeliveryValid && (<div className="text-kabuki-red text-[10px] font-bold text-center mb-4 bg-kabuki-red/10 py-2 rounded-lg border border-kabuki-red/30">⚠️ {t.minOrderError}</div>)}
+                    {!isCheckout ? (<button onClick={() => setIsCheckout(true)} className="w-full bg-kabuki-red text-white font-bold py-4 rounded-xl uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-red-700 transition shadow-lg shadow-red-900/20">{t.btnValidate} <ArrowRight size={16} /></button>) : (<button type="submit" form="checkout-form" disabled={!isFormReady || isSubmitting} className={`w-full font-bold py-4 rounded-xl uppercase tracking-widest flex items-center justify-center gap-2 transition shadow-lg ${isFormReady && !isSubmitting ? "bg-kabuki-red text-white hover:bg-red-700 shadow-red-900/20" : "bg-neutral-800 text-neutral-500 cursor-not-allowed"}`}>{isSubmitting ? <><Loader2 size={18} className="animate-spin" /> {t.sending}</> : <><ShieldCheck size={18} /> Continuer vers le paiement</>}</button>)}
                   </div>
                 )}
               </>

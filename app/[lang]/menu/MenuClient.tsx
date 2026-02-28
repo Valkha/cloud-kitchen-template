@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, Info, Plus, CheckCircle } from "lucide-react"; // ✅ Ajout de CheckCircle
+import { Search, Info, Plus, CheckCircle } from "lucide-react";
 import Reveal from "@/components/Reveal";
 import { useTranslation } from "@/context/LanguageContext";
 import { supabase } from "@/utils/supabase";
@@ -11,7 +11,6 @@ import PageLoader from "@/components/PageLoader";
 import ProductModal from "@/components/ProductModal";
 import { useCart, MenuItem as ContextMenuItem } from "@/context/CartContext";
 
-// On s'assure que MenuItem correspond à celui du contexte
 export interface MenuItem extends ContextMenuItem {
   name_fr: string;
   name_en?: string;
@@ -43,7 +42,7 @@ const MenuItemCard = ({ item, onClick }: { item: MenuItem; onClick: () => void }
   const { lang } = useTranslation();
   const { addToCart } = useCart();
   const [imgError, setImgError] = useState(false);
-  const [isAdded, setIsAdded] = useState(false); // ✅ État pour la notification locale
+  const [isAdded, setIsAdded] = useState(false);
 
   const getTranslation = () => {
     const currentLang = lang.toLowerCase();
@@ -63,11 +62,8 @@ const MenuItemCard = ({ item, onClick }: { item: MenuItem; onClick: () => void }
 
   const { name: displayName, desc: displayDesc } = getTranslation();
 
-  // Fonction d'ajout rapide depuis la carte
   const handleQuickAdd = (e: React.MouseEvent) => {
-    e.stopPropagation(); // Empêche l'ouverture de la modale
-    
-    // Ajout au panier
+    e.stopPropagation();
     addToCart({
       id: item.id,
       name: displayName,
@@ -76,11 +72,10 @@ const MenuItemCard = ({ item, onClick }: { item: MenuItem; onClick: () => void }
       category: item.category,
     });
 
-    // ✅ Affichage de la notification sur la carte
     setIsAdded(true);
     setTimeout(() => {
       setIsAdded(false);
-    }, 2000); // Disparaît après 2 secondes
+    }, 2000);
   };
 
   return (
@@ -94,8 +89,6 @@ const MenuItemCard = ({ item, onClick }: { item: MenuItem; onClick: () => void }
       className="bg-neutral-800 rounded-lg shadow-lg overflow-hidden hover:-translate-y-1 transition-all duration-300 group border border-neutral-700 hover:border-kabuki-red flex flex-col h-full cursor-pointer relative"
     >
       <div className="w-full bg-neutral-900 relative aspect-square overflow-hidden">
-        
-        {/* ✅ BANIÈRE DE NOTIFICATION SUR L'IMAGE */}
         <AnimatePresence>
           {isAdded && (
             <motion.div
@@ -133,26 +126,31 @@ const MenuItemCard = ({ item, onClick }: { item: MenuItem; onClick: () => void }
       </div>
       
       <div className="p-3 flex flex-col flex-grow relative">
-        <div className="flex justify-between items-start mb-2 gap-2">
-          <h3 className="text-[11px] md:text-xs font-bold text-white uppercase line-clamp-2 leading-tight font-display tracking-wide pr-6">
+        <div className="flex-1 min-w-0 mb-3">
+          <h3 className="text-[11px] md:text-xs font-bold text-white uppercase line-clamp-2 leading-tight font-display tracking-wide mb-1">
             {displayName ? displayName.split('(')[0] : "Sans nom"}
           </h3>
-          <span className="bg-kabuki-red text-white font-bold px-1.5 py-0.5 rounded text-[9px] whitespace-nowrap shadow-sm">
-            {item.price ? Number(item.price).toFixed(2) : "0.00"} <span className="text-[7px]">CHF</span>
-          </span>
+          <p className="text-gray-500 text-[9px] line-clamp-2 leading-snug">
+            {displayDesc || "..."}
+          </p>
         </div>
-        <p className="text-gray-500 text-[9px] line-clamp-2 mt-auto leading-snug pr-8">
-          {displayDesc || "..."}
-        </p>
 
-        {/* Bouton Ajout Rapide */}
-        <button 
-          onClick={handleQuickAdd}
-          className="absolute bottom-2 right-2 w-8 h-8 rounded-full bg-neutral-700 text-white flex items-center justify-center hover:bg-kabuki-red hover:scale-110 transition-all shadow-md z-10"
-          title="Ajouter au panier"
-        >
-          <Plus size={16} strokeWidth={3} />
-        </button>
+        {/* ✅ SECTION PRIX & BOUTON CORRIGÉE */}
+        <div className="flex items-center justify-between gap-2 pt-2 border-t border-neutral-700/50">
+          {/* Prix avec whitespace-nowrap pour éviter les sauts de ligne */}
+          <span className="bg-kabuki-red text-white font-bold px-2 py-1 rounded text-[9px] whitespace-nowrap shadow-sm flex-shrink-0">
+            {item.price ? Number(item.price).toFixed(2) : "0.00"} <span className="text-[7px] ml-0.5">CHF</span>
+          </span>
+
+          {/* Bouton Plus avec flex-shrink-0 pour ne jamais être écrasé */}
+          <button 
+            onClick={handleQuickAdd}
+            className="w-8 h-8 rounded-full bg-neutral-700 text-white flex items-center justify-center hover:bg-kabuki-red hover:scale-110 active:scale-90 transition-all shadow-md flex-shrink-0"
+            title="Ajouter au panier"
+          >
+            <Plus size={16} strokeWidth={3} />
+          </button>
+        </div>
       </div>
     </motion.div>
   );
@@ -176,10 +174,9 @@ export default function MenuClient() {
         .order("id", { ascending: true });
 
       if (data) {
-        // Adaption des données pour correspondre à MenuItem local
         const mappedData = data.map(item => ({
           ...item,
-          name: item.name_fr // Utilisé comme fallback
+          name: item.name_fr 
         }));
         setItems(mappedData as MenuItem[]);
       }
@@ -289,7 +286,6 @@ export default function MenuClient() {
         </AnimatePresence>
       </div>
 
-      {/* Modale Produit */}
       <AnimatePresence>
         {selectedProduct && (
           <ProductModal 

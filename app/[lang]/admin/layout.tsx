@@ -5,10 +5,9 @@ import { usePathname } from "next/navigation";
 import { useTranslation } from "@/context/LanguageContext";
 import { 
   UtensilsCrossed, 
-  Star, 
-  MessageSquare, 
   LogOut,
-  ArrowLeft
+  ArrowLeft,
+  ShoppingBag 
 } from "lucide-react";
 import { supabase } from "@/utils/supabase";
 
@@ -28,23 +27,25 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     window.location.href = `/${lang}/login?logout=true`;
   };
 
-  const isActive = (path: string) => pathname === path || pathname?.startsWith(path + "/");
+  // On ajuste isActive pour que "Commandes" ne soit pas actif quand on est dans un sous-menu
+  const isActive = (path: string) => {
+    if (path.endsWith('/admin')) {
+        return pathname === path; // Match exact pour le Dashboard
+    }
+    return pathname === path || pathname?.startsWith(path + "/");
+  };
 
+  // ✅ Liste nettoyée : Uniquement Commandes et Carte
   const adminLinks = [
+    { 
+      name: "Commandes", 
+      path: `/${lang}/admin`, 
+      icon: <ShoppingBag size={16} /> 
+    },
     { 
       name: t.nav.menu || "Carte", 
       path: `/${lang}/admin/menu`, 
       icon: <UtensilsCrossed size={16} /> 
-    },
-    { 
-      name: "Avis", 
-      path: `/${lang}/admin/avis`, 
-      icon: <Star size={16} /> 
-    },
-    { 
-      name: "Messages", 
-      path: `/${lang}/admin/messages`, 
-      icon: <MessageSquare size={16} /> 
     },
   ];
 

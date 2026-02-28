@@ -36,11 +36,13 @@ export default function OrdersList() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
-  const [isSoundEnabled, setIsSoundEnabled] = useState(false);
+  // ✅ Alertes sonores ON par défaut
+  const [isSoundEnabled, setIsSoundEnabled] = useState(true);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
+    // Initialisation du son
     audioRef.current = new Audio("/sounds/notification.wav");
     audioRef.current.load();
   }, []);
@@ -51,7 +53,7 @@ export default function OrdersList() {
       audioRef.current.currentTime = 0;
       audioRef.current.play()
         .then(() => console.log("✅ Son joué"))
-        .catch(err => console.error("❌ Erreur audio :", err));
+        .catch(err => console.error("❌ Erreur audio (bloqué par le navigateur) :", err));
     }
   }, [isSoundEnabled]);
 
@@ -61,6 +63,7 @@ export default function OrdersList() {
       const { data, error } = await supabase
         .from("orders")
         .select("*")
+        // ✅ On filtre les commandes dont le paiement n'est pas encore confirmé
         .neq("status", "Paiement en cours") 
         .order("created_at", { ascending: false });
 
@@ -98,10 +101,15 @@ export default function OrdersList() {
         "postgres_changes", 
         { event: "UPDATE", schema: "public", table: "orders" }, 
         (payload) => {
+          console.log("🔄 Mise à jour détectée :", payload.new.status);
+          
+          // ✅ LOGIQUE DE NOTIFICATION :
+          // On fait sonner si le nouveau statut est "Payé" et que l'ancien ne l'était pas
           const isNowPaid = payload.new?.status === "Payé";
           const wasNotPaid = !payload.old || payload.old.status !== "Payé";
 
           if (isNowPaid && wasNotPaid) {
+            console.log("🔔 ALERTE : Nouvelle commande payée !");
             playNotification();
           }
           fetchOrders();
@@ -111,6 +119,7 @@ export default function OrdersList() {
         "postgres_changes", 
         { event: "INSERT", schema: "public", table: "orders" }, 
         (payload) => {
+          // Si une commande arrive directement avec le statut "Payé"
           if (payload.new?.status === "Payé") {
             playNotification();
           }
@@ -124,7 +133,9 @@ export default function OrdersList() {
 
   const testSound = () => {
     if (audioRef.current) {
-      audioRef.current.play().then(() => alert("Le son fonctionne !")).catch(e => alert("Erreur: " + e.message));
+      audioRef.current.play()
+        .then(() => alert("Le son fonctionne !"))
+        .catch(() => alert("Le navigateur bloque le son. Cliquez n'importe où sur la page puis réessayez."));
     }
   };
 
@@ -148,6 +159,7 @@ export default function OrdersList() {
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex justify-between items-center bg-neutral-900/50 p-4 rounded-2xl border border-neutral-800 flex-wrap gap-4">
         <div className="flex items-center gap-6">
           <h2 className="text-xl font-display font-bold text-white uppercase tracking-widest flex items-center gap-3">
@@ -158,10 +170,11 @@ export default function OrdersList() {
             <button 
               onClick={() => {
                 setIsSoundEnabled(!isSoundEnabled);
-                if (!isSoundEnabled && audioRef.current) audioRef.current.play().catch(() => {});
+                // On tente de jouer le son lors du clic pour autoriser l'audio dans le navigateur
+                if (audioRef.current) audioRef.current.play().catch(() => {});
               }}
               className={`flex items-center gap-2 px-4 py-2 rounded-full text-[10px] font-bold uppercase transition-all border ${
-                isSoundEnabled ? "bg-green-500/10 border-green-500/30 text-green-500" : "bg-red-500/10 border-red-500/30 text-red-400"
+                isSoundEnabled ? "bg-green-500/10 border-green-500/30 text-green-500 shadow-[0_0_15px_rgba(34,197,94,0.2)]" : "bg-red-500/10 border-red-500/30 text-red-400"
               }`}
             >
               {isSoundEnabled ? <Volume2 size={14} /> : <VolumeX size={14} />}
@@ -195,7 +208,7 @@ export default function OrdersList() {
                   <h4 className="text-white font-bold text-base uppercase leading-tight">{order.customer_name}</h4>
                   <span className="text-[9px] text-gray-500 font-bold uppercase tracking-widest">{order.order_type}</span>
                 </div>
-                <div className="flex flex-col text-sm text-white font-bold">
+                <div className="flex flex-col text-sm text-white font-bold italic">
                   <div className="flex items-center gap-2"><Calendar size={14} className="text-kabuki-red" /> {order.pickup_time}</div>
                 </div>
                 <div className="flex items-center gap-4 bg-black/30 p-2 rounded-2xl border border-neutral-800/50">
@@ -236,18 +249,18 @@ export default function OrdersList() {
                   <div>
                     <span className="text-[10px] text-gray-500 uppercase font-bold flex items-center gap-2"><User size={12}/> Client</span>
                     <p className="text-white text-lg font-bold uppercase">{selectedOrder.customer_name}</p>
-                    <p className="text-gray-400 text-sm">{selectedOrder.customer_phone}</p>
+                    <p className="text-gray-400 text-sm font-medium">{selectedOrder.customer_phone}</p>
                   </div>
                   <div>
                     <span className="text-[10px] text-gray-500 uppercase font-bold flex items-center gap-2"><Calendar size={12}/> Créneau</span>
                     <p className="text-white text-lg font-bold">{selectedOrder.pickup_time}</p>
-                    <p className="text-kabuki-red text-[10px] font-bold uppercase">{selectedOrder.order_type}</p>
+                    <p className="text-kabuki-red text-[10px] font-bold uppercase tracking-widest">{selectedOrder.order_type}</p>
                   </div>
                 </div>
                 {selectedOrder.order_type === "Livraison" && (
                   <div className="bg-blue-500/5 p-5 rounded-3xl border border-blue-500/10 text-white">
                     <span className="text-[10px] text-blue-400 uppercase font-bold flex items-center gap-2 mb-2"><MapPin size={12}/> Destination</span>
-                    <p className="text-base font-bold">{selectedOrder.delivery_address}, {selectedOrder.delivery_zip}</p>
+                    <p className="text-base font-bold leading-relaxed">{selectedOrder.delivery_address}, {selectedOrder.delivery_zip}</p>
                   </div>
                 )}
                 {selectedOrder.comments && (
@@ -265,16 +278,16 @@ export default function OrdersList() {
                     <div key={idx} className="flex justify-between items-center bg-black/40 p-4 rounded-2xl border border-white/5 text-sm">
                       <div className="flex items-center gap-4">
                         <span className="w-8 h-8 bg-neutral-800 rounded-lg flex items-center justify-center font-black text-kabuki-red">{item.quantity}</span>
-                        <span className="text-white font-bold uppercase">{item.name}</span>
+                        <span className="text-white font-bold uppercase tracking-tight">{item.name}</span>
                       </div>
-                      <span className="text-gray-500">{(item.price * item.quantity).toFixed(2)}</span>
+                      <span className="text-gray-500 font-bold italic">{(item.price * item.quantity).toFixed(2)}</span>
                     </div>
                   ))}
                 </div>
                 <div className="pt-6 border-t border-neutral-800 flex flex-col gap-4 mt-auto">
                   <div className="flex justify-between items-center px-2">
                     <span className="text-gray-500 font-bold uppercase text-[10px]">Total</span>
-                    <span className="text-3xl font-display font-bold text-white">{Number(selectedOrder.total_amount).toFixed(2)} <span className="text-kabuki-red text-sm">CHF</span></span>
+                    <span className="text-3xl font-display font-bold text-white">{Number(selectedOrder.total_amount).toFixed(2)} <span className="text-kabuki-red text-sm uppercase">CHF</span></span>
                   </div>
                   {getStatusStyle(selectedOrder.status).next && (
                     <button onClick={() => updateStatus(selectedOrder.id, getStatusStyle(selectedOrder.status).next!)} className="w-full bg-white text-black py-5 rounded-[20px] font-black uppercase tracking-[0.2em] flex items-center justify-center gap-3 hover:bg-kabuki-red hover:text-white transition-all shadow-2xl">
@@ -290,7 +303,7 @@ export default function OrdersList() {
                           if (!res.ok) throw new Error("Erreur");
                           updateStatus(selectedOrder.id, "Annulée");
                           setSelectedOrder(null); 
-                        // ✅ Correction ici : on retire le mot-clé 'error' inutilisé
+                        // ✅ TypeScript : catch sans variable car non utilisée
                         } catch {
                           alert("Erreur lors de l'annulation");
                         }

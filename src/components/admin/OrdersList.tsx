@@ -11,7 +11,9 @@ import {
   MapPin, 
   Eye, 
   XCircle, 
-  Calendar 
+  Calendar,
+  CheckCircle2, // ✅ Ajouté pour le statut Payé
+  AlertCircle // ✅ Ajouté pour le statut En attente
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -33,7 +35,7 @@ interface Order {
   order_type: string;
   total_amount: number;
   items: OrderItem[]; 
-  status: string;
+  status: string; // ✅ Le statut est bien présent dans l'interface
   delivery_address?: string;
   delivery_zip?: string;
 }
@@ -105,12 +107,13 @@ export default function OrdersList() {
                 <p className="text-white font-bold text-sm uppercase">{order.customer_name}</p>
               </div>
 
-              <div className="flex items-center gap-6">
+              <div className="flex items-center gap-6 flex-wrap">
                 <div className="flex flex-col">
                   <span className="text-[9px] text-gray-500 uppercase font-bold mb-1">Passage</span>
                   <div className="flex items-center gap-2 text-xs text-gray-300">
                     <Calendar size={12} className="text-kabuki-red" />
-                    {format(new Date(order.pickup_date), "dd MMM", { locale: fr })} à {order.pickup_time}
+                    {/* Gestion sécurisée de la date au cas où elle serait null */}
+                    {order.pickup_date ? format(new Date(order.pickup_date), "dd MMM", { locale: fr }) : "-"} à {order.pickup_time || "-"}
                   </div>
                 </div>
 
@@ -118,6 +121,19 @@ export default function OrdersList() {
                   <span className="text-[9px] text-gray-500 uppercase font-bold mb-1">Type</span>
                   <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full uppercase ${order.order_type === 'Livraison' ? 'bg-blue-500/10 text-blue-400' : 'bg-orange-500/10 text-orange-400'}`}>
                     {order.order_type}
+                  </span>
+                </div>
+
+                {/* ✅ AJOUT DU BADGE DE STATUT */}
+                <div className="flex flex-col">
+                  <span className="text-[9px] text-gray-500 uppercase font-bold mb-1">Statut</span>
+                  <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full uppercase flex items-center gap-1 border ${
+                    order.status === 'Payé' 
+                      ? 'bg-green-500/10 text-green-500 border-green-500/20' 
+                      : 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20'
+                  }`}>
+                    {order.status === 'Payé' ? <CheckCircle2 size={10} /> : <AlertCircle size={10} />}
+                    {order.status || "Nouveau"}
                   </span>
                 </div>
 
@@ -145,13 +161,23 @@ export default function OrdersList() {
         {selectedOrder && (
           <div className="fixed inset-0 z-[150] flex items-center justify-center p-4">
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setSelectedOrder(null)} className="absolute inset-0 bg-black/80 backdrop-blur-sm" />
-            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="relative bg-neutral-900 border border-neutral-800 w-full max-w-lg rounded-3xl overflow-hidden shadow-2xl">
-              <div className="p-6 border-b border-neutral-800 flex justify-between items-center bg-black/20">
-                <h3 className="text-white font-display font-bold uppercase tracking-widest text-sm">Détails #KBK-{selectedOrder.id}</h3>
+            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="relative bg-neutral-900 border border-neutral-800 w-full max-w-lg rounded-3xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+              
+              <div className="p-6 border-b border-neutral-800 flex justify-between items-center bg-black/20 shrink-0">
+                <div className="flex items-center gap-4">
+                  <h3 className="text-white font-display font-bold uppercase tracking-widest text-sm">#KBK-{selectedOrder.id}</h3>
+                  {/* ✅ Badge de statut aussi dans la modale */}
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase flex items-center gap-1 border ${
+                    selectedOrder.status === 'Payé' ? 'bg-green-500/10 text-green-500 border-green-500/20' : 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20'
+                  }`}>
+                    {selectedOrder.status === 'Payé' ? <CheckCircle2 size={10} /> : <AlertCircle size={10} />}
+                    {selectedOrder.status}
+                  </span>
+                </div>
                 <button onClick={() => setSelectedOrder(null)} className="text-gray-500 hover:text-white transition"><XCircle size={20}/></button>
               </div>
 
-              <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto custom-scrollbar">
+              <div className="p-6 space-y-6 overflow-y-auto custom-scrollbar">
                 <div className="grid grid-cols-2 gap-4">
                    <div className="space-y-1">
                       <span className="text-[9px] text-gray-500 uppercase font-bold flex items-center gap-1"><User size={10}/> Client</span>

@@ -2,16 +2,24 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Minus, Plus, Trash2, ShoppingBag, ArrowRight, ArrowLeft, Clock, Calendar, MessageSquare, Loader2, CheckCircle } from "lucide-react";
+import { X, Minus, Plus, Trash2, ShoppingBag, ArrowRight, ArrowLeft, Clock, Calendar, MessageSquare, Loader2, CheckCircle, ShieldCheck } from "lucide-react";
 import { useCart } from "@/context/CartContext";
 import Image from "next/image";
 import { useTranslation } from "@/context/LanguageContext";
 import { supabase } from "@/utils/supabase"; 
 
+// ✅ IMPORTS STRIPE
+import { loadStripe } from "@stripe/stripe-js";
+import { Elements, PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js";
+
+// Initialisation de Stripe (À l'extérieur du composant pour éviter les rechargements)
+const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
+
 const cartTranslations = {
   fr: {
     titleCart: "Mon Panier",
     titleCheckout: "Validation",
+    titlePayment: "Paiement Sécurisé",
     emptyCart: "Votre panier est vide",
     items: "article",
     itemsPlural: "articles",
@@ -33,23 +41,25 @@ const cartTranslations = {
     codePlaceholder: "Ex: A123",
     comments: "Instructions / Allergies",
     commentsPlaceholder: "Sans wasabi, allergie au sésame...",
-    totalEstimated: "Total Estimé",
-    btnValidate: "Valider le panier",
-    btnWhatsapp: "Envoyer par WhatsApp",
+    totalEstimated: "Total à payer",
+    btnValidate: "Passer à la caisse",
+    btnPay: "Payer la commande",
     minOrderError: "Minimum de 25 CHF requis pour la livraison.",
     noTimeSlots: "Aucun horaire disponible pour cette date.",
     today: "Aujourd'hui",
     tomorrow: "Demain",
-    sending: "Enregistrement...",
-    successTitle: "Commande enregistrée !",
-    successDesc: "Votre commande a bien été reçue par notre système.",
-    whatsappRedirect: "Si WhatsApp ne s'est pas ouvert automatiquement, cliquez ci-dessous :",
-    btnOpenWhatsapp: "Ouvrir WhatsApp",
-    btnClose: "Fermer le panier"
+    sending: "Génération du paiement...",
+    processing: "Paiement en cours...",
+    paymentError: "Le paiement a échoué. Veuillez réessayer.",
+    successTitle: "Paiement réussi !",
+    successDesc: "Votre commande a été réglée et validée par notre cuisine.",
+    btnClose: "Fermer",
+    cancelPayment: "Annuler et modifier"
   },
   en: {
     titleCart: "My Cart",
     titleCheckout: "Checkout",
+    titlePayment: "Secure Payment",
     emptyCart: "Your cart is empty",
     items: "item",
     itemsPlural: "items",
@@ -71,23 +81,25 @@ const cartTranslations = {
     codePlaceholder: "Ex: A123",
     comments: "Special Instructions",
     commentsPlaceholder: "No wasabi, sesame allergy...",
-    totalEstimated: "Estimated Total",
-    btnValidate: "Proceed to Checkout",
-    btnWhatsapp: "Send via WhatsApp",
+    totalEstimated: "Total to pay",
+    btnValidate: "Proceed to checkout",
+    btnPay: "Pay Order",
     minOrderError: "Minimum 25 CHF required for delivery.",
     noTimeSlots: "No time slots available for this date.",
     today: "Today",
     tomorrow: "Tomorrow",
-    sending: "Saving...",
-    successTitle: "Order saved!",
-    successDesc: "Your order has been successfully received by our system.",
-    whatsappRedirect: "If WhatsApp didn't open automatically, click below:",
-    btnOpenWhatsapp: "Open WhatsApp",
-    btnClose: "Close cart"
+    sending: "Preparing payment...",
+    processing: "Processing...",
+    paymentError: "Payment failed. Please try again.",
+    successTitle: "Payment successful!",
+    successDesc: "Your order has been paid and confirmed by our kitchen.",
+    btnClose: "Close",
+    cancelPayment: "Cancel and edit order"
   },
   es: {
     titleCart: "Mi Carrito",
     titleCheckout: "Pago",
+    titlePayment: "Pago Seguro",
     emptyCart: "Tu carrito está vacío",
     items: "artículo",
     itemsPlural: "artículos",
@@ -109,19 +121,20 @@ const cartTranslations = {
     codePlaceholder: "Ej: A123",
     comments: "Instrucciones especiales",
     commentsPlaceholder: "Sin wasabi, alergia al sésamo...",
-    totalEstimated: "Total Estimado",
-    btnValidate: "Validar carrito",
-    btnWhatsapp: "Enviar por WhatsApp",
+    totalEstimated: "Total a pagar",
+    btnValidate: "Ir a la caja",
+    btnPay: "Pagar pedido",
     minOrderError: "Mínimo de 25 CHF requerido para entrega.",
     noTimeSlots: "No hay horarios disponibles para esta fecha.",
     today: "Hoy",
     tomorrow: "Mañana",
-    sending: "Guardando...",
-    successTitle: "¡Pedido guardado!",
-    successDesc: "Su pedido ha sido recibido con éxito por nuestro sistema.",
-    whatsappRedirect: "Si WhatsApp no se abrió automáticamente, haga clic abajo:",
-    btnOpenWhatsapp: "Abrir WhatsApp",
-    btnClose: "Cerrar carrito"
+    sending: "Generando pago...",
+    processing: "Procesando...",
+    paymentError: "El pago falló. Por favor, inténtelo de nuevo.",
+    successTitle: "¡Pago exitoso!",
+    successDesc: "Su pedido ha sido pagado y confirmado por nuestra cocina.",
+    btnClose: "Cerrar",
+    cancelPayment: "Cancelar y editar pedido"
   }
 };
 
@@ -141,11 +154,110 @@ interface CartDrawerProps {
   onClose: () => void;
 }
 
+// ✅ TYPAGE DU FORMULAIRE DE PAIEMENT POUR ESLINT
+interface StripeCheckoutFormProps {
+  total: number;
+  orderId: number | null;
+  onSuccess: () => void;
+  onCancel: () => void;
+  t: Record<string, string>;
+}
+
+// ============================================================================
+// SOUS-COMPOSANT : FORMULAIRE DE PAIEMENT STRIPE
+// ============================================================================
+function StripeCheckoutForm({ total, orderId, onSuccess, onCancel, t }: StripeCheckoutFormProps) {
+  const stripe = useStripe();
+  const elements = useElements();
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!stripe || !elements) return;
+
+    setIsProcessing(true);
+    setErrorMessage("");
+
+    // 1. On tente de confirmer le paiement
+    const { error, paymentIntent } = await stripe.confirmPayment({
+      elements,
+      redirect: "if_required", // Évite de recharger toute la page
+    });
+
+    if (error) {
+      setErrorMessage(error.message || t.paymentError);
+      setIsProcessing(false);
+    } else if (paymentIntent && paymentIntent.status === "succeeded") {
+      // 2. Paiement réussi ! On met à jour la base de données
+      if (error) {
+      setErrorMessage(error.message || t.paymentError);
+      setIsProcessing(false);
+    } else if (paymentIntent && paymentIntent.status === "succeeded") {
+      // ✅ On se contente d'afficher l'écran de succès. Le Webhook s'occupe de la BDD.
+      onSuccess();
+    } else {
+      setIsProcessing(false);
+    }
+      onSuccess();
+    } else {
+      setIsProcessing(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="flex flex-col h-full">
+      <div className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-6">
+        <div className="bg-green-500/10 border border-green-500/20 p-4 rounded-xl flex items-center gap-3 text-green-500 mb-6">
+          <ShieldCheck size={24} />
+          <p className="text-xs font-bold uppercase tracking-widest">Connexion chiffrée SSL</p>
+        </div>
+        
+        {/* Composant Stripe Magique */}
+        <PaymentElement options={{ layout: "tabs" }} />
+        
+        {errorMessage && (
+          <div className="text-red-500 text-xs font-bold bg-red-900/20 p-3 rounded-xl border border-red-900/30">
+            ⚠️ {errorMessage}
+          </div>
+        )}
+      </div>
+
+      <div className="p-6 border-t border-neutral-800 bg-neutral-900 shrink-0 space-y-3">
+        <button 
+          type="submit" 
+          disabled={!stripe || isProcessing}
+          className={`w-full font-bold py-4 rounded-xl uppercase tracking-widest flex items-center justify-center gap-2 transition shadow-lg ${
+            isProcessing ? "bg-neutral-800 text-neutral-500 cursor-not-allowed" : "bg-green-600 text-white hover:bg-green-700 shadow-green-900/20"
+          }`}
+        >
+          {isProcessing ? <><Loader2 size={18} className="animate-spin" /> {t.processing}</> : `${t.btnPay} (${total.toFixed(2)} CHF)`}
+        </button>
+        <button type="button" onClick={onCancel} disabled={isProcessing} className="w-full text-gray-500 text-[10px] font-bold hover:text-white uppercase tracking-widest py-2 transition">
+          {t.cancelPayment}
+        </button>
+      </div>
+    </form>
+  );
+}
+
+// ============================================================================
+// COMPOSANT PRINCIPAL : CART DRAWER
+// ============================================================================
 export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
   const { items, updateQuantity, removeFromCart, totalPrice, clearCart, totalItems } = useCart();
-  const [isCheckout, setIsCheckout] = useState(false);
   const { lang } = useTranslation();
   const t = cartTranslations[lang as keyof typeof cartTranslations] || cartTranslations.fr;
+
+  // États de navigation
+  const [isCheckout, setIsCheckout] = useState(false);
+  const [isPayment, setIsPayment] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false);
+
+  // États de données
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [orderId, setOrderId] = useState<number | null>(null);
+  const [clientSecret, setClientSecret] = useState<string | null>(null);
 
   const MIN_DELIVERY_AMOUNT = 25;
 
@@ -157,11 +269,6 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
   const [availableDays] = useState<Date[]>(generateAvailableDays);
   const [selectedDate, setSelectedDate] = useState<Date | null>(availableDays.length > 0 ? availableDays[0] : null);
   const [selectedTime, setSelectedTime] = useState<string>("");
-
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isSuccess, setIsSuccess] = useState(false);
-  const [orderId, setOrderId] = useState<number | null>(null);
-  const [whatsappLink, setWhatsappLink] = useState("");
 
   const generateTimeSlots = (date: Date) => {
     if (!date) return [];
@@ -202,17 +309,14 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
   const isDeliveryValid = !isDelivery || totalPrice >= MIN_DELIVERY_AMOUNT;
   const isFormReady = isDeliveryValid && selectedDate !== null && selectedTime !== "";
 
-  const handleWhatsAppOrder = async (e: React.FormEvent) => {
+  // ✅ ÉTAPE 1 : Sauvegarde BDD "En attente" + Récupération clé Stripe
+  const handlePreparePayment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isFormReady) return;
 
     setIsSubmitting(true);
 
     try {
-      const formattedDateForWhatsApp = selectedDate 
-        ? new Intl.DateTimeFormat('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }).format(selectedDate) 
-        : "";
-      
       const cleanItems = items.map(item => ({
         id: item.id,
         name: item.name,
@@ -220,8 +324,8 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
         quantity: item.quantity
       }));
 
-      // 1. Enregistrement dans Supabase
-      const { data, error, status, statusText } = await supabase
+      // 1. Sauvegarde dans Supabase avec statut temporaire
+      const { data, error } = await supabase
         .from('orders')
         .insert([{
           customer_name: formData.name,
@@ -235,79 +339,67 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
           delivery_code: isDelivery ? formData.doorCode : null,
           special_instructions: formData.comments,
           total_amount: totalPrice,
-          items: cleanItems 
+          items: cleanItems,
+          status: "En attente de paiement" // Nouveau statut
         }])
         .select();
 
-      if (error) {
-        // ✅ Log détaillé pour débugger l'erreur vide
-        console.error("ERREUR SUPABASE DÉTAILLÉE :", {
-          message: error.message,
-          code: error.code,
-          hint: error.hint,
-          details: error.details,
-          httpStatus: status,
-          httpText: statusText
-        });
-        throw error;
-      }
-
-      if (!data || data.length === 0) throw new Error("Aucune donnée retournée par la base de données");
+      if (error) throw error;
+      if (!data || data.length === 0) throw new Error("Erreur base de données");
 
       const newOrderId = data[0].id;
       setOrderId(newOrderId);
 
-      // 2. Formatage du message WhatsApp
-      const restaurantPhone = "41786041542"; 
-
-      let text = `🍣 *NOUVELLE PRÉCOMMANDE KABUKI* 🍣\n`;
-      text += `🔢 *Commande #KBK-${newOrderId}*\n\n`; 
-      text += `👤 *Client :* ${formData.name}\n`;
-      text += `📞 *Tél :* ${formData.phone}\n`;
-      text += `📅 *Date :* ${formattedDateForWhatsApp}\n`; 
-      text += `⏰ *Heure :* ${selectedTime}\n`;
-      text += `🛵 *Mode :* ${formData.type}\n`;
-      
-      if (isDelivery) {
-        text += `📍 *Adresse :* ${formData.address}, ${formData.zip}\n`;
-        if (formData.floor || formData.doorCode) {
-          text += `🏢 *Détails :* Étage ${formData.floor || "-"}, Code ${formData.doorCode || "-"}\n`;
-        }
-      }
-
-      if (formData.comments.trim()) {
-        text += `\n⚠️ *INSTRUCTIONS SPÉCIALES :*\n_${formData.comments}_\n`; 
-      }
-      
-      text += `\n📦 *COMMANDE :*\n`;
-      items.forEach(item => {
-        text += `- ${item.quantity}x ${item.name} (${(item.price * item.quantity).toFixed(2)} CHF)\n`;
+      // 2. Demande de la clé secrète à notre API Stripe
+      const res = await fetch("/api/create-payment-intent", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ amount: totalPrice, orderId: newOrderId }),
       });
-      
-      text += `\n💳 *Total estimé : ${totalPrice.toFixed(2)} CHF*\n`;
-      text += `\nMerci de me confirmer la commande ! 🙏`;
 
-      const generatedUrl = `https://wa.me/${restaurantPhone}?text=${encodeURIComponent(text)}`;
-      setWhatsappLink(generatedUrl);
+      const paymentData = await res.json();
+      if (paymentData.error) throw new Error(paymentData.error);
 
-      clearCart();
-      setIsSuccess(true);
-      window.open(generatedUrl, "_blank");
+      // 3. On ouvre le module de paiement
+      setClientSecret(paymentData.clientSecret);
+      setIsPayment(true);
 
     } catch (error) {
-      // ✅ Correction TypeScript : typage explicite de l'erreur
       const err = error as Error;
-      console.error("Erreur complète lors de la sauvegarde :", err);
-      alert(`Erreur : ${err.message || "Problème de connexion"}`);
+      console.error("Erreur d'initialisation du paiement :", err);
+      alert(`Erreur : ${err.message || "Impossible de contacter la banque."}`);
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  // ✅ ÉTAPE 2 : Action quand le paiement est validé
+  const handlePaymentSuccess = () => {
+    clearCart();
+    setIsPayment(false);
+    setIsSuccess(true);
+  };
+
   const handleCloseSuccess = () => {
     setIsSuccess(false);
     setIsCheckout(false);
+    setIsPayment(false);
+    setClientSecret(null);
     onClose();
+  };
+
+  // Options de design pour intégrer Stripe dans l'UI sombre de Kabuki
+  const stripeOptions = {
+    clientSecret: clientSecret || "",
+    appearance: {
+      theme: 'night' as const,
+      variables: {
+        colorPrimary: '#dc2626', 
+        colorBackground: '#171717', 
+        colorText: '#ffffff',
+        colorDanger: '#ef4444',
+      },
+    },
   };
 
   return (
@@ -332,7 +424,12 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
             {!isSuccess && (
               <div className="flex items-center justify-between p-6 border-b border-neutral-800 shrink-0">
                 <h2 className="text-xl font-display font-bold text-white uppercase tracking-widest flex items-center gap-3">
-                  {isCheckout ? (
+                  {isPayment ? (
+                    <>
+                      <ShieldCheck size={20} className="text-green-500" />
+                      {t.titlePayment}
+                    </>
+                  ) : isCheckout ? (
                     <>
                       <button onClick={() => setIsCheckout(false)} className="hover:text-kabuki-red transition"><ArrowLeft size={20} /></button>
                       {t.titleCheckout}
@@ -351,6 +448,7 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
             )}
 
             {isSuccess ? (
+              // ✅ VUE 3 : SUCCÈS
               <div className="flex-1 flex flex-col items-center justify-center p-8 text-center space-y-6">
                 <motion.div 
                   initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring", bounce: 0.5 }}
@@ -369,15 +467,6 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
                 </div>
 
                 <div className="pt-8 space-y-4 w-full">
-                  <p className="text-xs text-gray-400 italic">{t.whatsappRedirect}</p>
-                  <a 
-                    href={whatsappLink} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="w-full bg-green-600 text-white font-bold py-4 rounded-xl uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-green-700 transition"
-                  >
-                    {t.btnOpenWhatsapp}
-                  </a>
                   <button 
                     onClick={handleCloseSuccess}
                     className="w-full bg-neutral-800 text-white font-bold py-4 rounded-xl uppercase tracking-widest hover:bg-neutral-700 transition"
@@ -386,7 +475,19 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
                   </button>
                 </div>
               </div>
+            ) : isPayment && clientSecret ? (
+              // ✅ VUE 2.5 : PAIEMENT STRIPE
+              <Elements options={stripeOptions} stripe={stripePromise}>
+                <StripeCheckoutForm 
+                  total={totalPrice} 
+                  orderId={orderId} 
+                  onSuccess={handlePaymentSuccess} 
+                  onCancel={() => { setIsPayment(false); setClientSecret(null); }} 
+                  t={t} 
+                />
+              </Elements>
             ) : (
+              // ✅ VUE 1 & 2 : PANIER / FORMULAIRE
               <>
                 <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
                   {items.length === 0 ? (
@@ -432,7 +533,7 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
                           ))}
                         </div>
                       ) : (
-                        <form id="checkout-form" onSubmit={handleWhatsAppOrder} className="space-y-6 pb-8">
+                        <form id="checkout-form" onSubmit={handlePreparePayment} className="space-y-6 pb-8">
                           <div className="space-y-4">
                             <div className="space-y-1">
                               <label className="text-[10px] font-bold text-kabuki-red uppercase tracking-widest">{t.name}</label>
@@ -546,6 +647,7 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
                   )}
                 </div>
 
+                {/* --- FOOTER DES BOUTONS --- */}
                 {items.length > 0 && (
                   <div className="p-6 border-t border-neutral-800 bg-neutral-900 shrink-0">
                     <div className="flex justify-between items-center mb-4">
@@ -570,14 +672,14 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
                         disabled={!isFormReady || isSubmitting}
                         className={`w-full font-bold py-4 rounded-xl uppercase tracking-widest flex items-center justify-center gap-2 transition shadow-lg ${
                           isFormReady && !isSubmitting
-                            ? "bg-green-600 text-white hover:bg-green-700 shadow-green-900/20" 
+                            ? "bg-kabuki-red text-white hover:bg-red-700 shadow-red-900/20" 
                             : "bg-neutral-800 text-neutral-500 cursor-not-allowed"
                         }`}
                       >
                         {isSubmitting ? (
                           <><Loader2 size={18} className="animate-spin" /> {t.sending}</>
                         ) : (
-                          t.btnWhatsapp
+                          <><ShieldCheck size={18} /> Continuer vers le paiement</>
                         )}
                       </button>
                     )}

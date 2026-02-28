@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react"; // ✅ Ajout de useRef
+import { useEffect, useState, useCallback, useRef } from "react";
 import { supabase } from "@/utils/supabase";
 import { 
   Package, 
@@ -17,8 +17,8 @@ import {
   RefreshCw,
   Clock,
   MessageSquare,
-  Volume2, // ✅ Icone Son ON
-  VolumeX  // ✅ Icone Son OFF
+  Volume2, 
+  VolumeX 
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -49,19 +49,19 @@ export default function OrdersList() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
-  const [isSoundEnabled, setIsSoundEnabled] = useState(false); // ✅ État de l'alerte sonore
+  const [isSoundEnabled, setIsSoundEnabled] = useState(false);
 
-  // ✅ Référence pour l'objet Audio afin d'éviter de le recréer à chaque rendu
+  // ✅ Référence pour l'objet Audio
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
-    // Initialisation du fichier son (assure-toi qu'il est dans public/sounds/notification.mp3)
+    // Initialisation du son (Chemin: public/sounds/notification.wav)
     audioRef.current = new Audio("/sounds/notification.wav");
   }, []);
 
   const playNotification = useCallback(() => {
     if (isSoundEnabled && audioRef.current) {
-      audioRef.current.play().catch(err => console.log("L'audio n'a pas pu être joué :", err));
+      audioRef.current.play().catch(err => console.log("Lecture audio bloquée :", err));
     }
   }, [isSoundEnabled]);
 
@@ -101,15 +101,15 @@ export default function OrdersList() {
   useEffect(() => {
     fetchOrders();
 
-    // ✅ Écoute intelligente : INSERT déclenche le son, UPDATE rafraîchit simplement
+    // ✅ Écoute en temps réel : Distingue les créations des mises à jour
     const subscription = supabase
-      .channel("orders-kitchen-monitor")
+      .channel("kitchen-orders-realtime")
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "orders" }, () => {
-        playNotification(); // 🔔 BING !
+        playNotification(); // 🔔 Sonnerie pour la nouvelle commande
         fetchOrders();      // Mise à jour de la liste
       })
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "orders" }, () => {
-        fetchOrders();      // Rafraîchissement si un statut change
+        fetchOrders();      // Rafraîchissement simple pour les changements de statut
       })
       .subscribe();
 
@@ -136,13 +136,13 @@ export default function OrdersList() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center bg-neutral-900/50 p-4 rounded-2xl border border-neutral-800">
+      {/* Header avec contrôle Son */}
+      <div className="flex justify-between items-center bg-neutral-900/50 p-4 rounded-2xl border border-neutral-800 flex-wrap gap-4">
         <div className="flex items-center gap-6">
           <h2 className="text-xl font-display font-bold text-white uppercase tracking-widest flex items-center gap-3">
             <ChefHat className="text-kabuki-red" /> Cuisine en Direct
           </h2>
 
-          {/* ✅ Bouton de contrôle du Son */}
           <button 
             onClick={() => setIsSoundEnabled(!isSoundEnabled)}
             className={`flex items-center gap-2 px-4 py-2 rounded-full text-[10px] font-bold uppercase transition-all border ${
@@ -168,6 +168,8 @@ export default function OrdersList() {
             <motion.div 
               key={order.id} 
               layout
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
               className={`bg-neutral-900 border border-neutral-800 rounded-2xl p-5 flex flex-wrap md:flex-nowrap items-center justify-between gap-6 hover:border-neutral-700 transition shadow-xl ${(order.status === 'Livrée' || order.status === 'Annulée') ? 'opacity-40 grayscale' : ''}`}
             >
               <div className="min-w-[140px]">
@@ -236,6 +238,7 @@ export default function OrdersList() {
                   </div>
                 )}
 
+                {/* ✅ Bloc Commentaires avec correction d'entité */}
                 {selectedOrder.comments && (
                   <div className="bg-amber-500/5 p-5 rounded-3xl border border-amber-500/10">
                     <span className="text-[10px] text-amber-500 uppercase font-bold flex items-center gap-2 mb-2">
@@ -263,7 +266,7 @@ export default function OrdersList() {
                   ))}
                 </div>
 
-                <div className="pt-6 border-t border-neutral-800 flex flex-col gap-4">
+                <div className="pt-6 border-t border-neutral-800 flex flex-col gap-4 mt-auto">
                   <div className="flex justify-between items-center px-2">
                     <span className="text-gray-500 font-bold uppercase text-[10px]">Total</span>
                     <span className="text-3xl font-display font-bold text-white">{Number(selectedOrder.total_amount).toFixed(2)} <span className="text-kabuki-red text-sm">CHF</span></span>

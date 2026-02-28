@@ -9,21 +9,25 @@ import { useTranslation } from "@/context/LanguageContext";
 import LanguageSwitcher from "./LanguageSwitcher";
 import { supabase } from "@/utils/supabase";
 import { User } from "@supabase/supabase-js"; 
-import { ShoppingCart } from "lucide-react"; // ✅ Icône du panier
-import { useCart } from "@/context/CartContext"; // ✅ Connexion au panier
-import CartDrawer from "./CartDrawer"; // ✅ Import du tiroir du panier
+import { ShoppingCart } from "lucide-react"; 
+import { useCart } from "@/context/CartContext"; 
 
-export default function Navbar() {
+// ✅ 1. INTERFACE POUR LES PROPS (REMPLACE L'ERREUR DANS LAYOUTCLIENT)
+interface NavbarProps {
+  onOpenCart: () => void;
+}
+
+export default function Navbar({ onOpenCart }: NavbarProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [isCartOpen, setIsCartOpen] = useState(false); // ✅ État du tiroir
   const [user, setUser] = useState<User | null>(null); 
   
   const pathname = usePathname();
   const { t, lang } = useTranslation();
-  const { totalItems } = useCart(); // ✅ Récupération du nombre d'articles
+  const { totalItems } = useCart(); 
 
   const [prevPathname, setPrevPathname] = useState(pathname);
 
+  // Fermeture automatique du menu mobile lors d'un changement de page
   if (pathname !== prevPathname) {
     setPrevPathname(pathname);
     if (isOpen) {
@@ -49,11 +53,12 @@ export default function Navbar() {
 
   const isActive = (path: string) => pathname === path;
 
+  // ✅ CORRECTION : Utilisation sécurisée de t.nav
   const navLinks = [
-    { name: t.nav.home || "Accueil", path: `/${lang}` },
-    { name: t.nav.menu, path: `/${lang}/menu` },
-    { name: t.nav.catering, path: `/${lang}/traiteur` },
-    { name: t.nav.contact, path: `/${lang}/contact` },
+    { name: t?.nav?.home || "Accueil", path: `/${lang}` },
+    { name: t?.nav?.menu || "Menu", path: `/${lang}/menu` },
+    { name: t?.nav?.catering || "Traiteur", path: `/${lang}/traiteur` },
+    { name: t?.nav?.contact || "Contact", path: `/${lang}/contact` },
   ];
 
   return (
@@ -96,10 +101,10 @@ export default function Navbar() {
             </TransitionLink>
           ))}
           
-          {/* ✅ ICÔNE DU PANIER (Desktop) */}
+          {/* ✅ PANIER DESKTOP */}
           <button 
-            onClick={() => setIsCartOpen(true)} 
-            className="relative group p-2"
+            onClick={onOpenCart} 
+            className="relative group p-2 active:scale-90 transition-transform"
           >
             <ShoppingCart size={22} className="text-gray-300 group-hover:text-white transition-colors" />
             <AnimatePresence>
@@ -120,7 +125,7 @@ export default function Navbar() {
             href={`/${lang}/traiteur#devis`} 
             className="bg-kabuki-red text-white px-5 py-2 rounded-full font-bold text-xs uppercase tracking-wider hover:bg-red-700 transition shadow-lg shadow-red-900/20"
           >
-            {t.hero.btnTraiteur}
+            {t?.hero?.btnTraiteur || "Devis Traiteur"}
           </TransitionLink>
 
           {user && (
@@ -137,10 +142,9 @@ export default function Navbar() {
 
         {/* --- MOBILE NAV BUTTONS --- */}
         <div className="flex md:hidden items-center space-x-6">
-          {/* ✅ ICÔNE DU PANIER (Mobile) - Toujours visible à côté du burger */}
           <button 
-            onClick={() => setIsCartOpen(true)} 
-            className="relative p-2 z-50"
+            onClick={onOpenCart} 
+            className="relative p-2 z-50 active:scale-90 transition-transform"
           >
             <ShoppingCart size={24} className="text-white" />
             <AnimatePresence>
@@ -175,7 +179,6 @@ export default function Navbar() {
             ></motion.span>
           </button>
         </div>
-
       </div>
 
       {/* --- MENU MOBILE DÉROULANT --- */}
@@ -190,7 +193,7 @@ export default function Navbar() {
           >
             <ul className="space-y-8 text-center">
               {navLinks.map((link) => (
-                <li key={link.path} className="relative">
+                <li key={link.path}>
                   <TransitionLink 
                     href={link.path}
                     className={`text-3xl font-display font-bold uppercase tracking-widest block transition-colors ${
@@ -218,7 +221,7 @@ export default function Navbar() {
                     href={`/${lang}/traiteur#devis`} 
                     className="bg-kabuki-red text-white px-8 py-4 rounded-full font-bold text-lg uppercase tracking-wider hover:bg-red-700 transition shadow-xl"
                   >
-                    {t.hero.btnTraiteur}
+                    {t?.hero?.btnTraiteur || "Devis Traiteur"}
                   </TransitionLink>
 
                   <div className="pt-4 border-t border-neutral-800 w-full flex justify-center">
@@ -229,9 +232,6 @@ export default function Navbar() {
           </motion.div>
         )}
       </AnimatePresence>
-
-      {/* ✅ TIROIR DU PANIER */}
-      <CartDrawer isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />
     </nav>
   );
 }

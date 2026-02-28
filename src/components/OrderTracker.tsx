@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/utils/supabase";
 import { motion } from "framer-motion";
-import { Receipt, ChefHat, Package, CheckCircle2, Loader2 } from "lucide-react"; // ❌ AlertCircle retiré
+import { Receipt, ChefHat, Package, CheckCircle2, Loader2 } from "lucide-react";
 
 // ✅ 1. Définition du type pour remplacer "any"
 interface OrderData {
@@ -17,7 +17,7 @@ interface OrderTrackerProps {
 }
 
 export default function OrderTracker({ orderId }: OrderTrackerProps) {
-  const [order, setOrder] = useState<OrderData | null>(null); // ✅ Type corrigé
+  const [order, setOrder] = useState<OrderData | null>(null);
   const [loading, setLoading] = useState(true);
 
   // Les étapes de préparation
@@ -37,7 +37,7 @@ export default function OrderTracker({ orderId }: OrderTrackerProps) {
         .single();
 
       if (error) {
-        console.error("Erreur lors du chargement de la commande:", error); // ✅ Erreur utilisée
+        console.error("Erreur lors du chargement de la commande:", error);
       } else if (data) {
         setOrder(data as OrderData);
       }
@@ -115,14 +115,15 @@ export default function OrderTracker({ orderId }: OrderTrackerProps) {
                   </h4>
                   {isActive && (
                     <motion.p 
-                      // ✅ 2. "h" remplacé par "height"
                       initial={{ opacity: 0, height: 0 }}
                       animate={{ opacity: 1, height: "auto" }}
                       className="text-xs text-kabuki-red font-bold mt-1 overflow-hidden"
                     >
-                      {step.id === "En préparation" ? "Nos chefs préparent vos sushis..." : 
-                       step.id === "Prête" ? "Votre commande vous attend !" : 
-                       "En attente de prise en charge."}
+                      {/* ✅ Messages personnalisés pour chaque statut */}
+                      {step.id === "Payé" ? "En attente de prise en charge par la cuisine." :
+                       step.id === "En préparation" ? "Nos chefs préparent vos sushis..." : 
+                       step.id === "Prête" ? "Votre commande est prête !" : 
+                       step.id === "Livrée" ? "Bon appétit ! Merci de votre confiance." : ""}
                     </motion.p>
                   )}
                 </div>

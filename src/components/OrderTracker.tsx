@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/utils/supabase";
 import { motion, AnimatePresence } from "framer-motion";
-import { Receipt, ChefHat, Package, CheckCircle2, Loader2, ArrowRight } from "lucide-react";
+import { Receipt, ChefHat, Package, CheckCircle2, Loader2, ArrowRight, XCircle } from "lucide-react"; // ✅ Import de XCircle ajouté
 import Link from "next/link";
 import { useTranslation } from "@/context/LanguageContext";
 
@@ -73,6 +73,7 @@ export default function OrderTracker({ orderId }: OrderTrackerProps) {
   const currentStepIndex = steps.findIndex(s => s.id === order.status);
   const activeIndex = currentStepIndex === -1 ? 0 : currentStepIndex;
   const isDelivered = order.status === "Livrée";
+  const isCancelled = order.status === "Annulée"; // ✅ Détection de l'état Annulée
 
   return (
     <div className="space-y-6 max-w-lg mx-auto px-2">
@@ -83,60 +84,77 @@ export default function OrderTracker({ orderId }: OrderTrackerProps) {
             Commande #KBK-{order.id}
           </h2>
           <p className="text-gray-400 text-sm mt-2 font-medium">
-            {isDelivered ? "Livraison effectuée" : `Retrait prévu à ${order.pickup_time}`}
+            {isDelivered ? "Livraison effectuée" : isCancelled ? "Commande annulée" : `Retrait prévu à ${order.pickup_time}`}
           </p>
         </div>
 
-        <div className="relative">
-          <div className="absolute left-6 top-0 bottom-0 w-0.5 bg-neutral-800" />
+        {/* ✅ Si la commande est annulée, on affiche ce bloc */}
+        {isCancelled ? (
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.9 }} 
+            animate={{ opacity: 1, scale: 1 }} 
+            className="text-center py-10 bg-red-900/10 rounded-2xl border border-red-500/20"
+          >
+            <XCircle size={48} className="text-kabuki-red mx-auto mb-4" />
+            <h3 className="text-white font-bold uppercase tracking-widest mb-2">Commande Annulée</h3>
+            <p className="text-gray-400 text-xs px-6 leading-relaxed">
+              Cette commande a été annulée. Un remboursement a été initié vers votre moyen de paiement original.
+            </p>
+          </motion.div>
+        ) : (
+          /* ✅ Sinon, on affiche le suivi normal */
+          <div className="relative">
+            <div className="absolute left-6 top-0 bottom-0 w-0.5 bg-neutral-800" />
 
-          <div className="space-y-8">
-            {steps.map((step, index) => {
-              const isCompleted = index <= activeIndex;
-              const isActive = index === activeIndex;
-              const Icon = step.icon;
+            <div className="space-y-8">
+              {steps.map((step, index) => {
+                const isCompleted = index <= activeIndex;
+                const isActive = index === activeIndex;
+                const Icon = step.icon;
 
-              return (
-                <div key={step.id} className="relative flex items-center gap-6 z-10">
-                  <motion.div
-                    initial={false}
-                    animate={{
-                      backgroundColor: isCompleted ? "#DC2626" : "#171717",
-                      borderColor: isCompleted ? "#DC2626" : "#262626",
-                      color: isCompleted ? "#FFFFFF" : "#525252",
-                      scale: isActive ? 1.1 : 1
-                    }}
-                    className={`w-12 h-12 rounded-full border-2 flex items-center justify-center shrink-0 ${isActive ? 'shadow-[0_0_20px_rgba(220,38,38,0.4)]' : ''}`}
-                  >
-                    <Icon size={20} />
-                  </motion.div>
+                return (
+                  <div key={step.id} className="relative flex items-center gap-6 z-10">
+                    <motion.div
+                      initial={false}
+                      animate={{
+                        backgroundColor: isCompleted ? "#DC2626" : "#171717",
+                        borderColor: isCompleted ? "#DC2626" : "#262626",
+                        color: isCompleted ? "#FFFFFF" : "#525252",
+                        scale: isActive ? 1.1 : 1
+                      }}
+                      className={`w-12 h-12 rounded-full border-2 flex items-center justify-center shrink-0 ${isActive ? 'shadow-[0_0_20px_rgba(220,38,38,0.4)]' : ''}`}
+                    >
+                      <Icon size={20} />
+                    </motion.div>
 
-                  <div>
-                    <h4 className={`text-sm font-bold uppercase tracking-widest ${isCompleted ? 'text-white' : 'text-gray-500'}`}>
-                      {step.label}
-                    </h4>
-                    {isActive && (
-                      <motion.p 
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: "auto" }}
-                        className="text-xs text-kabuki-red font-bold mt-1 overflow-hidden"
-                      >
-                        {step.id === "Payé" ? "En attente de prise en charge par la cuisine." :
-                         step.id === "En préparation" ? "Nos chefs préparent vos sushis..." : 
-                         step.id === "Prête" ? "Votre commande est prête !" : 
-                         step.id === "Livrée" ? "Bon appétit ! Merci de votre confiance." : ""}
-                      </motion.p>
-                    )}
+                    <div>
+                      <h4 className={`text-sm font-bold uppercase tracking-widest ${isCompleted ? 'text-white' : 'text-gray-500'}`}>
+                        {step.label}
+                      </h4>
+                      {isActive && (
+                        <motion.p 
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: "auto" }}
+                          className="text-xs text-kabuki-red font-bold mt-1 overflow-hidden"
+                        >
+                          {step.id === "Payé" ? "En attente de prise en charge par la cuisine." :
+                           step.id === "En préparation" ? "Nos chefs préparent vos sushis..." : 
+                           step.id === "Prête" ? "Votre commande est prête !" : 
+                           step.id === "Livrée" ? "Bon appétit ! Merci de votre confiance." : ""}
+                        </motion.p>
+                      )}
+                    </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       <AnimatePresence>
-        {isDelivered && (
+        {/* ✅ Les boutons de sortie s'affichent pour Livrée ET Annulée */}
+        {(isDelivered || isCancelled) && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -155,7 +173,6 @@ export default function OrderTracker({ orderId }: OrderTrackerProps) {
               onClick={handleFinish}
               className="w-full text-center text-gray-500 font-bold uppercase tracking-[0.2em] text-[10px] hover:text-white transition-colors py-2"
             >
-              {/* ✅ Correction de l'erreur d'entité ici */}
               {"Retour à l'accueil"}
             </Link>
           </motion.div>

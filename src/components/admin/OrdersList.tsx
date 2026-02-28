@@ -53,7 +53,6 @@ export default function OrdersList() {
       const { data, error } = await supabase
         .from("orders")
         .select("*")
-        // ✅ SUPPRIMÉ : .neq("status", "Terminée") pour afficher TOUTES les commandes
         .order("created_at", { ascending: false });
 
       if (data) setOrders(data as Order[]);
@@ -75,11 +74,10 @@ export default function OrdersList() {
     if (error) {
       alert("Erreur de mise à jour");
     } else {
-      // Si la modale est ouverte pour cette commande, on met à jour la modale aussi
       if (selectedOrder?.id === orderId) {
         setSelectedOrder(prev => prev ? { ...prev, status: newStatus } : null);
       }
-      fetchOrders(); // Rafraîchissement léger
+      fetchOrders(); 
     }
   };
 
@@ -102,10 +100,9 @@ export default function OrdersList() {
     switch (status) {
       case "Payé": return { bg: "bg-blue-500/10", text: "text-blue-400", border: "border-blue-500/20", icon: <AlertCircle size={10} />, next: "En préparation", btnLabel: "Accepter", btnIcon: <ChefHat size={14} /> };
       case "En préparation": return { bg: "bg-orange-500/10", text: "text-orange-400", border: "border-orange-500/20", icon: <ChefHat size={10} />, next: "Prête", btnLabel: "Prête", btnIcon: <CheckCircle2 size={14} /> };
-      // ✅ "Prête" mène maintenant vers "Livrée"
       case "Prête": return { bg: "bg-green-500/10", text: "text-green-400", border: "border-green-500/20", icon: <Truck size={10} />, next: "Livrée", btnLabel: "Livrée", btnIcon: <Package size={14} /> };
-      // ✅ Configuration pour "Livrée" (Archive)
       case "Livrée": return { bg: "bg-neutral-800/50", text: "text-gray-500", border: "border-neutral-800", icon: <CheckCircle2 size={10} />, next: null, btnLabel: "", btnIcon: null };
+      case "Annulée": return { bg: "bg-red-900/20", text: "text-red-500", border: "border-red-900/30", icon: <XCircle size={10} />, next: null, btnLabel: "", btnIcon: null };
       default: return { bg: "bg-gray-500/10", text: "text-gray-400", border: "border-gray-500/20", icon: <Clock size={10} />, next: null, btnLabel: "", btnIcon: null };
     }
   };
@@ -119,7 +116,6 @@ export default function OrdersList() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex justify-between items-center bg-neutral-900/50 p-4 rounded-2xl border border-neutral-800">
         <h2 className="text-xl font-display font-bold text-white uppercase tracking-widest flex items-center gap-3">
           <ChefHat className="text-kabuki-red" /> Cuisine en Direct
@@ -129,7 +125,6 @@ export default function OrdersList() {
         </button>
       </div>
 
-      {/* Liste des commandes */}
       <div className="grid gap-4">
         {orders.length === 0 ? (
           <div className="text-center py-20 bg-neutral-900/30 rounded-3xl border border-dashed border-neutral-800">
@@ -146,17 +141,14 @@ export default function OrdersList() {
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.95 }}
-                  // ✅ Effet visuel si Livrée (transparence + noir&blanc)
-                  className={`bg-neutral-900 border border-neutral-800 rounded-2xl p-5 flex flex-wrap md:flex-nowrap items-center justify-between gap-6 hover:border-neutral-700 transition shadow-xl ${order.status === 'Livrée' ? 'opacity-40 grayscale' : ''}`}
+                  className={`bg-neutral-900 border border-neutral-800 rounded-2xl p-5 flex flex-wrap md:flex-nowrap items-center justify-between gap-6 hover:border-neutral-700 transition shadow-xl ${(order.status === 'Livrée' || order.status === 'Annulée') ? 'opacity-40 grayscale' : ''}`}
                 >
-                  {/* Numéro & Client */}
                   <div className="min-w-[140px]">
                     <span className="text-[10px] font-bold text-kabuki-red uppercase tracking-tighter">#KBK-{order.id}</span>
                     <h4 className="text-white font-bold text-base uppercase leading-tight">{order.customer_name}</h4>
                     <span className="text-[9px] text-gray-500 font-bold uppercase tracking-widest">{order.order_type}</span>
                   </div>
 
-                  {/* Horaire */}
                   <div className="flex flex-col">
                     <span className="text-[9px] text-gray-500 uppercase font-bold mb-1">Heure de retrait</span>
                     <div className="flex items-center gap-2 text-sm text-white font-bold">
@@ -165,7 +157,6 @@ export default function OrdersList() {
                     </div>
                   </div>
 
-                  {/* Statut & Action Rapide */}
                   <div className="flex items-center gap-4 bg-black/30 p-2 rounded-2xl border border-neutral-800/50">
                     <div className={`text-[10px] font-bold px-3 py-1.5 rounded-xl uppercase flex items-center gap-2 border ${style.bg} ${style.text} ${style.border}`}>
                       {style.icon} {order.status}
@@ -181,7 +172,6 @@ export default function OrdersList() {
                     )}
                   </div>
 
-                  {/* Actions de vue */}
                   <div className="flex items-center gap-2">
                     <div className="text-right mr-4">
                         <span className="block text-[9px] text-gray-500 uppercase font-bold">Total</span>
@@ -201,14 +191,12 @@ export default function OrdersList() {
         )}
       </div>
 
-      {/* --- MODALE DÉTAILS --- */}
       <AnimatePresence>
         {selectedOrder && (
           <div className="fixed inset-0 z-[150] flex items-center justify-center p-4">
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setSelectedOrder(null)} className="absolute inset-0 bg-black/90 backdrop-blur-md" />
             <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="relative bg-neutral-900 border border-neutral-800 w-full max-w-xl rounded-[40px] overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
               
-              {/* Header Modale */}
               <div className="p-8 border-b border-neutral-800 flex justify-between items-center bg-white/5">
                 <div className="space-y-1">
                   <span className="text-kabuki-red font-bold text-[10px] uppercase tracking-[0.3em]">Commande en cours</span>
@@ -217,9 +205,7 @@ export default function OrdersList() {
                 <button onClick={() => setSelectedOrder(null)} className="bg-neutral-800 p-3 rounded-full text-gray-500 hover:text-white transition"><XCircle size={24}/></button>
               </div>
 
-              {/* Contenu Modale */}
               <div className="p-8 space-y-8 overflow-y-auto custom-scrollbar">
-                {/* Client & Infos */}
                 <div className="grid grid-cols-2 gap-8">
                   <div className="space-y-1">
                     <span className="text-[10px] text-gray-500 uppercase font-bold flex items-center gap-2"><User size={12}/> Client</span>
@@ -233,7 +219,6 @@ export default function OrdersList() {
                   </div>
                 </div>
 
-                {/* Adresse */}
                 {selectedOrder.order_type === "Livraison" && (
                   <div className="bg-blue-500/5 p-5 rounded-3xl border border-blue-500/10">
                     <span className="text-[10px] text-blue-400 uppercase font-bold flex items-center gap-2 mb-2"><MapPin size={12}/> Destination</span>
@@ -241,7 +226,6 @@ export default function OrdersList() {
                   </div>
                 )}
 
-                {/* Liste Articles */}
                 <div className="space-y-4">
                   <div className="flex items-center justify-between border-b border-neutral-800 pb-2">
                     <span className="text-[10px] text-gray-500 uppercase font-bold flex items-center gap-2"><Package size={12}/> Contenu du plateau</span>
@@ -260,14 +244,12 @@ export default function OrdersList() {
                   </div>
                 </div>
 
-                {/* Actions de changement de statut dans la modale */}
                 <div className="pt-6 border-t border-neutral-800 flex flex-col gap-4">
                     <div className="flex justify-between items-center px-2">
                        <span className="text-gray-500 font-bold uppercase text-[10px]">Total de la commande</span>
                        <span className="text-3xl font-display font-bold text-white">{Number(selectedOrder.total_amount).toFixed(2)} <span className="text-kabuki-red text-sm">CHF</span></span>
                     </div>
                     
-                    {/* Bouton d'action géant dans la modale */}
                     {getStatusStyle(selectedOrder.status).next && (
                       <button 
                         onClick={() => updateStatus(selectedOrder.id, getStatusStyle(selectedOrder.status).next!)}
@@ -275,6 +257,41 @@ export default function OrdersList() {
                       >
                         {getStatusStyle(selectedOrder.status).btnIcon}
                         {getStatusStyle(selectedOrder.status).btnLabel}
+                      </button>
+                    )}
+
+                    {selectedOrder.status !== "Livrée" && selectedOrder.status !== "Annulée" && (
+                      <button 
+                        onClick={async () => {
+                          const confirmCancel = window.confirm("Êtes-vous sûr de vouloir annuler cette commande ? Le client sera remboursé automatiquement.");
+                          if (!confirmCancel) return;
+                          
+                          try {
+                            // ✅ 1. Appel de l'API de remboursement Stripe ACTIF
+                            const res = await fetch('/api/refund-order', { 
+                              method: 'POST', 
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ orderId: selectedOrder.id }) 
+                            });
+                            
+                            const data = await res.json();
+                            if (!res.ok) throw new Error(data.error || "Erreur lors du remboursement");
+
+                            // 2. Mise à jour Supabase en cas de succès
+                            updateStatus(selectedOrder.id, "Annulée");
+                            setSelectedOrder(null); 
+
+                          } catch (error) {
+                            if (error instanceof Error) {
+                              alert("Échec du remboursement : " + error.message);
+                            } else {
+                              alert("Échec du remboursement : Erreur inconnue");
+                            }
+                          }
+                        }}
+                        className="w-full mt-2 text-gray-500 hover:text-red-500 py-3 font-bold uppercase tracking-[0.1em] text-[10px] flex items-center justify-center gap-2 transition-colors border border-transparent hover:border-red-900/50 rounded-xl"
+                      >
+                        <XCircle size={14} /> Annuler et rembourser
                       </button>
                     )}
                 </div>

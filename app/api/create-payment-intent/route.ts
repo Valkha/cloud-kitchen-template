@@ -4,7 +4,8 @@ import { supabase } from "@/utils/supabase";
 
 // ✅ 1. Configuration Stripe avec Typage Strict
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: "2025-01-27-preview" as Stripe.LatestApiVersion,
+  // ✅ On utilise une version stable et standard reconnue par tous les packages
+  apiVersion: "2023-10-16" as Stripe.LatestApiVersion,
 });
 
 export async function POST(request: Request) {

@@ -1,17 +1,16 @@
 "use client";
 
 import { useState } from "react";
-import dynamic from "next/dynamic"; // ✅ Ajout de l'import dynamique
+import dynamic from "next/dynamic";
+import { LazyMotion, domMax } from "framer-motion";
 import Navbar from "@/components/Navbar";
 import MobileActionBar from "@/components/MobileActionBar";
-
+import PageLoader from "@/components/PageLoader";
 import ScrollToTop from "@/components/ScrollToTop";
 import CookieBanner from "@/components/CookieBanner";
 import Footer from "@/components/Footer";
 
 // ✅ CHARGEMENT DYNAMIQUE DU PANIER
-// ssr: false empêche Next.js d'essayer de rendre le panier sur le serveur.
-// Cela économise du temps de calcul et évite de charger Stripe trop tôt.
 const CartDrawer = dynamic(() => import("@/components/CartDrawer"), {
   ssr: false,
 });
@@ -23,27 +22,27 @@ export default function LayoutClient({ children }: { children: React.ReactNode }
   const closeCart = () => setIsCartOpen(false);
 
   return (
-    <>
-    
-      
-      {/* On passe openCart à la Navbar pour l'icône panier desktop/mobile */}
-      <Navbar onOpenCart={openCart} />
+    <LazyMotion features={domMax} strict>
+      <div className="flex flex-col min-h-screen">
+        <PageLoader />
+        
+        <Navbar onOpenCart={openCart} />
 
-      <main className="flex-1">
-        {children}
-      </main>
+        <main className="flex-1">
+          {children}
+        </main>
 
-      <ScrollToTop />
+        <ScrollToTop />
 
-      {/* La nouvelle barre intelligente reçoit la fonction d'ouverture */}
-      <MobileActionBar onOpenCart={openCart} />
+        {/* ✅ L'Action Bar gère maintenant l'urgence (Appel/WhatsApp) de manière intégrée */}
+        <MobileActionBar onOpenCart={openCart} />
 
-      <CookieBanner />
+        <CookieBanner />
 
-      <Footer />
+        <Footer />
 
-      {/* ✅ Le Drawer du panier est maintenant chargé dynamiquement */}
-      <CartDrawer isOpen={isCartOpen} onClose={closeCart} />
-    </>
+        <CartDrawer isOpen={isCartOpen} onClose={closeCart} />
+      </div>
+    </LazyMotion>
   );
 }

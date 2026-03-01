@@ -3,14 +3,24 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/utils/supabase";
 import { motion, AnimatePresence } from "framer-motion";
-import { Receipt, ChefHat, Package, CheckCircle2, Loader2, ArrowRight, XCircle } from "lucide-react"; // ✅ Import de XCircle ajouté
+import { Receipt, ChefHat, Package, CheckCircle2, Loader2, ArrowRight, XCircle, Truck } from "lucide-react"; 
 import Link from "next/link";
 import { useTranslation } from "@/context/LanguageContext";
+import dynamic from "next/dynamic";
+
+// ✅ Import dynamique de la carte pour éviter l'erreur "window is not defined" côté serveur
+const DeliveryMap = dynamic(() => import("@/components/DeliveryMap"), { 
+  ssr: false,
+  loading: () => <div className="h-64 bg-neutral-900 animate-pulse rounded-2xl flex items-center justify-center text-gray-500 text-xs border border-neutral-800">Chargement du GPS...</div>
+});
 
 interface OrderData {
   id: number;
   pickup_time: string;
   status: string;
+  order_type: string;
+  driver_lat: number | null;
+  driver_lng: number | null;
 }
 
 interface OrderTrackerProps {
@@ -22,18 +32,12 @@ export default function OrderTracker({ orderId }: OrderTrackerProps) {
   const [loading, setLoading] = useState(true);
   const { lang } = useTranslation();
 
-  const steps = [
-    { id: "Payé", label: "Commande validée", icon: Receipt },
-    { id: "En préparation", label: "En cuisine", icon: ChefHat },
-    { id: "Prête", label: "Prête", icon: Package },
-    { id: "Livrée", label: "Terminée", icon: CheckCircle2 }
-  ];
-
   useEffect(() => {
     const fetchOrder = async () => {
+      // ✅ On ajoute order_type et les coordonnées GPS à la requête
       const { data, error } = await supabase
         .from("orders")
-        .select("id, pickup_time, status")
+        .select("id, pickup_time, status, order_type, driver_lat, driver_lng")
         .eq("id", orderId)
         .single();
 
@@ -70,25 +74,60 @@ export default function OrderTracker({ orderId }: OrderTrackerProps) {
   if (loading) return <div className="flex justify-center p-10"><Loader2 className="animate-spin text-kabuki-red" /></div>;
   if (!order) return <div className="text-center p-10 text-gray-500 font-bold uppercase tracking-widest text-sm">Commande introuvable</div>;
 
+  // ✅ Adaptation des étapes selon le type de commande
+  const isDelivery = order.order_type === "Livraison";
+  const steps = isDelivery ? [
+    { id: "Payé", label: "Validée", icon: Receipt },
+    { id: "En préparation", label: "En cuisine", icon: ChefHat },
+    { id: "Prête", label: "Attente livreur", icon: Package },
+    { id: "En livraison", label: "En route", icon: Truck },
+    { id: "Livrée", label: "Livrée", icon: CheckCircle2 }
+  ] : [
+    { id: "Payé", label: "Validée", icon: Receipt },
+    { id: "En préparation", label: "En cuisine", icon: ChefHat },
+    { id: "Prête", label: "Prête pour retrait", icon: Package },
+    { id: "Livrée", label: "Terminée", icon: CheckCircle2 }
+  ];
+
   const currentStepIndex = steps.findIndex(s => s.id === order.status);
   const activeIndex = currentStepIndex === -1 ? 0 : currentStepIndex;
+  
   const isDelivered = order.status === "Livrée";
-  const isCancelled = order.status === "Annulée"; // ✅ Détection de l'état Annulée
+  const isCancelled = order.status === "Annulée"; 
+  
+  // On affiche la carte seulement si c'est une livraison en cours (ou si on a des coordonnées)
+  const showMap = isDelivery && (order.status === "En livraison" || (order.driver_lat && order.driver_lng));
 
   return (
     <div className="space-y-6 max-w-lg mx-auto px-2">
-      <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-8 shadow-2xl">
-        <div className="text-center mb-10">
-          <span className="text-kabuki-red font-bold text-[10px] uppercase tracking-[0.3em]">Suivi en direct</span>
+      <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-8 shadow-2xl overflow-hidden">
+        
+        <div className="text-center mb-8">
+          <span className="text-kabuki-red font-bold text-[10px] uppercase tracking-[0.3em]">
+            {isDelivery ? "Suivi de Livraison" : "Suivi en direct"}
+          </span>
           <h2 className="text-white font-display font-bold uppercase text-3xl tracking-tighter italic mt-1">
-            Commande #KBK-{order.id}
+            #KBK-{order.id}
           </h2>
           <p className="text-gray-400 text-sm mt-2 font-medium">
-            {isDelivered ? "Livraison effectuée" : isCancelled ? "Commande annulée" : `Retrait prévu à ${order.pickup_time}`}
+            {isDelivered ? "Livraison effectuée" : isCancelled ? "Commande annulée" : `Prévu à ${order.pickup_time}`}
           </p>
         </div>
 
-        {/* ✅ Si la commande est annulée, on affiche ce bloc */}
+        {/* ✅ INTEGRATION DE LA CARTE ICI */}
+        <AnimatePresence>
+          {showMap && !isDelivered && !isCancelled && (
+            <motion.div 
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              className="mb-8"
+            >
+              <DeliveryMap driverLat={order.driver_lat} driverLng={order.driver_lng} />
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {isCancelled ? (
           <motion.div 
             initial={{ opacity: 0, scale: 0.9 }} 
@@ -102,8 +141,7 @@ export default function OrderTracker({ orderId }: OrderTrackerProps) {
             </p>
           </motion.div>
         ) : (
-          /* ✅ Sinon, on affiche le suivi normal */
-          <div className="relative">
+          <div className="relative mt-4">
             <div className="absolute left-6 top-0 bottom-0 w-0.5 bg-neutral-800" />
 
             <div className="space-y-8">
@@ -137,9 +175,11 @@ export default function OrderTracker({ orderId }: OrderTrackerProps) {
                           animate={{ opacity: 1, height: "auto" }}
                           className="text-xs text-kabuki-red font-bold mt-1 overflow-hidden"
                         >
-                          {step.id === "Payé" ? "En attente de prise en charge par la cuisine." :
+                          {step.id === "Payé" ? "En attente de prise en charge." :
                            step.id === "En préparation" ? "Nos chefs préparent vos sushis..." : 
-                           step.id === "Prête" ? "Votre commande est prête !" : 
+                           step.id === "Prête" && !isDelivery ? "Votre commande est prête !" : 
+                           step.id === "Prête" && isDelivery ? "Le livreur est en route vers le restaurant." : 
+                           step.id === "En livraison" ? "Regardez la carte, il arrive !" : 
                            step.id === "Livrée" ? "Bon appétit ! Merci de votre confiance." : ""}
                         </motion.p>
                       )}
@@ -153,7 +193,6 @@ export default function OrderTracker({ orderId }: OrderTrackerProps) {
       </div>
 
       <AnimatePresence>
-        {/* ✅ Les boutons de sortie s'affichent pour Livrée ET Annulée */}
         {(isDelivered || isCancelled) && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}

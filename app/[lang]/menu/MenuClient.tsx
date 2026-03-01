@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, Info, Plus, Minus } from "lucide-react"; // ✅ CheckCircle supprimé
+import { Search, Info, Plus, Minus } from "lucide-react";
 import Reveal from "@/components/Reveal";
 import { useTranslation } from "@/context/LanguageContext";
 import { supabase } from "@/utils/supabase";
@@ -118,15 +118,16 @@ const MenuItemCard = ({ item, onClick }: { item: MenuItem; onClick: () => void }
             placeholder="blur"
             blurDataURL={`data:image/svg+xml;base64,${toBase64(shimmer(700, 475))}`}
             priority={item.id < 1005} 
+            fetchPriority={item.id < 1005 ? "high" : "low"} // ✅ Optimisation LCP
             onError={() => setImgError(true)}
           />
         ) : (
-          <div className="w-full h-full flex items-center justify-center bg-neutral-800 italic text-neutral-600 text-[10px] uppercase tracking-tighter">
+          <div className="w-full h-full flex items-center justify-center bg-neutral-800 italic text-neutral-400 text-[10px] uppercase tracking-tighter"> {/* ✅ Contraste neutral-400 */}
             KABUKI SUSHI
           </div>
         )}
         <div className="absolute top-2 right-2 bg-black/50 backdrop-blur-md p-1.5 rounded-full text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
-            <Info size={14} />
+            <Info size={14} aria-hidden="true" />
         </div>
       </div>
       
@@ -135,7 +136,7 @@ const MenuItemCard = ({ item, onClick }: { item: MenuItem; onClick: () => void }
           <h3 className="text-[11px] md:text-xs font-bold text-white uppercase line-clamp-2 leading-tight font-display tracking-wide mb-1">
             {displayName ? displayName.split('(')[0] : "Sans nom"}
           </h3>
-          <p className="text-gray-500 text-[9px] line-clamp-2 leading-snug">
+          <p className="text-neutral-400 text-[9px] line-clamp-2 leading-snug"> {/* ✅ Contraste neutral-400 */}
             {displayDesc || "..."}
           </p>
         </div>
@@ -156,7 +157,8 @@ const MenuItemCard = ({ item, onClick }: { item: MenuItem; onClick: () => void }
                 >
                   <button 
                     onClick={handleRemove}
-                    className="w-7 h-7 flex items-center justify-center text-gray-400 hover:text-white transition-colors"
+                    aria-label="Réduire la quantité" // ✅ A11y
+                    className="w-7 h-7 flex items-center justify-center text-neutral-400 hover:text-white transition-colors" // ✅ Contraste neutral-400
                   >
                     <Minus size={14} strokeWidth={2.5} />
                   </button>
@@ -169,6 +171,7 @@ const MenuItemCard = ({ item, onClick }: { item: MenuItem; onClick: () => void }
 
             <button 
               onClick={handleAdd}
+              aria-label="Ajouter au panier" // ✅ A11y
               className={`w-7 h-7 rounded-full flex items-center justify-center transition-all ${
                 quantity > 0 ? "text-kabuki-red" : "bg-neutral-700 text-white hover:bg-kabuki-red"
               }`}
@@ -236,12 +239,12 @@ export default function MenuClient() {
   return (
     <div className="bg-neutral-900 min-h-screen pb-20 pt-24 relative">
       <div className="bg-black text-white py-12 md:py-16 text-center relative overflow-hidden">
-        <div className="absolute inset-0 bg-[url('/pattern-kimono.png')] opacity-5 z-0"></div>
+        <div className="absolute inset-0 bg-[url('/pattern-kimono.png')] opacity-5 z-0" aria-hidden="true"></div>
         <Reveal>
           <h1 className="text-4xl md:text-6xl font-display font-bold uppercase tracking-widest relative z-10">
             {t.menu.title}
           </h1>
-          <p className="text-gray-400 mt-4 text-xs md:text-sm relative z-10 max-w-md mx-auto px-6 italic">
+          <p className="text-neutral-300 mt-4 text-xs md:text-sm relative z-10 max-w-md mx-auto px-6 italic"> {/* ✅ Contraste neutral-300 */}
             {t.menu.subtitle}
           </p>
           <div className="w-16 h-1 bg-kabuki-red mx-auto mt-6 relative z-10"></div>
@@ -251,31 +254,33 @@ export default function MenuClient() {
       <div className="sticky top-[80px] z-30 bg-neutral-900/90 backdrop-blur-lg py-4 border-b border-neutral-800 mb-8">
         <div className="container mx-auto px-4">
           <div className="relative max-w-md mx-auto mb-6">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-neutral-400" size={18} aria-hidden="true" />
             <input 
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder={lang === "fr" ? "Rechercher un sushi..." : "Search..."}
+              aria-label="Rechercher un plat" // ✅ A11y
               className="w-full bg-black border border-neutral-800 rounded-full py-2.5 pl-12 pr-12 text-sm text-white focus:border-kabuki-red outline-none shadow-xl"
             />
           </div>
 
-          <div className="flex flex-nowrap md:flex-wrap overflow-x-auto md:justify-center gap-2 pb-2 no-scrollbar">
+          <nav className="flex flex-nowrap md:flex-wrap overflow-x-auto md:justify-center gap-2 pb-2 no-scrollbar" aria-label="Catégories du menu"> {/* ✅ Sémantique nav */}
             {filterCategories.map((cat) => (
               <button
                 key={cat.id}
                 onClick={() => setActiveCategory(cat.id)}
+                aria-pressed={activeCategory === cat.id} // ✅ A11y
                 className={`flex-shrink-0 px-4 py-1.5 rounded-full text-[9px] md:text-[10px] font-bold uppercase tracking-widest border transition-all ${
                   activeCategory === cat.id 
                   ? "bg-kabuki-red border-kabuki-red text-white" 
-                  : "bg-neutral-800 border-neutral-700 text-gray-500 hover:text-white"
+                  : "bg-neutral-800 border-neutral-700 text-neutral-400 hover:text-white" // ✅ Contraste neutral-400
                 }`}
               >
                 {cat.label}
               </button>
             ))}
-          </div>
+          </nav>
         </div>
       </div>
 

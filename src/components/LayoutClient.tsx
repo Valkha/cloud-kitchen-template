@@ -1,13 +1,20 @@
 "use client";
 
 import { useState } from "react";
+import dynamic from "next/dynamic"; // ✅ Ajout de l'import dynamique
 import Navbar from "@/components/Navbar";
 import MobileActionBar from "@/components/MobileActionBar";
-import CartDrawer from "@/components/CartDrawer";
 import PageLoader from "@/components/PageLoader";
 import ScrollToTop from "@/components/ScrollToTop";
 import CookieBanner from "@/components/CookieBanner";
 import Footer from "@/components/Footer";
+
+// ✅ CHARGEMENT DYNAMIQUE DU PANIER
+// ssr: false empêche Next.js d'essayer de rendre le panier sur le serveur.
+// Cela économise du temps de calcul et évite de charger Stripe trop tôt.
+const CartDrawer = dynamic(() => import("@/components/CartDrawer"), {
+  ssr: false,
+});
 
 export default function LayoutClient({ children }: { children: React.ReactNode }) {
   const [isCartOpen, setIsCartOpen] = useState(false);
@@ -35,7 +42,7 @@ export default function LayoutClient({ children }: { children: React.ReactNode }
 
       <Footer />
 
-      {/* Le Drawer du panier, géré globalement */}
+      {/* ✅ Le Drawer du panier est maintenant chargé dynamiquement */}
       <CartDrawer isOpen={isCartOpen} onClose={closeCart} />
     </>
   );

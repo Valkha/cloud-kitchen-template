@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, Info, Plus, CheckCircle } from "lucide-react";
+import { Search, Info, Plus, Minus } from "lucide-react"; // ✅ CheckCircle supprimé
 import Reveal from "@/components/Reveal";
 import { useTranslation } from "@/context/LanguageContext";
 import { supabase } from "@/utils/supabase";
@@ -40,9 +40,11 @@ const toBase64 = (str: string) =>
 
 const MenuItemCard = ({ item, onClick }: { item: MenuItem; onClick: () => void }) => {
   const { lang } = useTranslation();
-  const { addToCart } = useCart();
+  const { items, addToCart, updateQuantity, removeFromCart } = useCart();
   const [imgError, setImgError] = useState(false);
-  const [isAdded, setIsAdded] = useState(false);
+
+  const cartItem = items.find((i) => i.id === item.id);
+  const quantity = cartItem ? cartItem.quantity : 0;
 
   const getTranslation = () => {
     const currentLang = lang.toLowerCase();
@@ -62,7 +64,7 @@ const MenuItemCard = ({ item, onClick }: { item: MenuItem; onClick: () => void }
 
   const { name: displayName, desc: displayDesc } = getTranslation();
 
-  const handleQuickAdd = (e: React.MouseEvent) => {
+  const handleAdd = (e: React.MouseEvent) => {
     e.stopPropagation();
     addToCart({
       id: item.id,
@@ -71,11 +73,15 @@ const MenuItemCard = ({ item, onClick }: { item: MenuItem; onClick: () => void }
       image_url: item.image_url,
       category: item.category,
     });
+  };
 
-    setIsAdded(true);
-    setTimeout(() => {
-      setIsAdded(false);
-    }, 2000);
+  const handleRemove = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (quantity > 1) {
+      updateQuantity(item.id, quantity - 1);
+    } else {
+      removeFromCart(item.id);
+    }
   };
 
   return (
@@ -90,15 +96,14 @@ const MenuItemCard = ({ item, onClick }: { item: MenuItem; onClick: () => void }
     >
       <div className="w-full bg-neutral-900 relative aspect-square overflow-hidden">
         <AnimatePresence>
-          {isAdded && (
+          {quantity > 0 && (
             <motion.div
-              initial={{ y: -50, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              exit={{ y: -50, opacity: 0 }}
-              className="absolute top-0 left-0 w-full bg-kabuki-red/95 backdrop-blur-sm text-white py-2 flex items-center justify-center gap-2 z-20 shadow-md"
+              initial={{ scale: 0, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0, opacity: 0 }}
+              className="absolute top-2 left-2 z-20 bg-kabuki-red text-white text-[10px] font-black w-6 h-6 rounded-full flex items-center justify-center shadow-lg border border-white/10"
             >
-              <CheckCircle size={14} />
-              <span className="text-[10px] font-bold uppercase tracking-widest">Ajouté</span>
+              {quantity}
             </motion.div>
           )}
         </AnimatePresence>
@@ -135,21 +140,42 @@ const MenuItemCard = ({ item, onClick }: { item: MenuItem; onClick: () => void }
           </p>
         </div>
 
-        {/* ✅ SECTION PRIX & BOUTON CORRIGÉE */}
         <div className="flex items-center justify-between gap-2 pt-2 border-t border-neutral-700/50">
-          {/* Prix avec whitespace-nowrap pour éviter les sauts de ligne */}
           <span className="bg-kabuki-red text-white font-bold px-2 py-1 rounded text-[9px] whitespace-nowrap shadow-sm flex-shrink-0">
             {item.price ? Number(item.price).toFixed(2) : "0.00"} <span className="text-[7px] ml-0.5">CHF</span>
           </span>
 
-          {/* Bouton Plus avec flex-shrink-0 pour ne jamais être écrasé */}
-          <button 
-            onClick={handleQuickAdd}
-            className="w-8 h-8 rounded-full bg-neutral-700 text-white flex items-center justify-center hover:bg-kabuki-red hover:scale-110 active:scale-90 transition-all shadow-md flex-shrink-0"
-            title="Ajouter au panier"
-          >
-            <Plus size={16} strokeWidth={3} />
-          </button>
+          <div className="flex items-center bg-neutral-900 rounded-full p-0.5 border border-neutral-700">
+            <AnimatePresence mode="popLayout">
+              {quantity > 0 && (
+                <motion.div
+                  initial={{ width: 0, opacity: 0 }}
+                  animate={{ width: "auto", opacity: 1 }}
+                  exit={{ width: 0, opacity: 0 }}
+                  className="flex items-center overflow-hidden"
+                >
+                  <button 
+                    onClick={handleRemove}
+                    className="w-7 h-7 flex items-center justify-center text-gray-400 hover:text-white transition-colors"
+                  >
+                    <Minus size={14} strokeWidth={2.5} />
+                  </button>
+                  <span className="text-[10px] font-bold text-white w-4 text-center">
+                    {quantity}
+                  </span>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            <button 
+              onClick={handleAdd}
+              className={`w-7 h-7 rounded-full flex items-center justify-center transition-all ${
+                quantity > 0 ? "text-kabuki-red" : "bg-neutral-700 text-white hover:bg-kabuki-red"
+              }`}
+            >
+              <Plus size={14} strokeWidth={3} />
+            </button>
+          </div>
         </div>
       </div>
     </motion.div>

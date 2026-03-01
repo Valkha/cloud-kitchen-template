@@ -5,6 +5,7 @@ import { LanguageProvider } from "@/context/LanguageContext";
 import { CartProvider } from "@/context/CartContext";
 import LayoutClient from "@/components/LayoutClient"; 
 import ActiveOrderButton from "@/components/ActiveOrderButton"; // ✅ 1. Ajout de l'import du bouton
+import { SpeedInsights } from "@vercel/speed-insights/next"
 
 const inter = Inter({ 
   subsets: ["latin"], 

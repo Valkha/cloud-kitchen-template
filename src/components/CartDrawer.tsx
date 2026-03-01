@@ -14,17 +14,18 @@ const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!
 
 const cartTranslations = {
   fr: {
-    titleCart: "Mon Panier", titleCheckout: "Validation", titlePayment: "Paiement Sécurisé", emptyCart: "Votre panier est vide", items: "article", itemsPlural: "articles", clearCart: "Vider le panier", name: "Nom Complet *", namePlaceholder: "Jean Dupont", phone: "Téléphone Mobile *", phonePlaceholder: "07X XXX XX XX", date: "Date *", time: "Heure *", pickupMode: "Mode de retrait *", takeaway: "À Emporter", delivery: "Livraison", address: "Adresse *", addressPlaceholder: "Rue des Alpes 12", zip: "NPA *", floor: "Étage", floorPlaceholder: "Ex: 4", code: "Code", codePlaceholder: "Ex: A123", comments: "Instructions / Allergies", commentsPlaceholder: "Sans wasabi...", totalEstimated: "Total à payer", btnValidate: "Passer à la caisse", btnPay: "Payer la commande", minOrderError: "Minimum 25 CHF requis pour la livraison.", noTimeSlots: "Aucun horaire disponible.", today: "Aujourd'hui", tomorrow: "Demain", sending: "Génération...", processing: "Traitement...", paymentError: "Le paiement a échoué.", successTitle: "Paiement réussi !", successDesc: "Votre commande est validée.", btnClose: "Fermer", cancelPayment: "Annuler"
+    titleCart: "Mon Panier", titleCheckout: "Validation", titlePayment: "Paiement Sécurisé", emptyCart: "Votre panier est vide", items: "article", itemsPlural: "articles", clearCart: "Vider le panier", name: "Nom Complet *", namePlaceholder: "Jean Dupont", phone: "Téléphone Mobile *", phonePlaceholder: "07X XXX XX XX", date: "Date *", time: "Heure *", pickupMode: "Mode de retrait *", takeaway: "À Emporter", delivery: "Livraison", address: "Adresse *", addressPlaceholder: "Rue des Alpes 12", zip: "NPA *", floor: "Étage", floorPlaceholder: "Ex: 4", code: "Code", codePlaceholder: "Ex: A123", comments: "Instructions / Allergies", commentsPlaceholder: "Sans wasabi...", totalEstimated: "Total à payer", btnValidate: "Passer à la caisse", btnPay: "Payer la commande", minOrderError: "Minimum 25 CHF requis pour la livraison.", noTimeSlots: "Aucun horaire disponible.", today: "Aujourd'hui", tomorrow: "Demain", sending: "Génération...", processing: "Traitement...", paymentError: "Le paiement a échoué.", successTitle: "Paiement réussi !", successDesc: "Votre commande est validée.", btnClose: "Fermer", cancelPayment: "Annuler", remove: "Supprimer", decrease: "Diminuer quantité", increase: "Augmenter quantité", back: "Retour"
   },
   en: {
-    titleCart: "My Cart", titleCheckout: "Checkout", titlePayment: "Secure Payment", emptyCart: "Empty", items: "item", itemsPlural: "items", clearCart: "Clear", name: "Name *", namePlaceholder: "John Doe", phone: "Mobile Phone *", phonePlaceholder: "07X XXX XX XX", date: "Date *", time: "Time *", pickupMode: "Method *", takeaway: "Takeaway", delivery: "Delivery", address: "Address *", addressPlaceholder: "Street", zip: "ZIP *", floor: "Floor", floorPlaceholder: "Ex: 4", code: "Code", codePlaceholder: "Ex: A123", comments: "Instructions", commentsPlaceholder: "Allergies...", totalEstimated: "Total", btnValidate: "Checkout", btnPay: "Pay Now", minOrderError: "Min 25 CHF for delivery.", noTimeSlots: "No slots.", today: "Today", tomorrow: "Tomorrow", sending: "Sending...", processing: "Processing...", paymentError: "Failed.", successTitle: "Success!", successDesc: "Confirmed.", btnClose: "Close", cancelPayment: "Cancel"
+    titleCart: "My Cart", titleCheckout: "Checkout", titlePayment: "Secure Payment", emptyCart: "Empty", items: "item", itemsPlural: "items", clearCart: "Clear", name: "Name *", namePlaceholder: "John Doe", phone: "Mobile Phone *", phonePlaceholder: "07X XXX XX XX", date: "Date *", time: "Time *", pickupMode: "Method *", takeaway: "Takeaway", delivery: "Delivery", address: "Address *", addressPlaceholder: "Street", zip: "ZIP *", floor: "Floor", floorPlaceholder: "Ex: 4", code: "Code", codePlaceholder: "Ex: A123", comments: "Instructions", commentsPlaceholder: "Allergies...", totalEstimated: "Total", btnValidate: "Checkout", btnPay: "Pay Now", minOrderError: "Min 25 CHF for delivery.", noTimeSlots: "No slots.", today: "Today", tomorrow: "Tomorrow", sending: "Sending...", processing: "Processing...", paymentError: "Failed.", successTitle: "Success!", successDesc: "Confirmed.", btnClose: "Close", cancelPayment: "Cancel", remove: "Remove", decrease: "Decrease", increase: "Increase", back: "Back"
   },
   es: {
-    titleCart: "Carrito", titleCheckout: "Pago", titlePayment: "Pago Seguro", emptyCart: "Vacío", items: "artículo", itemsPlural: "artículos", clearCart: "Vaciar", name: "Nombre *", namePlaceholder: "Juan", phone: "Teléfono *", phonePlaceholder: "07X XXX XX XX", date: "Fecha *", time: "Hora *", pickupMode: "Método *", takeaway: "Para llevar", delivery: "Entrega", address: "Dirección *", addressPlaceholder: "Calle", zip: "CP *", floor: "Piso", floorPlaceholder: "Ej: 4", code: "Código", codePlaceholder: "Ej: A123", comments: "Notas", commentsPlaceholder: "Alergias...", totalEstimated: "Total", btnValidate: "Pagar", btnPay: "Pagar pedido", minOrderError: "Mínimo 25 CHF para entrega.", noTimeSlots: "No disponible.", today: "Hoy", tomorrow: "Mañana", sending: "Enviando...", processing: "Procesando...", paymentError: "Error.", successTitle: "¡Éxito!", successDesc: "Confirmado.", btnClose: "Cerrar", cancelPayment: "Cancelar"
+    titleCart: "Carrito", titleCheckout: "Pago", titlePayment: "Pago Seguro", emptyCart: "Vacío", items: "artículo", itemsPlural: "artículos", clearCart: "Vaciar", name: "Nombre *", namePlaceholder: "Juan", phone: "Teléfono *", phonePlaceholder: "07X XXX XX XX", date: "Fecha *", time: "Hora *", pickupMode: "Método *", takeaway: "Para llevar", delivery: "Entrega", address: "Dirección *", addressPlaceholder: "Calle", zip: "CP *", floor: "Piso", floorPlaceholder: "Ej: 4", code: "Código", codePlaceholder: "Ej: A123", comments: "Notas", commentsPlaceholder: "Alergias...", totalEstimated: "Total", btnValidate: "Pagar", btnPay: "Pagar pedido", minOrderError: "Mínimo 25 CHF para entrega.", noTimeSlots: "No disponible.", today: "Hoy", tomorrow: "Mañana", sending: "Enviando...", processing: "Processing...", paymentError: "Error.", successTitle: "¡Éxito!", successDesc: "Confirmado.", btnClose: "Cerrar", cancelPayment: "Cancelar", remove: "Eliminar", decrease: "Disminuir", increase: "Aumentar", back: "Volver"
   }
 };
 
 interface CartDrawerProps { isOpen: boolean; onClose: () => void; }
+// ✅ Remplacement de 'any' par un type strict
 interface StripeCheckoutFormProps { total: number; onSuccess: () => void; onCancel: () => void; t: Record<string, string>; orderId: number; }
 
 function StripeCheckoutForm({ total, onSuccess, onCancel, t }: StripeCheckoutFormProps) {
@@ -45,8 +46,6 @@ function StripeCheckoutForm({ total, onSuccess, onCancel, t }: StripeCheckoutFor
       setErrorMessage(response.error.message ?? t.paymentError);
       setIsProcessing(false);
     } else if (response.paymentIntent && response.paymentIntent.status === "succeeded") {
-      // ✅ Sécurité : On ne fait plus d'update Supabase ici. 
-      // C'est le Webhook serveur qui s'en occupe pour éviter les fraudes/erreurs.
       onSuccess();
     } else {
       setIsProcessing(false);
@@ -57,16 +56,17 @@ function StripeCheckoutForm({ total, onSuccess, onCancel, t }: StripeCheckoutFor
     <form onSubmit={handleStripeSubmit} className="flex flex-col h-full">
       <div className="flex-1 overflow-y-auto p-6 space-y-6">
         <div className="bg-green-500/10 border border-green-500/20 p-4 rounded-xl flex items-center gap-3 text-green-500">
-          <ShieldCheck size={24} /><p className="text-[10px] font-bold uppercase tracking-widest">Paiement 100% Sécurisé</p>
+          <ShieldCheck size={24} aria-hidden="true" />
+          <p className="text-[10px] font-bold uppercase tracking-widest">Paiement 100% Sécurisé</p>
         </div>
         <PaymentElement options={{ layout: "tabs" }} />
-        {errorMessage && <div className="text-red-500 text-xs font-bold bg-red-900/20 p-3 rounded-xl">⚠️ {errorMessage}</div>}
+        {errorMessage && <div role="alert" className="text-red-500 text-xs font-bold bg-red-900/20 p-3 rounded-xl">⚠️ {errorMessage}</div>}
       </div>
       <div className="p-6 border-t border-neutral-800 bg-neutral-900 space-y-3">
         <button type="submit" disabled={!stripe || isProcessing} className={`w-full font-bold py-4 rounded-xl uppercase flex items-center justify-center gap-2 transition-all ${isProcessing ? "bg-neutral-800 text-neutral-500" : "bg-green-600 text-white shadow-lg shadow-green-900/20 hover:bg-green-500"}`}>
-          {isProcessing ? <><Loader2 size={18} className="animate-spin" /> {t.processing}</> : `${t.btnPay} (${total.toFixed(2)} CHF)`}
+          {isProcessing ? <><Loader2 size={18} className="animate-spin" aria-hidden="true" /> {t.processing}</> : `${t.btnPay} (${total.toFixed(2)} CHF)`}
         </button>
-        <button type="button" onClick={onCancel} className="w-full text-gray-500 text-[10px] font-bold uppercase py-2 hover:text-white transition">{t.cancelPayment}</button>
+        <button type="button" onClick={onCancel} className="w-full text-gray-400 text-[10px] font-bold uppercase py-2 hover:text-white transition">{t.cancelPayment}</button>
       </div>
     </form>
   );
@@ -134,13 +134,13 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
       const newId = data[0].id;
       setOrderId(newId);
 
-      // On passe bien l'orderId à Stripe pour le Webhook
       const res = await fetch("/api/create-payment-intent", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ amount: totalPrice, orderId: newId }) });
       const payData = await res.json();
       if (payData.error) throw new Error(payData.error);
       
       setClientSecret(payData.clientSecret);
       setIsPayment(true);
+      // ✅ Correction de 'any' vers 'unknown' pour la sécurité TypeScript
     } catch (err: unknown) {
       const errorObj = err as Error;
       alert(`Erreur : ${errorObj.message}`);
@@ -151,25 +151,26 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
     <AnimatePresence>
       {isOpen && (
         <>
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100]" />
-          <motion.div initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }} className="fixed top-0 right-0 h-full w-full md:w-[450px] bg-neutral-900 border-l border-neutral-800 z-[101] flex flex-col shadow-2xl">
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100]" aria-hidden="true" />
+          <motion.div initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }} className="fixed top-0 right-0 h-full w-full md:w-[450px] bg-neutral-900 border-l border-neutral-800 z-[101] flex flex-col shadow-2xl" role="dialog" aria-modal="true" aria-labelledby="cart-title">
             {!isSuccess && (
               <div className="flex items-center justify-between p-6 border-b border-neutral-800 bg-black/20">
-                <h2 className="text-xl font-display font-bold text-white uppercase tracking-widest flex items-center gap-3">
-                  {isPayment ? <><ShieldCheck size={20} className="text-green-500" /> {t.titlePayment}</> : isCheckout ? <><button onClick={() => setIsCheckout(false)} className="hover:text-kabuki-red transition"><ArrowLeft size={20} /></button> {t.titleCheckout}</> : <><ShoppingBag size={20} className="text-kabuki-red" /> {t.titleCart}</>}
+                <h2 id="cart-title" className="text-xl font-display font-bold text-white uppercase tracking-widest flex items-center gap-3">
+                  {isPayment ? <><ShieldCheck size={20} className="text-green-500" aria-hidden="true" /> {t.titlePayment}</> : isCheckout ? <><button onClick={() => setIsCheckout(false)} className="hover:text-kabuki-red transition" aria-label={t.back}><ArrowLeft size={20} aria-hidden="true" /></button> {t.titleCheckout}</> : <><ShoppingBag size={20} className="text-kabuki-red" aria-hidden="true" /> {t.titleCart}</>}
                 </h2>
-                <button onClick={onClose} className="p-2 text-gray-400 bg-neutral-800 rounded-full hover:text-white transition"><X size={18} /></button>
+                <button onClick={onClose} aria-label={t.btnClose} className="p-2 text-gray-400 bg-neutral-800 rounded-full hover:text-white transition"><X size={18} aria-hidden="true" /></button>
               </div>
             )}
+            
             {isSuccess ? (
               <div className="flex-1 flex flex-col items-center justify-center p-8 space-y-6 text-center">
                 <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="w-20 h-20 bg-green-500/10 rounded-full flex items-center justify-center">
-                    <CheckCircle size={48} className="text-green-500" />
+                    <CheckCircle size={48} className="text-green-500" aria-hidden="true" />
                 </motion.div>
                 <h2 className="text-2xl font-bold text-white uppercase tracking-tight">{t.successTitle}</h2>
                 <div className="bg-neutral-800 p-6 rounded-2xl border border-neutral-700 w-full shadow-inner">
-                    <p className="text-gray-400 text-sm mb-4">{t.successDesc}</p>
-                    <span className="text-[10px] text-gray-500 uppercase font-black tracking-widest">Numéro de commande</span>
+                    <p className="text-gray-300 text-sm mb-4">{t.successDesc}</p>
+                    <span className="text-[10px] text-gray-400 uppercase font-black tracking-widest">Numéro de commande</span>
                     <p className="text-3xl font-display font-bold text-kabuki-red tracking-tighter mt-1">#KBK-{orderId}</p>
                 </div>
                 <button onClick={() => { onClose(); window.location.href = `/${lang}/track?order_id=${orderId}`; }} className="w-full bg-kabuki-red text-white font-bold py-4 rounded-xl uppercase shadow-lg shadow-red-900/30 hover:bg-red-700 transition-all">Suivre ma commande</button>
@@ -181,82 +182,111 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
             ) : (
               <div className="flex-1 flex flex-col overflow-hidden">
                 <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
-                  {items.length === 0 ? <p className="text-center text-gray-500 uppercase py-20 font-bold tracking-widest">{t.emptyCart}</p> : 
+                  {items.length === 0 ? <p className="text-center text-gray-400 uppercase py-20 font-bold tracking-widest">{t.emptyCart}</p> : 
                     !isCheckout ? (
                       <div className="space-y-6">
-                        <div className="text-[10px] text-gray-500 font-bold uppercase tracking-widest flex items-center gap-2 border-b border-neutral-800 pb-2"><ShoppingBag size={12} /> {totalItems} {totalItems > 1 ? t.itemsPlural : t.items}</div>
+                        <div className="text-[10px] text-gray-400 font-bold uppercase tracking-widest flex items-center gap-2 border-b border-neutral-800 pb-2"><ShoppingBag size={12} aria-hidden="true" /> {totalItems} {totalItems > 1 ? t.itemsPlural : t.items}</div>
                         {items.map(i => (
                           <div key={i.id} className="flex gap-4 items-center bg-black/40 p-3 rounded-2xl border border-neutral-800/50 hover:border-neutral-700 transition">
-                            <div className="w-16 h-16 relative bg-neutral-800 rounded-xl overflow-hidden shrink-0 shadow-md">{i.image_url && <Image src={i.image_url} alt={i.name} fill className="object-cover" />}</div>
-                            <div className="flex-1"><h4 className="text-white font-bold text-sm uppercase leading-tight">{i.name}</h4><div className="text-kabuki-red font-bold text-xs">{(i.price * i.quantity).toFixed(2)} CHF</div></div>
-                            <div className="flex items-center gap-3 bg-neutral-800 rounded-full px-2 py-1 shadow-inner border border-neutral-700/50">
-                              <button onClick={() => updateQuantity(i.id, i.quantity - 1)} className="text-white hover:text-kabuki-red transition"><Minus size={14} /></button>
-                              <span className="text-white text-xs font-black w-4 text-center">{i.quantity}</span>
-                              <button onClick={() => updateQuantity(i.id, i.quantity + 1)} className="text-white hover:text-kabuki-red transition"><Plus size={14} /></button>
+                            <div className="w-16 h-16 relative bg-neutral-800 rounded-xl overflow-hidden shrink-0 shadow-md">
+                              {i.image_url && <Image src={i.image_url} alt={i.name} fill className="object-cover" />}
                             </div>
-                            <button onClick={() => removeFromCart(i.id)} className="text-gray-500 hover:text-kabuki-red transition p-1"><Trash2 size={16} /></button>
+                            <div className="flex-1">
+                              <h3 className="text-white font-bold text-sm uppercase leading-tight">{i.name}</h3>
+                              <div className="text-kabuki-red font-bold text-xs">{(i.price * i.quantity).toFixed(2)} CHF</div>
+                            </div>
+                            <div className="flex items-center gap-3 bg-neutral-800 rounded-full px-2 py-1 shadow-inner border border-neutral-700/50">
+                              <button onClick={() => updateQuantity(i.id, i.quantity - 1)} aria-label={t.decrease} className="text-white hover:text-kabuki-red transition"><Minus size={14} aria-hidden="true" /></button>
+                              <span className="text-white text-xs font-black w-4 text-center" aria-live="polite">{i.quantity}</span>
+                              <button onClick={() => updateQuantity(i.id, i.quantity + 1)} aria-label={t.increase} className="text-white hover:text-kabuki-red transition"><Plus size={14} aria-hidden="true" /></button>
+                            </div>
+                            <button onClick={() => removeFromCart(i.id)} aria-label={t.remove} className="text-gray-400 hover:text-kabuki-red transition p-1"><Trash2 size={16} aria-hidden="true" /></button>
                           </div>
                         ))}
-                        <button onClick={clearCart} className="text-[10px] text-gray-500 hover:text-red-500 font-bold uppercase flex items-center gap-2 mx-auto transition"><Trash2 size={12} /> {t.clearCart}</button>
+                        <button onClick={clearCart} className="text-[10px] text-gray-400 hover:text-red-500 font-bold uppercase flex items-center gap-2 mx-auto transition"><Trash2 size={12} aria-hidden="true" /> {t.clearCart}</button>
                       </div>
                     ) : (
                       <form id="checkout-form" onSubmit={handleFinalSubmit} className="space-y-6">
                         <div className="space-y-1">
-                            <label className="text-[10px] font-bold text-gray-500 uppercase ml-1">{t.name}</label>
-                            <input required placeholder={t.namePlaceholder} value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full bg-black text-white border border-neutral-800 rounded-xl px-4 py-3 outline-none focus:border-kabuki-red transition" />
+                            <label htmlFor="customer_name" className="text-[10px] font-bold text-gray-400 uppercase ml-1">{t.name}</label>
+                            <input id="customer_name" required placeholder={t.namePlaceholder} value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full bg-black text-white border border-neutral-800 rounded-xl px-4 py-3 outline-none focus:border-kabuki-red transition" />
                         </div>
                         <div className="space-y-1">
-                            <label className="text-[10px] font-bold text-kabuki-red uppercase ml-1 tracking-widest">{t.phone}</label>
-                            <input required type="tel" placeholder={t.phonePlaceholder} value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} className="w-full bg-black text-white border border-neutral-800 rounded-xl px-4 py-3 outline-none focus:border-kabuki-red transition font-mono" />
+                            <label htmlFor="customer_phone" className="text-[10px] font-bold text-kabuki-red uppercase ml-1 tracking-widest">{t.phone}</label>
+                            <input id="customer_phone" required type="tel" placeholder={t.phonePlaceholder} value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} className="w-full bg-black text-white border border-neutral-800 rounded-xl px-4 py-3 outline-none focus:border-kabuki-red transition font-mono" />
                         </div>
                         
-                        <div className="space-y-2">
-                          <label className="text-[10px] font-bold text-kabuki-red uppercase flex items-center gap-2"><Calendar size={12} /> {t.date}</label>
-                          <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">{days.map((d, idx) => (
-                            <button key={idx} type="button" onClick={() => { setSelectedDate(d); setSelectedTime(""); }} className={`shrink-0 px-4 py-2 rounded-xl border text-xs font-bold transition ${selectedDate?.toDateString() === d.toDateString() ? "bg-kabuki-red border-kabuki-red text-white shadow-lg shadow-red-900/20" : "bg-neutral-800 border-neutral-700 text-gray-400"}`}>{d.toLocaleDateString(lang, { day: 'numeric', month: 'short' })}</button>
-                          ))}</div>
-                        </div>
+                        <fieldset className="space-y-2">
+                          <legend className="text-[10px] font-bold text-kabuki-red uppercase flex items-center gap-2 mb-2"><Calendar size={12} aria-hidden="true" /> {t.date}</legend>
+                          <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+                            {days.map((d, idx) => (
+                              <button key={idx} type="button" onClick={() => { setSelectedDate(d); setSelectedTime(""); }} aria-pressed={selectedDate?.toDateString() === d.toDateString()} className={`shrink-0 px-4 py-2 rounded-xl border text-xs font-bold transition ${selectedDate?.toDateString() === d.toDateString() ? "bg-kabuki-red border-kabuki-red text-white shadow-lg" : "bg-neutral-800 border-neutral-700 text-gray-400"}`}>{d.toLocaleDateString(lang, { day: 'numeric', month: 'short' })}</button>
+                            ))}
+                          </div>
+                        </fieldset>
 
-                        <div className="space-y-2">
-                          <label className="text-[10px] font-bold text-kabuki-red uppercase flex items-center gap-2"><Clock size={12} /> {t.time}</label>
-                          <div className="grid grid-cols-4 gap-2">{availableSlots.map(s => <button key={s} type="button" onClick={() => setSelectedTime(s)} className={`py-2 rounded-lg border text-xs font-bold transition ${selectedTime === s ? "bg-kabuki-red border-kabuki-red text-white shadow-md shadow-red-900/20" : "bg-neutral-800 border-neutral-700 text-gray-400"}`}>{s}</button>)}</div>
-                        </div>
+                        <fieldset className="space-y-2">
+                          <legend className="text-[10px] font-bold text-kabuki-red uppercase flex items-center gap-2 mb-2"><Clock size={12} aria-hidden="true" /> {t.time}</legend>
+                          <div className="grid grid-cols-4 gap-2">
+                            {availableSlots.map(s => <button key={s} type="button" onClick={() => setSelectedTime(s)} aria-pressed={selectedTime === s} className={`py-2 rounded-lg border text-xs font-bold transition ${selectedTime === s ? "bg-kabuki-red border-kabuki-red text-white shadow-md" : "bg-neutral-800 border-neutral-700 text-gray-400"}`}>{s}</button>)}
+                          </div>
+                          {availableSlots.length === 0 && <p className="text-[10px] text-gray-400">{t.noTimeSlots}</p>}
+                        </fieldset>
 
-                        <div className="grid grid-cols-2 gap-3">
-                          <button type="button" onClick={() => setFormData({...formData, type: "Click & Collect"})} className={`py-3 rounded-xl border text-xs font-bold transition ${formData.type !== "Livraison" ? "bg-kabuki-red border-kabuki-red text-white shadow-md" : "bg-black border-neutral-800 text-gray-400"}`}>{t.takeaway}</button>
-                          <button type="button" onClick={() => setFormData({...formData, type: "Livraison"})} className={`py-3 rounded-xl border text-xs font-bold transition ${formData.type === "Livraison" ? "bg-kabuki-red border-kabuki-red text-white shadow-md" : "bg-black border-neutral-800 text-gray-400"}`}>{t.delivery}</button>
+                        <div role="radiogroup" aria-label={t.pickupMode} className="grid grid-cols-2 gap-3">
+                          <button type="button" role="radio" aria-checked={formData.type !== "Livraison"} onClick={() => setFormData({...formData, type: "Click & Collect"})} className={`py-3 rounded-xl border text-xs font-bold transition ${formData.type !== "Livraison" ? "bg-kabuki-red border-kabuki-red text-white shadow-md" : "bg-black border-neutral-800 text-gray-400"}`}>{t.takeaway}</button>
+                          <button type="button" role="radio" aria-checked={formData.type === "Livraison"} onClick={() => setFormData({...formData, type: "Livraison"})} className={`py-3 rounded-xl border text-xs font-bold transition ${formData.type === "Livraison" ? "bg-kabuki-red border-kabuki-red text-white shadow-md" : "bg-black border-neutral-800 text-gray-400"}`}>{t.delivery}</button>
                         </div>
 
                         <AnimatePresence>
                           {formData.type === "Livraison" && (
                             <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="space-y-4 overflow-hidden">
                               {totalPrice < 25 && (
-                                <div className="bg-red-900/20 text-red-500 text-[10px] font-black p-3 rounded-xl border border-red-500/20 text-center uppercase tracking-widest">
+                                <div role="alert" className="bg-red-900/20 text-red-500 text-[10px] font-black p-3 rounded-xl border border-red-500/20 text-center uppercase tracking-widest">
                                   ⚠️ {t.minOrderError}
                                 </div>
                               )}
                               <div className="space-y-3 bg-neutral-900/50 p-4 rounded-xl border border-neutral-800 shadow-inner">
-                                <label className="text-[10px] font-bold text-kabuki-red uppercase flex items-center gap-2"><MapPin size={12} /> {t.address}</label>
-                                <input required={formData.type === "Livraison"} placeholder={t.addressPlaceholder} value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} className="w-full bg-black text-white border border-neutral-800 rounded-lg px-4 py-2 text-sm outline-none focus:border-kabuki-red transition" />
+                                <label htmlFor="delivery_address" className="text-[10px] font-bold text-kabuki-red uppercase flex items-center gap-2"><MapPin size={12} aria-hidden="true" /> {t.address}</label>
+                                <input id="delivery_address" required={formData.type === "Livraison"} placeholder={t.addressPlaceholder} value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} className="w-full bg-black text-white border border-neutral-800 rounded-lg px-4 py-2 text-sm outline-none focus:border-kabuki-red transition" />
                                 <div className="grid grid-cols-2 gap-3">
-                                  <input required={formData.type === "Livraison"} placeholder={t.zip} value={formData.zip} onChange={e => setFormData({...formData, zip: e.target.value})} className="w-full bg-black text-white border border-neutral-800 rounded-lg px-4 py-2 text-sm outline-none focus:border-kabuki-red transition" />
-                                  <input placeholder={t.floorPlaceholder} value={formData.floor} onChange={e => setFormData({...formData, floor: e.target.value})} className="w-full bg-black text-white border border-neutral-800 rounded-lg px-4 py-2 text-sm outline-none focus:border-kabuki-red transition" />
+                                  <div className="space-y-1">
+                                    <label htmlFor="zip_code" className="sr-only">{t.zip}</label>
+                                    <input id="zip_code" required={formData.type === "Livraison"} placeholder={t.zip} value={formData.zip} onChange={e => setFormData({...formData, zip: e.target.value})} className="w-full bg-black text-white border border-neutral-800 rounded-lg px-4 py-2 text-sm outline-none focus:border-kabuki-red transition" />
+                                  </div>
+                                  <div className="space-y-1">
+                                    <label htmlFor="floor_number" className="sr-only">{t.floor}</label>
+                                    <input id="floor_number" placeholder={t.floorPlaceholder} value={formData.floor} onChange={e => setFormData({...formData, floor: e.target.value})} className="w-full bg-black text-white border border-neutral-800 rounded-lg px-4 py-2 text-sm outline-none focus:border-kabuki-red transition" />
+                                  </div>
                                 </div>
-                                <input placeholder={t.codePlaceholder} value={formData.doorCode} onChange={e => setFormData({...formData, doorCode: e.target.value})} className="w-full bg-black text-white border border-neutral-800 rounded-lg px-4 py-2 text-sm outline-none focus:border-kabuki-red transition" />
+                                <input id="door_code" placeholder={t.codePlaceholder} value={formData.doorCode} onChange={e => setFormData({...formData, doorCode: e.target.value})} className="w-full bg-black text-white border border-neutral-800 rounded-lg px-4 py-2 text-sm outline-none focus:border-kabuki-red transition" />
                               </div>
                             </motion.div>
                           )}
                         </AnimatePresence>
 
-                        <div className="space-y-1"><label className="text-[10px] font-bold text-gray-500 uppercase flex items-center gap-2"><MessageSquare size={12} /> {t.comments}</label><textarea value={formData.comments} onChange={e => setFormData({...formData, comments: e.target.value})} className="w-full bg-black text-white border border-neutral-800 rounded-xl px-4 py-3 outline-none focus:border-kabuki-red transition h-20 resize-none text-sm" placeholder={t.commentsPlaceholder} /></div>
+                        <div className="space-y-1">
+                          <label htmlFor="order_comments" className="text-[10px] font-bold text-gray-400 uppercase flex items-center gap-2"><MessageSquare size={12} aria-hidden="true" /> {t.comments}</label>
+                          <textarea id="order_comments" value={formData.comments} onChange={e => setFormData({...formData, comments: e.target.value})} className="w-full bg-black text-white border border-neutral-800 rounded-xl px-4 py-3 outline-none focus:border-kabuki-red transition h-20 resize-none text-sm" placeholder={t.commentsPlaceholder} />
+                        </div>
                       </form>
                     )
                   }
                 </div>
                 {items.length > 0 && (
                   <div className="p-6 border-t border-neutral-800 bg-neutral-900 shrink-0 shadow-[0_-10px_30px_rgba(0,0,0,0.5)]">
-                    <div className="flex justify-between items-center mb-4"><span className="text-gray-400 text-xs font-bold uppercase tracking-widest">{t.totalEstimated}</span><span className="text-2xl font-display font-bold text-white">{totalPrice.toFixed(2)} CHF</span></div>
-                    {!isCheckout ? <button onClick={() => setIsCheckout(true)} className="w-full bg-kabuki-red text-white font-bold py-4 rounded-xl uppercase flex items-center justify-center gap-2 hover:bg-red-700 transition shadow-lg shadow-red-900/30">{t.btnValidate} <ArrowRight size={16} /></button> : <button type="submit" form="checkout-form" disabled={!isFormReady || isSubmitting} className={`w-full font-bold py-4 rounded-xl uppercase flex items-center justify-center gap-2 transition-all ${isFormReady && !isSubmitting ? "bg-kabuki-red text-white hover:bg-red-700 shadow-lg shadow-red-900/30" : "bg-neutral-800 text-neutral-500 cursor-not-allowed"}`}>{isSubmitting ? <><Loader2 size={18} className="animate-spin" /> {t.sending}</> : <><ShieldCheck size={18} /> Continuer vers le paiement</>}</button>}
+                    <div className="flex justify-between items-center mb-4">
+                      <span className="text-gray-400 text-xs font-bold uppercase tracking-widest">{t.totalEstimated}</span>
+                      <span className="text-2xl font-display font-bold text-white">{totalPrice.toFixed(2)} CHF</span>
+                    </div>
+                    {!isCheckout ? (
+                      <button onClick={() => setIsCheckout(true)} className="w-full bg-kabuki-red text-white font-bold py-4 rounded-xl uppercase flex items-center justify-center gap-2 hover:bg-red-700 transition shadow-lg shadow-red-900/30">
+                        {t.btnValidate} <ArrowRight size={16} aria-hidden="true" />
+                      </button>
+                    ) : (
+                      <button type="submit" form="checkout-form" disabled={!isFormReady || isSubmitting} className={`w-full font-bold py-4 rounded-xl uppercase flex items-center justify-center gap-2 transition-all ${isFormReady && !isSubmitting ? "bg-kabuki-red text-white hover:bg-red-700 shadow-lg shadow-red-900/30" : "bg-neutral-800 text-neutral-500 cursor-not-allowed"}`}>
+                        {isSubmitting ? <><Loader2 size={18} className="animate-spin" aria-hidden="true" /> {t.sending}</> : <><ShieldCheck size={18} aria-hidden="true" /> Continuer vers le paiement</>}</button>
+                    )}
                   </div>
                 )}
               </div>

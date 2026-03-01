@@ -4,7 +4,8 @@ import { createClient } from "@supabase/supabase-js";
 
 // 1. Initialisation de Stripe avec ta version d'API
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: "2026-02-25.clover",
+  // ✅ On garde la même version stable pour éviter que le Webhook ne crashe
+  apiVersion: "2023-10-16" as Stripe.LatestApiVersion, 
 });
 
 // 2. Initialisation du client Supabase Admin (Service Role)

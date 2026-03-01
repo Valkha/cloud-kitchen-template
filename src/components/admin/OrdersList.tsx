@@ -5,7 +5,7 @@ import { supabase } from "@/utils/supabase";
 import { 
   Package, User, MapPin, Eye, XCircle, Calendar, CheckCircle2, 
   AlertCircle, ChefHat, Truck, Loader2, RefreshCw, Clock, 
-  MessageSquare, Volume2, VolumeX 
+  MessageSquare, Volume2, VolumeX, ShoppingBag 
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -36,24 +36,28 @@ export default function OrdersList() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
-  // ✅ Alertes sonores ON par défaut
   const [isSoundEnabled, setIsSoundEnabled] = useState(true);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
-    // Initialisation du son
     audioRef.current = new Audio("/sounds/notification.wav");
     audioRef.current.load();
+    const savedSoundPref = localStorage.getItem("kabuki_admin_sound");
+    if (savedSoundPref !== null) setIsSoundEnabled(savedSoundPref === "true");
   }, []);
 
+  const toggleSound = () => {
+    const nextState = !isSoundEnabled;
+    setIsSoundEnabled(nextState);
+    localStorage.setItem("kabuki_admin_sound", String(nextState));
+    if (audioRef.current) audioRef.current.play().catch(() => {});
+  };
+
   const playNotification = useCallback(() => {
-    console.log("📢 Tentative de lecture sonore...");
     if (isSoundEnabled && audioRef.current) {
       audioRef.current.currentTime = 0;
-      audioRef.current.play()
-        .then(() => console.log("✅ Son joué"))
-        .catch(err => console.error("❌ Erreur audio (bloqué par le navigateur) :", err));
+      audioRef.current.play().catch(err => console.error("Erreur audio :", err));
     }
   }, [isSoundEnabled]);
 
@@ -63,28 +67,22 @@ export default function OrdersList() {
       const { data, error } = await supabase
         .from("orders")
         .select("*")
-        // ✅ On filtre les commandes dont le paiement n'est pas encore confirmé
         .neq("status", "Paiement en cours") 
         .order("created_at", { ascending: false });
 
       if (data) setOrders(data as Order[]);
       if (error) console.error("Erreur Supabase:", error);
     } catch (err) {
-      console.error("Erreur Fetch:", err);
+      console.error(err);
     } finally {
       setLoading(false);
     }
   }, []);
 
   const updateStatus = async (orderId: number, newStatus: string) => {
-    const { error } = await supabase
-      .from("orders")
-      .update({ status: newStatus })
-      .eq("id", orderId);
-
-    if (error) {
-      alert("Erreur de mise à jour");
-    } else {
+    const { error } = await supabase.from("orders").update({ status: newStatus }).eq("id", orderId);
+    if (error) alert("Erreur de mise à jour");
+    else {
       if (selectedOrder?.id === orderId) {
         setSelectedOrder(prev => prev ? { ...prev, status: newStatus } : null);
       }
@@ -94,50 +92,21 @@ export default function OrdersList() {
 
   useEffect(() => {
     fetchOrders();
-
     const subscription = supabase
       .channel("kitchen-monitor")
-      .on(
-        "postgres_changes", 
-        { event: "UPDATE", schema: "public", table: "orders" }, 
-        (payload) => {
-          console.log("🔄 Mise à jour détectée :", payload.new.status);
-          
-          // ✅ LOGIQUE DE NOTIFICATION :
-          // On fait sonner si le nouveau statut est "Payé" et que l'ancien ne l'était pas
-          const isNowPaid = payload.new?.status === "Payé";
-          const wasNotPaid = !payload.old || payload.old.status !== "Payé";
-
-          if (isNowPaid && wasNotPaid) {
-            console.log("🔔 ALERTE : Nouvelle commande payée !");
-            playNotification();
-          }
-          fetchOrders();
-        }
-      )
-      .on(
-        "postgres_changes", 
-        { event: "INSERT", schema: "public", table: "orders" }, 
-        (payload) => {
-          // Si une commande arrive directement avec le statut "Payé"
-          if (payload.new?.status === "Payé") {
-            playNotification();
-          }
-          fetchOrders();
-        }
-      )
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "orders" }, (payload) => {
+        const isNowPaid = payload.new?.status === "Payé";
+        const wasNotPaid = !payload.old || payload.old.status !== "Payé";
+        if (isNowPaid && wasNotPaid) playNotification();
+        fetchOrders();
+      })
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "orders" }, (payload) => {
+        if (payload.new?.status === "Payé") playNotification();
+        fetchOrders();
+      })
       .subscribe();
-
     return () => { supabase.removeChannel(subscription); };
   }, [fetchOrders, playNotification]);
-
-  const testSound = () => {
-    if (audioRef.current) {
-      audioRef.current.play()
-        .then(() => alert("Le son fonctionne !"))
-        .catch(() => alert("Le navigateur bloque le son. Cliquez n'importe où sur la page puis réessayez."));
-    }
-  };
 
   const getStatusStyle = (status: string) => {
     switch (status) {
@@ -150,42 +119,20 @@ export default function OrdersList() {
     }
   };
 
-  if (loading) return (
-    <div className="flex flex-col items-center justify-center p-20 space-y-4">
-      <Loader2 className="animate-spin text-kabuki-red" size={32} />
-      <span className="text-[10px] font-bold text-gray-500 uppercase tracking-[0.3em]">Synchronisation...</span>
-    </div>
-  );
+  if (loading) return <div className="flex flex-col items-center justify-center p-20 space-y-4"><Loader2 className="animate-spin text-kabuki-red" size={32} /><span className="text-[10px] font-bold text-gray-500 uppercase tracking-[0.3em]">Synchronisation...</span></div>;
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex justify-between items-center bg-neutral-900/50 p-4 rounded-2xl border border-neutral-800 flex-wrap gap-4">
         <div className="flex items-center gap-6">
           <h2 className="text-xl font-display font-bold text-white uppercase tracking-widest flex items-center gap-3">
             <ChefHat className="text-kabuki-red" /> Cuisine
           </h2>
-
-          <div className="flex items-center gap-3">
-            <button 
-              onClick={() => {
-                setIsSoundEnabled(!isSoundEnabled);
-                // On tente de jouer le son lors du clic pour autoriser l'audio dans le navigateur
-                if (audioRef.current) audioRef.current.play().catch(() => {});
-              }}
-              className={`flex items-center gap-2 px-4 py-2 rounded-full text-[10px] font-bold uppercase transition-all border ${
-                isSoundEnabled ? "bg-green-500/10 border-green-500/30 text-green-500 shadow-[0_0_15px_rgba(34,197,94,0.2)]" : "bg-red-500/10 border-red-500/30 text-red-400"
-              }`}
-            >
-              {isSoundEnabled ? <Volume2 size={14} /> : <VolumeX size={14} />}
-              {isSoundEnabled ? "Alertes ON" : "Alertes OFF"}
-            </button>
-            {isSoundEnabled && (
-              <button onClick={testSound} className="text-[8px] text-gray-600 hover:text-white uppercase font-bold transition">Tester le son</button>
-            )}
-          </div>
+          <button onClick={toggleSound} className={`flex items-center gap-2 px-4 py-2 rounded-full text-[10px] font-bold uppercase transition-all border ${isSoundEnabled ? "bg-green-500/10 border-green-500/30 text-green-500 shadow-[0_0_15px_rgba(34,197,94,0.2)]" : "bg-red-500/10 border-red-500/30 text-red-400"}`}>
+            {isSoundEnabled ? <Volume2 size={14} /> : <VolumeX size={14} />}
+            {isSoundEnabled ? "Alertes ON" : "Alertes OFF"}
+          </button>
         </div>
-
         <button onClick={() => fetchOrders(true)} className="flex items-center gap-2 text-[10px] bg-neutral-800 hover:bg-neutral-700 text-gray-400 px-4 py-2 rounded-full uppercase font-bold transition border border-neutral-700">
           <RefreshCw size={12} /> Actualiser
         </button>
@@ -195,6 +142,8 @@ export default function OrdersList() {
         <AnimatePresence mode="popLayout">
           {orders.map((order) => {
             const style = getStatusStyle(order.status);
+            const isDelivery = order.order_type === "Livraison";
+
             return (
               <motion.div 
                 key={order.id} 
@@ -203,30 +152,66 @@ export default function OrdersList() {
                 animate={{ opacity: 1, y: 0 }}
                 className={`bg-neutral-900 border border-neutral-800 rounded-2xl p-5 flex flex-wrap md:flex-nowrap items-center justify-between gap-6 hover:border-neutral-700 transition shadow-xl ${(order.status === 'Livrée' || order.status === 'Annulée') ? 'opacity-40 grayscale' : ''}`}
               >
-                <div className="min-w-[140px]">
-                  <span className="text-[10px] font-bold text-kabuki-red uppercase tracking-tighter">#KBK-{order.id}</span>
-                  <h4 className="text-white font-bold text-base uppercase leading-tight">{order.customer_name}</h4>
-                  <span className="text-[9px] text-gray-500 font-bold uppercase tracking-widest">{order.order_type}</span>
+                {/* NUMÉRO ET CLIENT */}
+                <div className="flex flex-col gap-2 min-w-[220px]">
+                  <div className="flex items-center gap-2">
+                    <span className="bg-kabuki-red text-white text-[14px] font-black px-3 py-1 rounded-md shadow-lg italic tracking-tighter">
+                      #KBK-{order.id}
+                    </span>
+                    <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[9px] font-black uppercase border ${
+                      isDelivery ? 'bg-blue-500/10 border-blue-500/20 text-blue-400' : 'bg-amber-500/10 border-amber-500/20 text-amber-400'
+                    }`}>
+                      {isDelivery ? <Truck size={12} /> : <ShoppingBag size={12} />}
+                      {order.order_type}
+                    </div>
+                  </div>
+                  <div>
+                    <h4 className="text-white font-bold text-lg uppercase leading-tight tracking-tight">{order.customer_name}</h4>
+                    {/* ✅ TÉLÉPHONE PLUS LISIBLE (MONO) */}
+                    <p className="text-[11px] text-gray-400 font-mono tracking-[0.15em] mt-1 bg-white/5 w-fit px-2 rounded">
+                      {order.customer_phone}
+                    </p>
+                  </div>
                 </div>
-                <div className="flex flex-col text-sm text-white font-bold italic">
-                  <div className="flex items-center gap-2"><Calendar size={14} className="text-kabuki-red" /> {order.pickup_time}</div>
+
+                {/* ✅ ADRESSE DE LIVRAISON DIRECTE */}
+                {isDelivery && (
+                  <div className="flex-1 min-w-[200px] max-w-xs bg-blue-500/5 px-4 py-3 rounded-xl border border-blue-500/10">
+                    <span className="text-[8px] text-blue-400/60 font-black uppercase tracking-widest mb-1 block">Destination</span>
+                    <p className="text-white text-xs font-bold leading-tight">{order.delivery_address}</p>
+                    <p className="text-blue-400 text-[10px] font-black mt-1 font-mono tracking-tighter">{order.delivery_zip}</p>
+                  </div>
+                )}
+
+                {/* CRÉNEAU HORAIRE */}
+                <div className="flex flex-col bg-black/40 px-4 py-2 rounded-xl border border-neutral-800/50">
+                  <span className="text-[8px] text-gray-500 font-black uppercase tracking-[0.2em] mb-1">Prévu pour</span>
+                  <div className="flex items-center gap-2 text-white font-black text-base">
+                    <Clock size={16} className="text-kabuki-red" />
+                    {order.pickup_time}
+                  </div>
                 </div>
-                <div className="flex items-center gap-4 bg-black/30 p-2 rounded-2xl border border-neutral-800/50">
-                  <div className={`text-[10px] font-bold px-3 py-1.5 rounded-xl uppercase flex items-center gap-2 border ${style.bg} ${style.text} ${style.border}`}>
+
+                {/* STATUT ET ACTIONS */}
+                <div className="flex items-center gap-4">
+                  <div className={`text-[10px] font-black px-4 py-2 rounded-xl uppercase flex items-center gap-2 border shadow-inner ${style.bg} ${style.text} ${style.border}`}>
                     {style.icon} {order.status}
                   </div>
                   {style.next && (
-                    <button onClick={() => updateStatus(order.id, style.next!)} className="bg-white text-black hover:bg-kabuki-red hover:text-white px-4 py-1.5 rounded-xl text-[10px] font-black uppercase transition-all shadow-lg active:scale-95">
+                    <button onClick={() => updateStatus(order.id, style.next!)} className="bg-white text-black hover:bg-kabuki-red hover:text-white px-5 py-2 rounded-xl text-[10px] font-black uppercase transition-all shadow-lg active:scale-95 flex items-center gap-2">
                       {style.btnIcon} {style.btnLabel}
                     </button>
                   )}
                 </div>
-                <div className="flex items-center gap-2">
-                  <div className="text-right mr-4">
-                    <span className="text-sm font-bold text-white">{Number(order.total_amount).toFixed(2)} CHF</span>
+
+                {/* TOTAL ET VUE */}
+                <div className="flex items-center gap-4">
+                  <div className="text-right">
+                    <span className="block text-[8px] text-gray-500 font-bold uppercase tracking-widest">Total</span>
+                    <span className="text-base font-black text-white">{Number(order.total_amount).toFixed(2)} <span className="text-[10px] text-kabuki-red">CHF</span></span>
                   </div>
-                  <button onClick={() => setSelectedOrder(order)} className="p-3 bg-neutral-800 hover:bg-neutral-700 text-white rounded-xl transition border border-neutral-700">
-                    <Eye size={18} />
+                  <button onClick={() => setSelectedOrder(order)} className="p-3 bg-neutral-800 hover:bg-neutral-700 text-white rounded-xl transition border border-neutral-700 shadow-lg">
+                    <Eye size={20} />
                   </button>
                 </div>
               </motion.div>
@@ -241,7 +226,12 @@ export default function OrdersList() {
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setSelectedOrder(null)} className="absolute inset-0 bg-black/90 backdrop-blur-md" />
             <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="relative bg-neutral-900 border border-neutral-800 w-full max-w-xl rounded-[40px] shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
               <div className="p-8 border-b border-neutral-800 flex justify-between items-center bg-white/5">
-                <h3 className="text-white font-display font-bold uppercase text-2xl italic tracking-tighter">#KBK-{selectedOrder.id}</h3>
+                <div className="flex items-center gap-4">
+                    <span className="bg-kabuki-red text-white text-lg font-black px-4 py-1 rounded-lg italic">#KBK-{selectedOrder.id}</span>
+                    <div className={`flex items-center gap-2 px-3 py-1 rounded-lg text-xs font-black uppercase border ${selectedOrder.order_type === "Livraison" ? 'bg-blue-500/10 border-blue-500/20 text-blue-400' : 'bg-amber-500/10 border-amber-500/20 text-amber-400'}`}>
+                        {selectedOrder.order_type}
+                    </div>
+                </div>
                 <button onClick={() => setSelectedOrder(null)} className="bg-neutral-800 p-3 rounded-full text-gray-500 hover:text-white transition"><XCircle size={24}/></button>
               </div>
               <div className="p-8 space-y-8 overflow-y-auto custom-scrollbar">
@@ -249,12 +239,11 @@ export default function OrdersList() {
                   <div>
                     <span className="text-[10px] text-gray-500 uppercase font-bold flex items-center gap-2"><User size={12}/> Client</span>
                     <p className="text-white text-lg font-bold uppercase">{selectedOrder.customer_name}</p>
-                    <p className="text-gray-400 text-sm font-medium">{selectedOrder.customer_phone}</p>
+                    <p className="text-gray-400 text-sm font-mono tracking-wider">{selectedOrder.customer_phone}</p>
                   </div>
                   <div>
                     <span className="text-[10px] text-gray-500 uppercase font-bold flex items-center gap-2"><Calendar size={12}/> Créneau</span>
                     <p className="text-white text-lg font-bold">{selectedOrder.pickup_time}</p>
-                    <p className="text-kabuki-red text-[10px] font-bold uppercase tracking-widest">{selectedOrder.order_type}</p>
                   </div>
                 </div>
                 {selectedOrder.order_type === "Livraison" && (
@@ -303,7 +292,6 @@ export default function OrdersList() {
                           if (!res.ok) throw new Error("Erreur");
                           updateStatus(selectedOrder.id, "Annulée");
                           setSelectedOrder(null); 
-                        // ✅ TypeScript : catch sans variable car non utilisée
                         } catch {
                           alert("Erreur lors de l'annulation");
                         }

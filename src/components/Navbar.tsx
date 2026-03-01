@@ -12,7 +12,6 @@ import { User } from "@supabase/supabase-js";
 import { ShoppingCart } from "lucide-react"; 
 import { useCart } from "@/context/CartContext"; 
 
-// ✅ 1. INTERFACE POUR LES PROPS (REMPLACE L'ERREUR DANS LAYOUTCLIENT)
 interface NavbarProps {
   onOpenCart: () => void;
 }
@@ -53,7 +52,6 @@ export default function Navbar({ onOpenCart }: NavbarProps) {
 
   const isActive = (path: string) => pathname === path;
 
-  // ✅ CORRECTION : Utilisation sécurisée de t.nav
   const navLinks = [
     { name: t?.nav?.home || "Accueil", path: `/${lang}` },
     { name: t?.nav?.menu || "Menu", path: `/${lang}/menu` },
@@ -69,6 +67,7 @@ export default function Navbar({ onOpenCart }: NavbarProps) {
           href={`/${lang}`} 
           className="relative w-24 md:w-32 hover:scale-105 transition-transform duration-300"
           onClick={() => setIsOpen(false)}
+          aria-label="Retour à l'accueil Kabuki Sushi"
         >
           <Image 
             src="/images/logo.png" 
@@ -87,7 +86,7 @@ export default function Navbar({ onOpenCart }: NavbarProps) {
               key={link.path} 
               href={link.path}
               className={`text-sm font-bold uppercase tracking-widest transition-colors duration-300 relative py-2 ${
-                isActive(link.path) ? "text-white" : "text-gray-400 hover:text-white"
+                isActive(link.path) ? "text-white" : "text-gray-300 hover:text-white"
               }`}
             >
               {link.name}
@@ -104,6 +103,7 @@ export default function Navbar({ onOpenCart }: NavbarProps) {
           {/* ✅ PANIER DESKTOP */}
           <button 
             onClick={onOpenCart} 
+            aria-label={`Ouvrir le panier, ${totalItems} articles`}
             className="relative group p-2 active:scale-90 transition-transform"
           >
             <ShoppingCart size={22} className="text-gray-300 group-hover:text-white transition-colors" />
@@ -144,6 +144,7 @@ export default function Navbar({ onOpenCart }: NavbarProps) {
         <div className="flex md:hidden items-center space-x-6">
           <button 
             onClick={onOpenCart} 
+            aria-label={`Ouvrir le panier, ${totalItems} articles`}
             className="relative p-2 z-50 active:scale-90 transition-transform"
           >
             <ShoppingCart size={24} className="text-white" />
@@ -161,8 +162,11 @@ export default function Navbar({ onOpenCart }: NavbarProps) {
             </AnimatePresence>
           </button>
 
+          {/* ✅ MENU BURGER */}
           <button 
             onClick={() => setIsOpen(!isOpen)} 
+            aria-label={isOpen ? "Fermer le menu" : "Ouvrir le menu principal"}
+            aria-expanded={isOpen}
             className="z-50 w-8 h-10 flex flex-col justify-center items-center focus:outline-none"
           >
             <motion.span 
@@ -197,7 +201,7 @@ export default function Navbar({ onOpenCart }: NavbarProps) {
                   <TransitionLink 
                     href={link.path}
                     className={`text-3xl font-display font-bold uppercase tracking-widest block transition-colors ${
-                      isActive(link.path) ? "text-kabuki-red" : "text-white hover:text-gray-400"
+                      isActive(link.path) ? "text-kabuki-red" : "text-white hover:text-gray-300"
                     }`}
                   >
                     {link.name}

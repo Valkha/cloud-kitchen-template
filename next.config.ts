@@ -1,6 +1,21 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // ✅ AJOUT DES HEADERS DE SÉCURITÉ
+  async headers() {
+    return [
+      {
+        source: '/(:path*)',
+        headers: [
+          {
+            key: 'Content-Security-Policy',
+            value: "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://checkout.stripe.com https://*.supabase.co; object-src 'none'; "
+          },
+        ],
+      },
+    ]
+  },
+
   images: {
     formats: ['image/avif', 'image/webp'],
     remotePatterns: [
@@ -15,18 +30,14 @@ const nextConfig: NextConfig = {
   },
   compress: true,
 
-  // ✅ CONFIGURATION TREE-SHAKING & BUNDLE OPTIMIZATION
   experimental: {
-    // Force Next.js à ne charger que les icônes Lucide que tu utilises vraiment
     optimizePackageImports: ['lucide-react'], 
   },
 
-  // ✅ SUPPRESSION DES LOGS EN PRODUCTION (Réduit le TBT)
   compiler: {
     removeConsole: process.env.NODE_ENV === "production",
   },
 
-  // ✅ OPTIMISATION DU CACHE DE PRODUCTION
   onDemandEntries: {
     maxInactiveAge: 25 * 1000,
     pagesBufferLength: 2,

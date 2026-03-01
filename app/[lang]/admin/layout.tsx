@@ -14,7 +14,6 @@ import {
 } from "lucide-react";
 import { supabase } from "@/utils/supabase";
 
-import WhatsAppButton from "@/components/WhatsAppButton";
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();

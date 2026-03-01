@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo, useCallback, memo } from "react";
 import Image from "next/image";
-import { m, AnimatePresence } from "framer-motion"; // ✅ Version Lazy 'm'
+import { m, AnimatePresence } from "framer-motion"; 
 import { Search, Info, Plus, Minus } from "lucide-react";
 import Reveal from "@/components/Reveal";
 import { useTranslation } from "@/context/LanguageContext";
@@ -40,7 +40,6 @@ const toBase64 = (str: string) =>
   typeof window === 'undefined' ? Buffer.from(str).toString('base64') : window.btoa(str);
 
 // --- COMPOSANT CARTE MÉMOÏSÉ ---
-// ✅ React.memo empêche de re-calculer les cartes lors de la saisie dans la recherche
 const MenuItemCard = memo(({ item, onClick }: { item: MenuItem; onClick: (item: MenuItem) => void }) => {
   const { lang } = useTranslation();
   const { items, addToCart, updateQuantity, removeFromCart } = useCart();
@@ -49,7 +48,6 @@ const MenuItemCard = memo(({ item, onClick }: { item: MenuItem; onClick: (item: 
   const cartItem = items.find((i) => i.id === item.id);
   const quantity = cartItem ? cartItem.quantity : 0;
 
-  // Calcul des traductions optimisé
   const displayName = useMemo(() => {
     const currentLang = lang.toLowerCase();
     if (currentLang === "es") return item.name_es?.trim() ? item.name_es : item.name_fr;
@@ -71,7 +69,6 @@ const MenuItemCard = memo(({ item, onClick }: { item: MenuItem; onClick: (item: 
 
   const handleRemove = (e: React.MouseEvent) => {
     e.stopPropagation();
-    // ✅ CORRECTIF ESLint : Utilisation de if/else au lieu d'une ternaire pour une action
     if (quantity > 1) {
       updateQuantity(item.id, quantity - 1);
     } else {
@@ -87,16 +84,16 @@ const MenuItemCard = memo(({ item, onClick }: { item: MenuItem; onClick: (item: 
       exit={{ opacity: 0 }}
       transition={{ duration: 0.2 }}
       onClick={() => onClick(item)}
-      style={{ willChange: "transform, opacity" }} // ✅ Accélération GPU
+      style={{ willChange: "transform, opacity" }}
       className="bg-neutral-800 rounded-xl shadow-lg overflow-hidden hover:border-kabuki-red transition-all duration-300 group border border-neutral-700 flex flex-col h-full cursor-pointer relative"
     >
       <div className="w-full bg-neutral-900 relative aspect-square overflow-hidden">
         <AnimatePresence>
           {quantity > 0 && (
             <m.div
-              initial={{ scale: 0, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0, opacity: 0 }}
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              exit={{ scale: 0 }}
               className="absolute top-2 left-2 z-20 bg-kabuki-red text-white text-[10px] font-black w-6 h-6 rounded-full flex items-center justify-center shadow-lg border border-white/10"
             >
               {quantity}
@@ -109,11 +106,14 @@ const MenuItemCard = memo(({ item, onClick }: { item: MenuItem; onClick: (item: 
             src={item.image_url}
             alt={displayName}
             fill
-            sizes="(max-width: 640px) 50vw, 20vw"
+            // ✅ CORRECTIF ANTI-FLOU : Qualité augmentée pour le piqué
+            quality={85}
+            // ✅ CORRECTIF ANTI-FLOU : 'sizes' optimisé pour Retina (DPR 2x/3x)
+            sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
             className="object-cover transition-transform duration-500 group-hover:scale-105"
             placeholder="blur"
             blurDataURL={`data:image/svg+xml;base64,${toBase64(shimmer(400, 400))}`}
-            priority={item.id < 1008} // ✅ Priorité LCP sur les 8 premiers
+            priority={item.id < 1008} 
             fetchPriority={item.id < 1008 ? "high" : "low"}
             onError={() => setImgError(true)}
           />
@@ -177,7 +177,6 @@ const MenuItemCard = memo(({ item, onClick }: { item: MenuItem; onClick: (item: 
 
 MenuItemCard.displayName = "MenuItemCard";
 
-// --- COMPOSANT PRINCIPAL ---
 export default function MenuClient() {
   const { t, lang } = useTranslation();
   const [items, setItems] = useState<MenuItem[]>([]);
@@ -188,7 +187,6 @@ export default function MenuClient() {
 
   useEffect(() => {
     async function fetchPublicMenu() {
-      // ✅ Optimisation : On ne sélectionne que les colonnes nécessaires
       const { data } = await supabase
         .from("menu_items")
         .select("id, name_fr, name_en, name_es, description_fr, description_en, description_es, price, image_url, category, is_available") 
@@ -201,7 +199,6 @@ export default function MenuClient() {
     fetchPublicMenu();
   }, []);
 
-  // ✅ useMemo : Évite de filtrer à chaque re-rendu de la page
   const filteredItems = useMemo(() => {
     const searchLower = searchQuery.toLowerCase();
     return items.filter((item) => {
@@ -222,7 +219,6 @@ export default function MenuClient() {
     }))
   ], [t.menu.all, t.menu.categories, rawCategories]);
 
-  // ✅ useCallback : Stabilise la fonction pour le memo des cartes
   const handleOpenModal = useCallback((item: MenuItem) => {
     setSelectedProduct(item);
   }, []);
@@ -241,7 +237,6 @@ export default function MenuClient() {
         </Reveal>
       </div>
 
-      {/* FILTRES STICKY OPTIMISÉS */}
       <div className="sticky top-[70px] z-30 bg-[#080808]/80 backdrop-blur-xl py-4 border-b border-neutral-900 mb-8">
         <div className="container mx-auto px-4">
           <div className="relative max-w-md mx-auto mb-6">
@@ -275,7 +270,6 @@ export default function MenuClient() {
         </div>
       </div>
 
-      {/* GRILLE DE PRODUITS */}
       <div className="container mx-auto px-4">
         <m.div layout className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3 md:gap-6">
           <AnimatePresence mode="popLayout">
@@ -290,7 +284,6 @@ export default function MenuClient() {
         </m.div>
       </div>
 
-      {/* MODAL */}
       <AnimatePresence>
         {selectedProduct && (
           <ProductModal 

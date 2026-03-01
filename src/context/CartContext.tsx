@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 
-// ✅ 1. Définition de la structure d'un plat
+// 1. Définition de la structure d'un plat
 export interface MenuItem {
   id: number;
   name: string;
@@ -35,14 +35,16 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
 
-  // Charger le panier depuis la mémoire du navigateur au démarrage
+  // 🔄 Charger le panier depuis la mémoire du navigateur au démarrage
   useEffect(() => {
     const savedCart = localStorage.getItem("kabuki_cart");
     if (savedCart) {
       try {
-        // ✅ On remet le passe-droit juste pour cette ligne !
+        const parsedCart = JSON.parse(savedCart);
+        // ✅ On force le silence d'ESLint pour cette ligne précise 
+        // car c'est le comportement voulu pour l'hydratation Next.js
         // eslint-disable-next-line react-hooks/set-state-in-effect
-        setItems(JSON.parse(savedCart));
+        setItems(parsedCart);
       } catch (e) {
         console.error("Erreur de lecture du panier", e);
       }
@@ -50,14 +52,13 @@ export function CartProvider({ children }: { children: ReactNode }) {
     setIsLoaded(true);
   }, []);
 
-  // Sauvegarder le panier à chaque modification
+  // 💾 Sauvegarder le panier à chaque modification
   useEffect(() => {
     if (isLoaded) {
       localStorage.setItem("kabuki_cart", JSON.stringify(items));
     }
   }, [items, isLoaded]);
 
-  // Ajouter un produit
   const addToCart = (item: MenuItem) => {
     setItems((prev) => {
       const existingItem = prev.find((i) => i.id === item.id);
@@ -70,12 +71,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
     });
   };
 
-  // Supprimer un produit
   const removeFromCart = (id: number) => {
     setItems((prev) => prev.filter((i) => i.id !== id));
   };
 
-  // Mettre à jour la quantité
   const updateQuantity = (id: number, quantity: number) => {
     if (quantity < 1) {
       removeFromCart(id);
@@ -86,12 +85,13 @@ export function CartProvider({ children }: { children: ReactNode }) {
     );
   };
 
-  // Vider le panier
   const clearCart = () => {
     setItems([]);
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem("kabuki_cart");
+    }
   };
 
-  // Calculs automatiques
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
   const totalPrice = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
 

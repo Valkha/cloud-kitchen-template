@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
-import { m } from "framer-motion"; // ✅ Version Lazy 'm'
+import { m } from "framer-motion"; 
 import { X, Minus, Plus, ShoppingCart, Maximize2 } from "lucide-react";
 import Image from "next/image";
 import { useTranslation } from "@/context/LanguageContext";
@@ -26,7 +26,6 @@ export default function ProductModal({ item, onClose }: ProductModalProps) {
   const { addToCart } = useCart();
   const [quantity, setQuantity] = useState(1);
 
-  // ✅ VERROUILLAGE DU SCROLL & GESTION ÉCHAP
   useEffect(() => {
     const originalStyle = window.getComputedStyle(document.body).overflow;
     document.body.style.overflow = "hidden";
@@ -42,7 +41,6 @@ export default function ProductModal({ item, onClose }: ProductModalProps) {
     };
   }, [onClose]);
 
-  // ✅ TRADUCTIONS MÉMOÏSÉES (Performance)
   const { name, desc } = useMemo(() => {
     const currentLang = lang.toLowerCase();
     const n = currentLang === "es" ? item.name_es : currentLang === "en" ? item.name_en : item.name_fr;
@@ -85,7 +83,6 @@ export default function ProductModal({ item, onClose }: ProductModalProps) {
         style={{ willChange: "transform, opacity" }}
         className="bg-neutral-950 border border-neutral-800 rounded-[2rem] md:rounded-[3rem] overflow-hidden max-w-4xl w-full shadow-2xl relative flex flex-col max-h-[95vh]"
       >
-        {/* BOUTON FERMER */}
         <button 
           onClick={onClose}
           aria-label="Fermer"
@@ -94,15 +91,19 @@ export default function ProductModal({ item, onClose }: ProductModalProps) {
           <X size={24} />
         </button>
 
-        {/* --- ZONE IMAGE : RATIO NATIF MAXIMUM --- */}
+        {/* --- ZONE IMAGE : OPTIMISATION NETTETÉ --- */}
         <div className="relative w-full bg-[#050505] h-[40vh] md:h-[55vh] flex-shrink-0 group overflow-hidden border-b border-neutral-900/50">
           {item.image_url ? (
             <Image 
               src={item.image_url} 
               alt={name} 
               fill
+              // ✅ CORRECTIF ANTI-FLOU : Qualité maximale pour la vue détaillée
+              quality={95}
+              // ✅ CORRECTIF ANTI-FLOU : sizes généreux pour les écrans Retina (2x/3x)
+              // On demande une résolution de ~1200px même si l'affichage réel est plus petit
+              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 80vw, 1200px"
               className="object-contain p-4 md:p-10 transition-transform duration-700 group-hover:scale-105"
-              sizes="(max-width: 1024px) 100vw, 1000px"
               priority
             />
           ) : (
@@ -111,10 +112,9 @@ export default function ProductModal({ item, onClose }: ProductModalProps) {
             </div>
           )}
 
-          {/* Indicateur de qualité discret */}
           <div className="absolute bottom-4 left-6 flex items-center gap-2 text-white/20 uppercase text-[8px] tracking-[0.3em] font-bold pointer-events-none">
             <Maximize2 size={10} />
-            Vue Haute Résolution
+            Définition Optimale
           </div>
         </div>
 
@@ -139,14 +139,12 @@ export default function ProductModal({ item, onClose }: ProductModalProps) {
             </p>
           </div>
 
-          {/* SÉLECTEUR & ACTION (FOOTER) */}
+          {/* SÉLECTEUR & ACTION */}
           <div className="mt-auto flex flex-col sm:flex-row gap-4 items-center">
-            
-            {/* SÉLECTEUR DE QUANTITÉ */}
             <div className="flex items-center bg-white/5 border border-neutral-800 rounded-2xl h-16 w-full sm:w-auto overflow-hidden">
               <button 
                 onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                className="w-16 h-full flex items-center justify-center text-neutral-500 hover:text-white transition-colors active:bg-neutral-800"
+                className="w-16 h-full flex items-center justify-center text-neutral-400 hover:text-white transition-colors active:bg-neutral-800"
               >
                 <Minus size={20} />
               </button>
@@ -161,7 +159,6 @@ export default function ProductModal({ item, onClose }: ProductModalProps) {
               </button>
             </div>
 
-            {/* BOUTON AJOUTER */}
             <button 
               onClick={handleAddToCart}
               className="flex-1 w-full bg-kabuki-red hover:bg-red-700 text-white font-bold h-16 rounded-2xl uppercase tracking-[0.2em] text-[11px] transition-all active:scale-[0.98] shadow-2xl shadow-red-900/20 flex items-center justify-center gap-4"

@@ -1,66 +1,29 @@
-// src/middleware.ts
-import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 const locales = ['fr', 'en', 'es']
 const defaultLocale = 'fr'
 
-export async function middleware(request: NextRequest) {
+export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
-  let response = NextResponse.next({ request: { headers: request.headers } })
 
-  // 1. SKIP (Images, fichiers statiques)
-  if (pathname.startsWith('/_next') || pathname.includes('.')) {
-    return response
+  // 1. SKIP (Images, APIs, fichiers statiques)
+  if (pathname.startsWith('/api') || pathname.startsWith('/_next') || pathname.includes('.')) {
+    return NextResponse.next()
   }
 
   // 2. ANALYSE DU CHEMIN (Langues)
   const segments = pathname.split('/')
   const langInUrl = locales.find(l => segments[1] === l)
 
-  // 🚩 ACTION : Si la langue manque (ex: /admin/menu)
+  // 3. REDIRECTION SI PAS DE LANGUE
   if (!langInUrl && pathname !== '/login') {
     const newUrl = new URL(`/${defaultLocale}${pathname === '/' ? '' : pathname}`, request.url)
-    console.log(`🔄 Redirection auto : ${pathname} -> ${newUrl.pathname}`)
     return NextResponse.redirect(newUrl)
   }
 
-  const currentLang = langInUrl || defaultLocale
-
-  // 3. PROTECTION ADMIN (Supabase)
-  if (pathname.includes('/admin')) {
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          get(name) { return request.cookies.get(name)?.value },
-          set(name, value, options) {
-            request.cookies.set({ name, value, ...options })
-            response = NextResponse.next({ request: { headers: request.headers } })
-            response.cookies.set({ name, value, ...options })
-          },
-          remove(name, options) {
-            request.cookies.set({ name, value: '', ...options })
-            response = NextResponse.next({ request: { headers: request.headers } })
-            response.cookies.set({ name, value: '', ...options })
-          },
-        },
-      }
-    )
-
-    const { data: { user } } = await supabase.auth.getUser()
-
-    if (!user) {
-      return NextResponse.redirect(new URL(`/${currentLang}/login`, request.url))
-    }
-  }
-
-  return response
+  return NextResponse.next()
 }
 
 export const config = {
-  // ✅ On remet "api" dans les exclusions. Le middleware ignore les routes API, 
-  // ce qui allège le travail de Vercel !
   matcher: ['/((?!api|_next/static|_next/image|favicon.ico|images).*)'],
 }

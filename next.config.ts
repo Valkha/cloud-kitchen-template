@@ -1,4 +1,4 @@
-import { withSentryConfig } from '@sentry/nextjs';
+// import { withSentryConfig } from '@sentry/nextjs'; <-- On désactive Sentry temporairement
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
@@ -82,24 +82,5 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default withSentryConfig(nextConfig, {
-  org: "valkha",
-  project: "javascript-nextjs",
-  silent: !process.env.CI,
-  widenClientFileUpload: true,
-  tunnelRoute: "/monitoring",
-  
-  sourcemaps: {
-    disable: true,
-  },
-
-  webpack: {
-    // 🚀 LE VOILÀ ! Déplacé ici comme Sentry le demande
-    autoInstrumentMiddleware: false,
-    
-    automaticVercelMonitors: true,
-    treeshake: {
-      removeDebugLogging: true,
-    },
-  },
-});
+// 🚀 LE TEST NUCLÉAIRE : On exporte la configuration Next.js pure, SANS SENTRY !
+export default nextConfig;

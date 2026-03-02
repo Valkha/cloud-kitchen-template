@@ -155,7 +155,7 @@ export default function TraiteurPage() {
                 <div className={`relative h-[400px] md:h-[500px] rounded-2xl overflow-hidden shadow-2xl transition duration-500 border border-neutral-800 
                   ${index % 2 === 0 ? "md:-rotate-2 hover:rotate-0" : "order-1 md:order-2 md:rotate-2 hover:rotate-0"}`}
                 >
-                  <Image src={experienceImages[index] || experienceImages[0]} alt={bloc.title} fill className="object-fit" />
+                  <Image src={experienceImages[index] || experienceImages[0]} alt={bloc.title} fill className="object-contain" />
                   <div className="absolute inset-0 bg-gradient-to-t from-kabuki-black/80 via-transparent to-transparent"></div>
                 </div>
                 <div className={`space-y-6 ${index % 2 === 0 ? "md:pl-12" : "md:pr-12 order-2 md:order-1"}`}>

@@ -9,7 +9,6 @@ import { useTranslation } from "@/context/LanguageContext";
 import ProductModal from "@/components/ProductModal";
 import { useCart, MenuItem as ContextMenuItem } from "@/context/CartContext";
 
-// --- TYPES & UTILS ---
 export interface MenuItem extends ContextMenuItem {
   name_fr: string;
   name_en?: string;
@@ -20,32 +19,20 @@ export interface MenuItem extends ContextMenuItem {
   is_available: boolean;
 }
 
-// ✅ NOUVEAU : On déclare la prop que le serveur nous envoie
 interface MenuClientProps {
   initialItems: MenuItem[];
 }
 
-// --- VARIANTS OPTIMISÉS ---
-const containerVariants: Variants = {
-  hidden: { opacity: 0 },
-  show: {
-    opacity: 1,
-    transition: {
-      staggerChildren: 0.03, 
-    },
-  },
-};
-
+// ✅ OPTIMISATION PERF 1 : L'animation d'entrée est encore plus courte et légère
 const itemVariants: Variants = {
-  hidden: { opacity: 0, y: 10 },
+  hidden: { opacity: 0, y: 15 },
   show: { 
     opacity: 1, 
     y: 0, 
-    transition: { duration: 0.3 } 
+    transition: { duration: 0.3, ease: "easeOut" } 
   },
 };
 
-// --- COMPOSANT CARTE MÉMOÏSÉ ---
 const MenuItemCard = memo(({ item, index, onClick }: { item: MenuItem; index: number; onClick: (item: MenuItem) => void }) => {
   const { lang } = useTranslation();
   const { items, addToCart, updateQuantity, removeFromCart } = useCart();
@@ -86,6 +73,11 @@ const MenuItemCard = memo(({ item, index, onClick }: { item: MenuItem; index: nu
   return (
     <m.div 
       variants={itemVariants}
+      // ✅ OPTIMISATION PERF 2 : On n'anime la carte QUE lorsqu'elle approche de l'écran (margin: 50px).
+      // Cela évite au CPU de calculer la position des 97 cartes au chargement.
+      initial="hidden"
+      whileInView="show"
+      viewport={{ once: true, margin: "50px" }}
       onClick={() => onClick(item)}
       className="bg-neutral-800 rounded-xl shadow-lg overflow-hidden hover:border-kabuki-red transition-colors duration-300 group border border-neutral-700 flex flex-col h-full cursor-pointer relative"
     >
@@ -109,14 +101,15 @@ const MenuItemCard = memo(({ item, index, onClick }: { item: MenuItem; index: nu
               src={item.image_url}
               alt={displayName}
               fill
-              quality={75}
+              quality={70} // ✅ 70 est le sweet spot absolu pour PageSpeed sans perte visible
               sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
-              className={`object-cover transition-opacity duration-500 group-hover:scale-105 ${
+              className={`object-cover transition-opacity duration-300 group-hover:scale-105 ${
                 isImageLoaded ? "opacity-100" : "opacity-0"
               }`}
               onLoad={() => setIsImageLoaded(true)}
-              priority={index < 4} 
+              priority={index < 4} // Les 4 premiers sont chargés instantanément (LCP)
               fetchPriority={index < 4 ? "high" : "auto"}
+              loading={index < 4 ? "eager" : "lazy"} // Lazy load explicite pour le reste
               onError={() => setImgError(true)}
             />
             {!isImageLoaded && (
@@ -183,11 +176,8 @@ const MenuItemCard = memo(({ item, index, onClick }: { item: MenuItem; index: nu
 
 MenuItemCard.displayName = "MenuItemCard";
 
-// ✅ CORRECTION : Le composant accepte maintenant "initialItems"
 export default function MenuClient({ initialItems }: MenuClientProps) {
   const { t, lang } = useTranslation();
-  
-  // ✅ CORRECTION ESLINT : On utilise directement initialItems sans useState car la liste ne change pas
   const items = initialItems;
   
   const [activeCategory, setActiveCategory] = useState("Tous");
@@ -265,13 +255,8 @@ export default function MenuClient({ initialItems }: MenuClientProps) {
         </div>
 
         <div className="container mx-auto px-4">
-          <m.div 
-            variants={containerVariants}
-            initial="hidden"
-            animate="show"
-            className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3 md:gap-6"
-          >
-            {/* L'affichage se fait instantanément avec les données initiales */}
+          {/* ✅ OPTIMISATION PERF 3 : Retrait du conteneur parent lourd (variants={containerVariants}) */}
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3 md:gap-6">
             {filteredItems.map((item, index) => (
               <MenuItemCard 
                 key={item.id} 
@@ -280,7 +265,7 @@ export default function MenuClient({ initialItems }: MenuClientProps) {
                 onClick={handleOpenModal} 
               />
             ))}
-          </m.div>
+          </div>
         </div>
 
         <AnimatePresence>

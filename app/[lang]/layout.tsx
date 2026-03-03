@@ -9,13 +9,13 @@ import ActiveOrderButton from "@/components/ActiveOrderButton";
 const inter = Inter({ 
   subsets: ["latin"], 
   variable: "--font-inter",
-  display: 'swap', // ✅ Parfait pour le LCP
+  display: 'swap',
 });
 
 const oswald = Oswald({ 
   subsets: ["latin"], 
   variable: "--font-oswald",
-  display: 'swap', // ✅ Parfait pour le LCP
+  display: 'swap',
   weight: ['400', '700'], 
 });
 
@@ -70,7 +70,8 @@ export default async function RootLayout({
 
   return (
     <html lang={lang} className={`${inter.variable} ${oswald.variable}`}>
-      <body className="antialiased flex flex-col min-h-screen bg-transparent">
+      {/* ✅ CORRECTION UX : bg-[#080808] et text-white pour éviter le flash blanc au chargement */}
+      <body className="antialiased flex flex-col min-h-screen bg-[#080808] text-white">
         <LanguageProvider>
           <CartProvider>
             <LayoutClient>
@@ -78,6 +79,7 @@ export default async function RootLayout({
             </LayoutClient>
             <ActiveOrderButton />
 
+            {/* Schéma JSON-LD pour le SEO */}
             <script
               type="application/ld+json"
               dangerouslySetInnerHTML={{

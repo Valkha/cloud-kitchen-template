@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useUser } from "@/context/UserContext";
 import { createClient } from "@/utils/supabase/client";
 import { m, AnimatePresence } from "framer-motion";
-import { ArrowLeft, Save, User, Phone, CheckCircle, MapPin, Trash2 } from "lucide-react";
+import { ArrowLeft, Save, User, Phone, CheckCircle, MapPin, Trash2, AlertTriangle } from "lucide-react";
 import { useParams } from "next/navigation";
 import TransitionLink from "@/components/TransitionLink";
 
@@ -20,6 +20,7 @@ export default function SettingsPage() {
   const [city, setCity] = useState("");
   const [isUpdating, setIsUpdating] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   useEffect(() => {
     if (profile) {
@@ -33,26 +34,23 @@ export default function SettingsPage() {
 
   const handleUpdate = async () => {
     const targetId = profile?.id || user?.id;
-    console.log("🔥 ETAPE 1 : Clic détecté. ID :", targetId);
+    setErrorMsg(null);
 
     if (!targetId) {
-      alert("Session perdue.");
+      setErrorMsg("Session expirée. Veuillez recharger la page.");
       return;
     }
 
     setIsUpdating(true);
 
-    // ✅ Alerte inévitable après 6 secondes (preuve du gel par extension)
-    setTimeout(() => {
-      console.log("⏱️ ETAPE TIMEOUT : 6 secondes écoulées !");
+    // ✅ Timeout de sécurité propre (sans alert() bloquante)
+    const safetyTimeout = setTimeout(() => {
       setIsUpdating(false);
-      alert("La requête est bloquée. C'est définitivement une extension qui gèle la page !");
-    }, 6000);
+      setErrorMsg("La connexion semble bloquée par une extension (ex: MetaMask ou AdBlock).");
+    }, 8000);
 
     try {
-      console.log("📡 ETAPE 2 : Envoi de la requête Supabase...");
-      
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from("profiles")
         .upsert({
           id: targetId,
@@ -65,43 +63,31 @@ export default function SettingsPage() {
         })
         .select();
 
-      console.log("✅ ETAPE 3 : Réponse reçue de Supabase !", data, error);
-
       if (error) throw error;
 
       await refreshProfile();
       setShowSuccess(true);
       setTimeout(() => setShowSuccess(false), 3000);
     } catch (err) {
-      console.error("💥 ETAPE ERREUR :", err);
+      console.error("Erreur de sauvegarde:", err);
+      setErrorMsg("Une erreur est survenue lors de la sauvegarde.");
     } finally {
-      console.log("🏁 ETAPE 4 : Fin du processus");
+      clearTimeout(safetyTimeout);
       setIsUpdating(false);
     }
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
-        <div className="w-12 h-12 border-4 border-kabuki-red border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
-  }
+  if (loading) return <div className="min-h-screen bg-black flex items-center justify-center"><div className="w-12 h-12 border-4 border-kabuki-red border-t-transparent rounded-full animate-spin" /></div>;
 
-  if (!user) {
-    return (
-      <div className="min-h-screen bg-black flex flex-col items-center justify-center p-6 text-center">
-        <h1 className="text-2xl font-display font-bold text-white uppercase mb-4">Session expirée</h1>
-        <p className="text-gray-400 mb-8 uppercase text-xs tracking-wider">Veuillez vous reconnecter pour modifier vos paramètres.</p>
-        <TransitionLink 
-          href={`/${lang}`}
-          className="bg-kabuki-red text-white px-8 py-3 rounded-full font-bold uppercase tracking-widest hover:bg-white hover:text-black transition-colors"
-        >
-          Se connecter
-        </TransitionLink>
-      </div>
-    );
-  }
+  if (!user) return (
+    <div className="min-h-screen bg-black flex flex-col items-center justify-center p-6 text-center">
+      <h1 className="text-2xl font-display font-bold text-white uppercase mb-4">Session expirée</h1>
+      <p className="text-gray-400 mb-8 uppercase text-xs tracking-wider">Veuillez vous reconnecter pour modifier vos paramètres.</p>
+      <TransitionLink href={`/${lang}`} className="bg-kabuki-red text-white px-8 py-3 rounded-full font-bold uppercase tracking-widest hover:bg-white hover:text-black transition-colors">
+        Se connecter
+      </TransitionLink>
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-black pt-32 pb-20 px-6">
@@ -145,6 +131,14 @@ export default function SettingsPage() {
                 <input type="text" value={zipCode} onChange={(e) => setZipCode(e.target.value)} placeholder="Code Postal" className="w-full bg-black border border-neutral-800 rounded-xl py-4 px-4 text-white focus:border-kabuki-red outline-none transition-colors" />
                 <input type="text" value={city} onChange={(e) => setCity(e.target.value)} placeholder="Ville" className="w-full bg-black border border-neutral-800 rounded-xl py-4 px-4 text-white focus:border-kabuki-red outline-none transition-colors" />
               </div>
+
+              <AnimatePresence>
+                {errorMsg && (
+                  <m.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="bg-red-900/20 border border-red-500/30 text-red-400 p-4 rounded-xl flex items-center gap-3 text-xs uppercase tracking-wider">
+                    <AlertTriangle size={16} /> {errorMsg}
+                  </m.div>
+                )}
+              </AnimatePresence>
 
               <button 
                 type="button" 

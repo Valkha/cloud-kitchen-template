@@ -7,19 +7,23 @@ import { ArrowLeft, CheckCircle, AlertTriangle, Save, Loader2 } from "lucide-rea
 import { useParams } from "next/navigation";
 import TransitionLink from "@/components/TransitionLink";
 
+// 🛡️ Typage strict pour éviter les erreurs ESLint
 interface SupabaseError {
   message: string;
   code?: string;
 }
 
-interface UpsertResult {
-  data: unknown | null;
+interface UpsertResponse {
   error: SupabaseError | null;
 }
 
 export default function SettingsPage() {
   const { user, profile, loading, refreshProfile } = useUser();
-  const { lang } = useParams();
+  const params = useParams();
+  
+  // Sécurisation du paramètre lang pour ESLint
+  const lang = typeof params?.lang === 'string' ? params.lang : 'fr';
+  
   const [supabase] = useState(() => createClient());
 
   const [fullName, setFullName] = useState("");
@@ -44,15 +48,15 @@ export default function SettingsPage() {
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault(); 
     
-    // 🛡️ SÉCURITÉ : Empêche le spam du bouton et vérifie la session
+    // 🛡️ Empêche les requêtes simultanées qui causent les verrous SQL
     if (!user?.id || loading || isUpdating) return;
     
     setIsUpdating(true);
     setErrorMsg(null);
 
-    // 🕒 Timeout de 8 secondes pour pallier aux lenteurs RLS
-    const timeout = new Promise<UpsertResult>((_, reject) => 
-      setTimeout(() => reject(new Error("La base de données met trop de temps à répondre (Timeout 8s).")), 8000)
+    // 🕒 Timeout étendu à 10s car la DB est ralentie par les politiques RLS
+    const timeout = new Promise<UpsertResponse>((_, reject) => 
+      setTimeout(() => reject(new Error("La base de données est trop lente à répondre (Timeout 10s).")), 10000)
     );
 
     try {
@@ -68,16 +72,19 @@ export default function SettingsPage() {
           updated_at: new Date().toISOString(),
         }, { onConflict: 'id' });
 
-      const result = await Promise.race([upsertTask, timeout]) as UpsertResult;
+      // On attend le résultat de Supabase ou le timeout
+      const result = await Promise.race([upsertTask, timeout]) as UpsertResponse;
 
-      if (result.error) throw new Error(result.error.message);
+      if (result.error) {
+        throw new Error(result.error.message);
+      }
 
       await refreshProfile();
       setShowSuccess(true);
       setTimeout(() => setShowSuccess(false), 3000);
     } catch (err: unknown) {
-      const errorMessage = err instanceof Error ? err.message : "Erreur de base de données";
-      console.error("[DIAG] Erreur sauvegarde:", errorMessage);
+      const errorMessage = err instanceof Error ? err.message : "Une erreur inconnue est survenue";
+      console.error("[SETTINGS_ERROR]:", errorMessage);
       setErrorMsg(errorMessage);
     } finally {
       setIsUpdating(false);

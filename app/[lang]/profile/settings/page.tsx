@@ -33,7 +33,7 @@ export default function SettingsPage() {
   }, [profile]);
 
   const handleUpdate = async () => {
-    // ✅ Utilisation de l'ID authentifié validé par l'audit (fef16323...)
+    // Utilisation de l'ID de l'utilisateur authentifié pour garantir la correspondance
     const targetId = user?.id; 
     setErrorMsg(null);
 
@@ -45,11 +45,11 @@ export default function SettingsPage() {
     setIsUpdating(true);
 
     try {
-      // Vérification de session pour éviter le gel silencieux
+      // Vérification de session pour s'assurer que le client est synchronisé
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error("Votre session a expiré.");
 
-      // ✅ UPSERT : Crée la ligne si profile_id était null, sinon la met à jour
+      // UPSERT : Crée la ligne si elle n'existe pas, sinon la met à jour
       const { error } = await supabase
         .from("profiles")
         .upsert({
@@ -66,7 +66,9 @@ export default function SettingsPage() {
 
       if (error) throw error;
 
+      // Rafraîchissement du contexte global après la modification
       await refreshProfile();
+      
       setShowSuccess(true);
       setTimeout(() => setShowSuccess(false), 3000);
     } catch (err) {
@@ -110,14 +112,24 @@ export default function SettingsPage() {
                   <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest ml-1">Nom complet</label>
                   <div className="relative">
                     <User className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
-                    <input type="text" value={fullName} onChange={(e) => setFullName(e.target.value)} className="w-full bg-black border border-neutral-800 rounded-xl py-4 pl-12 pr-4 text-white focus:border-kabuki-red outline-none transition-colors" />
+                    <input 
+                      type="text" 
+                      value={fullName} 
+                      onChange={(e) => setFullName(e.target.value)} 
+                      className="w-full bg-black border border-neutral-800 rounded-xl py-4 pl-12 pr-4 text-white focus:border-kabuki-red outline-none transition-colors" 
+                    />
                   </div>
                 </div>
                 <div className="space-y-2">
                   <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest ml-1">Téléphone</label>
                   <div className="relative">
                     <Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
-                    <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} className="w-full bg-black border border-neutral-800 rounded-xl py-4 pl-12 pr-4 text-white focus:border-kabuki-red outline-none transition-colors" />
+                    <input 
+                      type="tel" 
+                      value={phone} 
+                      onChange={(e) => setPhone(e.target.value)} 
+                      className="w-full bg-black border border-neutral-800 rounded-xl py-4 pl-12 pr-4 text-white focus:border-kabuki-red outline-none transition-colors" 
+                    />
                   </div>
                 </div>
               </div>
@@ -126,18 +138,40 @@ export default function SettingsPage() {
                 <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest ml-1">Adresse de livraison</label>
                 <div className="relative">
                   <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
-                  <input type="text" value={address} onChange={(e) => setAddress(e.target.value)} className="w-full bg-black border border-neutral-800 rounded-xl py-4 pl-12 pr-4 text-white focus:border-kabuki-red outline-none transition-colors" />
+                  <input 
+                    type="text" 
+                    value={address} 
+                    onChange={(e) => setAddress(e.target.value)} 
+                    className="w-full bg-black border border-neutral-800 rounded-xl py-4 pl-12 pr-4 text-white focus:border-kabuki-red outline-none transition-colors" 
+                  />
                 </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <input type="text" value={zipCode} onChange={(e) => setZipCode(e.target.value)} placeholder="Code Postal" className="w-full bg-black border border-neutral-800 rounded-xl py-4 px-4 text-white focus:border-kabuki-red outline-none transition-colors" />
-                <input type="text" value={city} onChange={(e) => setCity(e.target.value)} placeholder="Ville" className="w-full bg-black border border-neutral-800 rounded-xl py-4 px-4 text-white focus:border-kabuki-red outline-none transition-colors" />
+                <input 
+                  type="text" 
+                  value={zipCode} 
+                  onChange={(e) => setZipCode(e.target.value)} 
+                  placeholder="Code Postal" 
+                  className="w-full bg-black border border-neutral-800 rounded-xl py-4 px-4 text-white focus:border-kabuki-red outline-none transition-colors" 
+                />
+                <input 
+                  type="text" 
+                  value={city} 
+                  onChange={(e) => setCity(e.target.value)} 
+                  placeholder="Ville" 
+                  className="w-full bg-black border border-neutral-800 rounded-xl py-4 px-4 text-white focus:border-kabuki-red outline-none transition-colors" 
+                />
               </div>
 
               <AnimatePresence>
                 {errorMsg && (
-                  <m.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="bg-red-900/20 border border-red-500/30 text-red-400 p-4 rounded-xl flex items-center gap-3 text-xs uppercase tracking-wider">
+                  <m.div 
+                    initial={{ opacity: 0, height: 0 }} 
+                    animate={{ opacity: 1, height: "auto" }} 
+                    exit={{ opacity: 0, height: 0 }} 
+                    className="bg-red-900/20 border border-red-500/30 text-red-400 p-4 rounded-xl flex items-center gap-3 text-xs uppercase tracking-wider"
+                  >
                     <AlertTriangle size={16} /> {errorMsg}
                   </m.div>
                 )}
@@ -149,7 +183,14 @@ export default function SettingsPage() {
                 disabled={isUpdating} 
                 className="w-full bg-kabuki-red text-white py-4 rounded-xl font-bold uppercase tracking-[0.2em] hover:bg-white hover:text-black transition-all flex items-center justify-center gap-2 disabled:opacity-50 mt-4 shadow-lg shadow-red-900/20"
               >
-                {isUpdating ? <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" /> : <><Save size={18} /> Sauvegarder</>}
+                {isUpdating ? (
+                  <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <>
+                    <Save size={18} /> 
+                    Sauvegarder
+                  </>
+                )}
               </button>
             </div>
           </div>
@@ -157,8 +198,14 @@ export default function SettingsPage() {
         
         <AnimatePresence>
           {showSuccess && (
-            <m.div initial={{ opacity: 0, y: 50 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 50 }} className="fixed bottom-10 left-1/2 -translate-x-1/2 bg-green-500 text-white px-6 py-3 rounded-full flex items-center gap-3 shadow-2xl z-50">
-              <CheckCircle size={20} /><span className="text-xs font-bold uppercase tracking-widest">Profil mis à jour !</span>
+            <m.div 
+              initial={{ opacity: 0, y: 50 }} 
+              animate={{ opacity: 1, y: 0 }} 
+              exit={{ opacity: 0, y: 50 }} 
+              className="fixed bottom-10 left-1/2 -translate-x-1/2 bg-green-500 text-white px-6 py-3 rounded-full flex items-center gap-3 shadow-2xl z-50"
+            >
+              <CheckCircle size={20} />
+              <span className="text-xs font-bold uppercase tracking-widest">Profil mis à jour !</span>
             </m.div>
           )}
         </AnimatePresence>

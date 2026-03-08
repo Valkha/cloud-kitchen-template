@@ -5,6 +5,7 @@ import { m } from "framer-motion";
 import { User, History, Settings, ChevronRight } from "lucide-react";
 import { useParams } from "next/navigation";
 import TransitionLink from "@/components/TransitionLink";
+import OrderHistory from "@/components/OrderHistory"; // ✅ Importation du nouveau composant
 
 export default function ProfilePage() {
   const { user, profile, loading } = useUser();
@@ -50,7 +51,6 @@ export default function ProfilePage() {
           </div>
           <div className="text-center md:text-left flex-1">
             <h1 className="text-3xl font-display font-bold text-white uppercase tracking-wider mb-2">
-              {/* ✅ Affiche le nom réel ou le fallback si pas encore synchronisé */}
               {profile?.full_name || "Client Kabuki"}
             </h1>
             <p className="text-gray-500 font-bold text-xs uppercase tracking-widest opacity-70">{user.email}</p>
@@ -63,43 +63,54 @@ export default function ProfilePage() {
           </div>
         </m.div>
 
-        {/* GRILLE D'ACTIONS */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Historique (Désactivé pour l'instant) */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* SECTION HISTORIQUE - Plus large (col-span-2) */}
           <m.div 
-            whileHover={{ scale: 1.01 }}
-            className="bg-neutral-900/30 border border-neutral-800/50 p-6 rounded-2xl flex items-center gap-4 cursor-not-allowed opacity-40 grayscale"
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.1 }}
+            className="md:col-span-2 bg-neutral-900/50 border border-neutral-800 p-8 rounded-3xl shadow-xl"
           >
-            <div className="p-3 bg-neutral-800 rounded-xl text-gray-500">
-              <History size={24} />
+            <div className="flex items-center gap-4 mb-8">
+              <div className="p-3 bg-kabuki-red/10 rounded-2xl text-kabuki-red">
+                <History size={24} />
+              </div>
+              <div>
+                <h2 className="text-xl font-display font-bold text-white uppercase tracking-widest">Historique</h2>
+                <p className="text-[10px] text-gray-500 uppercase tracking-widest">Vos dernières commandes</p>
+              </div>
             </div>
-            <div className="flex-1">
-              <h3 className="text-white font-bold text-sm uppercase tracking-wider">Historique des commandes</h3>
-              <p className="text-[10px] text-gray-500 uppercase">Bientôt disponible</p>
-            </div>
-            <ChevronRight size={18} className="text-neutral-800" />
+
+            {/* ✅ AFFICHAGE RÉEL DES COMMANDES */}
+            <OrderHistory />
           </m.div>
 
-          {/* Paramètres (Activé) */}
-          <TransitionLink 
-            href={`/${lang}/profile/settings`}
-            className="block"
-          >
-            <m.div 
-              whileHover={{ scale: 1.02, backgroundColor: "rgba(38, 38, 38, 0.8)" }}
-              whileTap={{ scale: 0.98 }}
-              className="bg-neutral-900/50 border border-neutral-800 p-6 rounded-2xl flex items-center gap-4 cursor-pointer hover:border-kabuki-red transition-all duration-300 shadow-xl"
-            >
-              <div className="p-3 bg-kabuki-red/10 rounded-xl text-kabuki-red group-hover:bg-kabuki-red transition-colors">
-                <Settings size={24} />
-              </div>
-              <div className="flex-1">
-                <h3 className="text-white font-bold text-sm uppercase tracking-wider">Paramètres du compte</h3>
-                <p className="text-[10px] text-gray-500 uppercase">Gérer vos informations</p>
-              </div>
-              <ChevronRight size={18} className="text-kabuki-red" />
-            </m.div>
-          </TransitionLink>
+          {/* SECTION PARAMÈTRES - Barre latérale (col-span-1) */}
+          <div className="space-y-6">
+            <TransitionLink href={`/${lang}/profile/settings`} className="block">
+              <m.div 
+                whileHover={{ scale: 1.02, backgroundColor: "rgba(38, 38, 38, 0.8)" }}
+                whileTap={{ scale: 0.98 }}
+                className="bg-neutral-900/50 border border-neutral-800 p-6 rounded-2xl flex items-center gap-4 cursor-pointer hover:border-kabuki-red transition-all duration-300 shadow-xl"
+              >
+                <div className="p-3 bg-kabuki-red/10 rounded-xl text-kabuki-red">
+                  <Settings size={24} />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-white font-bold text-sm uppercase tracking-wider">Paramètres</h3>
+                  <p className="text-[10px] text-gray-500 uppercase">Gérer le compte</p>
+                </div>
+                <ChevronRight size={18} className="text-neutral-600" />
+              </m.div>
+            </TransitionLink>
+
+            {/* Note d'information professionnelle */}
+            <div className="bg-neutral-900/30 border border-neutral-800/50 p-6 rounded-2xl">
+              <p className="text-[10px] text-gray-500 uppercase leading-relaxed">
+                Besoin d&apos;aide ? Contactez notre support pour toute question concernant vos commandes ou votre solde fidélité.
+              </p>
+            </div>
+          </div>
         </div>
       </div>
     </div>

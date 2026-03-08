@@ -7,7 +7,7 @@ import { ArrowLeft, CheckCircle, AlertTriangle, Save, Loader2 } from "lucide-rea
 import { useParams } from "next/navigation";
 import TransitionLink from "@/components/TransitionLink";
 
-// 🛡️ Typage strict pour éviter les erreurs ESLint
+// 🛡️ Typage strict
 interface SupabaseError {
   message: string;
   code?: string;
@@ -18,15 +18,13 @@ interface UpsertResponse {
 }
 
 export default function SettingsPage() {
-  const { user, profile, loading, refreshProfile } = useUser();
+  // On récupère les infos, mais on sait que "loading" peut être buggé à cause de l'absence de profil
+  const { user, profile, refreshProfile } = useUser();
   const params = useParams();
   
-  // Sécurisation du paramètre lang pour ESLint
   const lang = typeof params?.lang === 'string' ? params.lang : 'fr';
-  
   const [supabase] = useState(() => createClient());
 
-  // 🛡️ VERROU SYNCHRONE : Empêche les doubles déclenchements même si le state n'a pas encore mis à jour l'UI
   const isProcessing = useRef(false);
 
   const [fullName, setFullName] = useState("");
@@ -51,14 +49,20 @@ export default function SettingsPage() {
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault(); 
     
-    // 🛡️ Sécurité renforcée : On vérifie le ref et les états de chargement
-    if (isProcessing.current || !user?.id || loading || isUpdating) return;
+    // 🛡️ DIAGNOSTIC : On retire "loading" de la sécurité. 
+    // Si l'utilisateur clique, on y va !
+    if (isProcessing.current || isUpdating) return;
+
+    // Sécurité au cas où la session n'est vraiment pas là
+    if (!user || !user.id) {
+      setErrorMsg("Session introuvable. Veuillez recharger la page ou vous reconnecter.");
+      return;
+    }
     
     isProcessing.current = true;
     setIsUpdating(true);
     setErrorMsg(null);
 
-    // 🕒 Timeout à 8s : Si la DB est lockée, on n'attend pas indéfiniment
     const timeout = new Promise<UpsertResponse>((_, reject) => 
       setTimeout(() => reject(new Error("La base de données est trop lente. Veuillez rafraîchir et réessayer.")), 8000)
     );
@@ -82,6 +86,7 @@ export default function SettingsPage() {
         throw new Error(result.error.message);
       }
 
+      // Une fois créé, on rafraîchit le contexte qui devrait refonctionner normalement
       await refreshProfile();
       setShowSuccess(true);
       setTimeout(() => setShowSuccess(false), 3000);
@@ -90,7 +95,6 @@ export default function SettingsPage() {
       console.error("[SETTINGS_ERROR]:", errorMessage);
       setErrorMsg(errorMessage);
     } finally {
-      // 🔓 Libération des verrous
       isProcessing.current = false;
       setIsUpdating(false);
     }
@@ -136,8 +140,9 @@ export default function SettingsPage() {
 
             <button 
               type="submit"
-              // ✅ CORRECTION : !profile retiré pour autoriser la création initiale du profil
-              disabled={isUpdating || loading || !user} 
+              // ✅ CORRECTION VITALE : On écoute uniquement `isUpdating`.
+              // Cela contourne le bug de "loading infini" du UserContext.
+              disabled={isUpdating} 
               className="w-full bg-kabuki-red text-white py-4 rounded-xl font-bold uppercase tracking-[0.2em] hover:bg-white hover:text-black transition-all flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isUpdating ? <><Loader2 size={18} className="animate-spin" /> Traitement...</> : <><Save size={18} /> Sauvegarder</>}

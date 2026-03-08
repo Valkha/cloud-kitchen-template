@@ -2,13 +2,14 @@
 
 import { useState, useEffect } from "react";
 import { useUser } from "@/context/UserContext";
+import { createClient } from "@/utils/supabase/client";
 import { m, AnimatePresence } from "framer-motion";
-import { ArrowLeft, Save, User, Phone, CheckCircle, MapPin, AlertTriangle } from "lucide-react";
+import { ArrowLeft, Save, User, Phone, CheckCircle, MapPin, Trash2, AlertTriangle } from "lucide-react";
 import { useParams } from "next/navigation";
 import TransitionLink from "@/components/TransitionLink";
 
 export default function SettingsPage() {
-  const { user, profile, loading } = useUser(); 
+  const { user, profile, refreshProfile, loading } = useUser(); 
   const { lang } = useParams();
 
   const [fullName, setFullName] = useState("");
@@ -17,7 +18,7 @@ export default function SettingsPage() {
   const [zipCode, setZipCode] = useState("");
   const [city, setCity] = useState("");
   const [isUpdating, setIsUpdating] = useState(false);
-  const [showSuccess] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   useEffect(() => {
@@ -30,44 +31,43 @@ export default function SettingsPage() {
     }
   }, [profile]);
 
-  // ✅ CRASH TEST RÉSEAU : Utilisation de fetch pour isoler les variables d'environnement
   const handleUpdate = async () => {
+    const targetId = profile?.id || user?.id;
     setErrorMsg(null);
-    setIsUpdating(true);
 
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-    if (!url || !key) {
-      setErrorMsg("Variables d'environnement introuvables. Vérifiez Vercel.");
-      setIsUpdating(false);
+    if (!targetId) {
+      setErrorMsg("Session expirée. Veuillez recharger la page.");
       return;
     }
 
+    setIsUpdating(true);
+
     try {
-      console.log("🚀 Test de connexion directe au réseau...");
+      // ✅ Création d'une instance fraîche pour éviter le freeze de session
+      const supabase = createClient();
       
-      const response = await fetch(`${url}/rest/v1/profiles?select=*&limit=1`, {
-        method: 'GET',
-        headers: {
-          'apikey': key,
-          'Authorization': `Bearer ${key}`,
-          'Content-Type': 'application/json'
-        }
-      });
+      const { error } = await supabase
+        .from("profiles")
+        .update({
+          full_name: fullName,
+          phone: phone,
+          address: address,
+          zip_code: zipCode,
+          city: city,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", targetId);
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(JSON.stringify(errorData));
-      }
+      if (error) throw error;
 
-      const data = await response.json();
-      console.log("✅ Réponse réseau reçue :", data);
-      alert("CONNEXION RÉUSSIE ! Le réseau et les clés sont OK.");
-
+      // ✅ On rafraîchit les données globales de l'utilisateur
+      await refreshProfile();
+      
+      setShowSuccess(true);
+      setTimeout(() => setShowSuccess(false), 3000);
     } catch (err) {
-      console.error("💥 Erreur critique :", err);
-      const errorMessage = err instanceof Error ? err.message : "Erreur réseau inconnue.";
+      console.error("💥 Erreur de sauvegarde:", err);
+      const errorMessage = err instanceof Error ? err.message : "Une erreur est survenue lors de la sauvegarde.";
       setErrorMsg(errorMessage);
     } finally {
       setIsUpdating(false);
@@ -120,7 +120,7 @@ export default function SettingsPage() {
               </div>
 
               <div className="space-y-2">
-                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest ml-1">Adresse</label>
+                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest ml-1">Adresse de livraison</label>
                 <div className="relative">
                   <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
                   <input type="text" value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Rue et numéro" className="w-full bg-black border border-neutral-800 rounded-xl py-4 pl-12 pr-4 text-white focus:border-kabuki-red outline-none transition-colors" />
@@ -128,8 +128,8 @@ export default function SettingsPage() {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <input type="text" value={zipCode} onChange={(e) => setZipCode(e.target.value)} placeholder="CP" className="w-full bg-black border border-neutral-800 rounded-xl py-4 px-4 text-white focus:border-kabuki-red outline-none" />
-                <input type="text" value={city} onChange={(e) => setCity(e.target.value)} placeholder="Ville" className="w-full bg-black border border-neutral-800 rounded-xl py-4 px-4 text-white focus:border-kabuki-red outline-none" />
+                <input type="text" value={zipCode} onChange={(e) => setZipCode(e.target.value)} placeholder="Code Postal" className="w-full bg-black border border-neutral-800 rounded-xl py-4 px-4 text-white focus:border-kabuki-red outline-none transition-colors" />
+                <input type="text" value={city} onChange={(e) => setCity(e.target.value)} placeholder="Ville" className="w-full bg-black border border-neutral-800 rounded-xl py-4 px-4 text-white focus:border-kabuki-red outline-none transition-colors" />
               </div>
 
               <AnimatePresence>
@@ -146,16 +146,26 @@ export default function SettingsPage() {
                 disabled={isUpdating} 
                 className="w-full bg-kabuki-red text-white py-4 rounded-xl font-bold uppercase tracking-[0.2em] hover:bg-white hover:text-black transition-all flex items-center justify-center gap-2 disabled:opacity-50 mt-4 shadow-lg shadow-red-900/20"
               >
-                {isUpdating ? <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" /> : <><Save size={18} /> Tester la connexion</>}
+                {isUpdating ? <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" /> : <><Save size={18} /> Sauvegarder les modifications</>}
               </button>
             </div>
+          </div>
+
+          <div className="bg-red-900/10 border border-red-900/20 rounded-3xl p-8">
+            <h2 className="text-red-500 font-bold uppercase tracking-widest text-sm mb-2 flex items-center gap-2">
+              <Trash2 size={16} /> Zone de danger
+            </h2>
+            <p className="text-xs text-gray-500 mb-6 uppercase tracking-wider">La suppression de votre compte est irréversible.</p>
+            <button onClick={() => alert("Contactez le support pour la suppression")} className="text-red-500 text-[10px] font-bold uppercase border border-red-500/30 px-4 py-2 rounded-lg hover:bg-red-500 hover:text-white transition-all">
+              Supprimer mon compte
+            </button>
           </div>
         </m.div>
 
         <AnimatePresence>
           {showSuccess && (
             <m.div initial={{ opacity: 0, y: 50 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 50 }} className="fixed bottom-10 left-1/2 -translate-x-1/2 bg-green-500 text-white px-6 py-3 rounded-full flex items-center gap-3 shadow-2xl z-50">
-              <CheckCircle size={20} /><span className="text-xs font-bold uppercase tracking-widest">OK !</span>
+              <CheckCircle size={20} /><span className="text-xs font-bold uppercase tracking-widest">Profil mis à jour !</span>
             </m.div>
           )}
         </AnimatePresence>

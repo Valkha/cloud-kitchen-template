@@ -1,118 +1,76 @@
 "use client";
 
 import { useUser } from "@/context/UserContext";
-import { m } from "framer-motion";
-import { User, History, Settings, ChevronRight, AlertCircle } from "lucide-react";
-import { useParams } from "next/navigation";
+import { createClient } from "@/utils/supabase/client";
+import { useEffect, useState } from "react";
 import TransitionLink from "@/components/TransitionLink";
-import OrderHistory from "@/components/OrderHistory";
 
-export default function ProfilePage() {
+export default function ProfileDiagnosticPage({ params }: { params: { lang: string } }) {
   const { user, profile, loading } = useUser();
-  const params = useParams();
-  const lang = params.lang as string;
+  const [rawSession, setRawSession] = useState<string>("Vérification des cookies en cours...");
+  const [dbTest, setDbTest] = useState<string>("En attente...");
+  const supabase = createClient();
 
-  // 🛡️ Le conteneur principal reste toujours affiché pour empêcher le démontage
-  return (
-    <div className="min-h-screen bg-black pt-32 pb-20 px-6">
-      <div className="max-w-4xl mx-auto">
+  useEffect(() => {
+    // 1. Test direct des cookies Supabase dans le navigateur
+    supabase.auth.getSession().then(({ data, error }) => {
+      if (error) {
+        setRawSession(`❌ Erreur: ${error.message}`);
+      } else if (data.session) {
+        setRawSession(`✅ Session présente (Expire le: ${new Date(data.session.expires_at! * 1000).toLocaleString()})`);
         
-        {loading ? (
-          // SKELETON : Rendu conditionnel interne (pas de "return" global)
-          <div className="flex flex-col items-center justify-center py-32 space-y-6">
-            <div className="w-12 h-12 border-4 border-kabuki-red border-t-transparent rounded-full animate-spin" />
-            <p className="text-kabuki-red text-xs font-bold uppercase tracking-widest animate-pulse">
-              Synchronisation...
-            </p>
+        // 2. Test direct de la base de données
+        supabase.from('profiles').select('id').eq('id', data.session.user.id).single()
+          .then(({ error: dbErr }) => {
+            if (dbErr) setDbTest(`❌ Erreur DB: ${dbErr.message} (Code: ${dbErr.code})`);
+            else setDbTest("✅ Accès DB fonctionnel");
+          });
+      } else {
+        setRawSession("🔴 Aucune session trouvée dans les cookies du navigateur.");
+        setDbTest("🔴 Non testable sans session.");
+      }
+    });
+  }, [supabase]);
+
+  return (
+    <div className="min-h-screen bg-black pt-32 px-6 text-white font-mono text-sm">
+      <div className="max-w-3xl mx-auto space-y-6">
+        <h1 className="text-2xl text-kabuki-red font-bold border-b border-red-900 pb-2">
+          🚨 DIAGNOSTIC VERCEL ACTIF 🚨
+        </h1>
+        
+        <div className="bg-neutral-900 p-6 rounded-xl border border-neutral-700 space-y-6 shadow-2xl">
+          {/* ÉTAT 1 : Le Contexte React */}
+          <div className="p-4 bg-black/50 rounded border border-neutral-800">
+            <h2 className="text-yellow-400 font-bold mb-2">1. État du UserContext (La boucle infinie ?)</h2>
+            <p>• Loading : {loading ? <span className="text-yellow-500 font-bold animate-pulse">⏳ TRUE (Bloqué en chargement)</span> : <span className="text-green-500 font-bold">✅ FALSE (Terminé)</span>}</p>
+            <p>• User : {user ? <span className="text-green-500">🟢 {user.email}</span> : <span className="text-red-500">🔴 NULL</span>}</p>
+            <p>• Profil : {profile ? <span className="text-green-500">🟢 Chargé</span> : <span className="text-red-500">🔴 NULL</span>}</p>
           </div>
-        ) : !user ? (
-          // ACCÈS RÉSERVÉ : Intégré sans casser la page
-          <div className="flex flex-col items-center justify-center py-32 text-center space-y-6 bg-neutral-900/30 border border-neutral-800 rounded-3xl p-8 shadow-2xl">
-            <AlertCircle size={48} className="text-kabuki-red mb-2" />
-            <h1 className="text-2xl font-display font-bold text-white uppercase tracking-widest">Accès réservé</h1>
-            <p className="text-gray-400 max-w-md mx-auto">
-              Votre session a expiré ou vous n&apos;êtes pas connecté. Veuillez vous identifier pour accéder à votre espace.
-            </p>
-            <TransitionLink 
-              href={`/${lang}/login`}
-              className="bg-kabuki-red text-white px-8 py-4 rounded-full font-bold uppercase tracking-widest hover:bg-white hover:text-black transition-all"
+
+          {/* ÉTAT 2 : Les Cookies et la DB */}
+          <div className="p-4 bg-black/50 rounded border border-neutral-800">
+            <h2 className="text-blue-400 font-bold mb-2">2. État Réel Supabase (Cookies Vercel)</h2>
+            <p className="mb-1">• Statut Session : {rawSession}</p>
+            <p>• Statut Database : {dbTest}</p>
+          </div>
+
+          {/* ACTIONS MANUELLES */}
+          <div className="pt-4 flex flex-wrap gap-4 border-t border-neutral-800">
+            <button 
+              onClick={() => supabase.auth.signOut().then(() => window.location.reload())} 
+              className="bg-red-900/50 hover:bg-red-600 border border-red-500 px-4 py-2 rounded text-xs transition-colors"
             >
-              Se connecter
+              1. Forcer le nettoyage (SignOut)
+            </button>
+            <TransitionLink 
+              href={`/${params.lang || 'fr'}/login`}
+              className="bg-neutral-800 hover:bg-neutral-700 border border-neutral-600 px-4 py-2 rounded text-xs transition-colors inline-block"
+            >
+              2. Aller au Login
             </TransitionLink>
           </div>
-        ) : (
-          // ✅ CONTENU DU PROFIL : Affiché uniquement si l'user est 100% prêt
-          <>
-            <m.div 
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="bg-neutral-900 border border-neutral-800 rounded-3xl p-8 mb-8 flex flex-col md:flex-row items-center gap-8 shadow-2xl"
-            >
-              <div className="w-24 h-24 bg-kabuki-red/10 rounded-full flex items-center justify-center border-2 border-kabuki-red shadow-lg shadow-red-900/20">
-                <User size={48} className="text-kabuki-red" />
-              </div>
-              <div className="text-center md:text-left flex-1">
-                <h1 className="text-3xl font-display font-bold text-white uppercase tracking-wider mb-2">
-                  {profile?.full_name || "Client Kabuki"}
-                </h1>
-                <p className="text-gray-500 font-bold text-xs uppercase tracking-widest opacity-70">{user.email}</p>
-              </div>
-              <div className="bg-black/40 backdrop-blur-md border border-neutral-800 rounded-2xl p-6 text-center min-w-[200px]">
-                <p className="text-[10px] font-bold text-gray-500 uppercase tracking-[0.3em] mb-1">Cagnotte Fidélité</p>
-                <p className="text-3xl font-display font-bold text-kabuki-red">
-                  {profile?.wallet_balance ? Number(profile.wallet_balance).toFixed(2) : "0.00"} <span className="text-sm">CHF</span>
-                </p>
-              </div>
-            </m.div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <m.div 
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.1 }}
-                className="md:col-span-2 bg-neutral-900/50 border border-neutral-800 p-8 rounded-3xl shadow-xl"
-              >
-                <div className="flex items-center gap-4 mb-8">
-                  <div className="p-3 bg-kabuki-red/10 rounded-2xl text-kabuki-red">
-                    <History size={24} />
-                  </div>
-                  <div>
-                    <h2 className="text-xl font-display font-bold text-white uppercase tracking-widest">Historique</h2>
-                    <p className="text-[10px] text-gray-500 uppercase tracking-widest">Vos dernières commandes</p>
-                  </div>
-                </div>
-
-                {/* LE COMPOSANT SOUS HAUTE SURVEILLANCE */}
-                <OrderHistory />
-              </m.div>
-
-              <div className="space-y-6">
-                <TransitionLink href={`/${lang}/profile/settings`} className="block">
-                  <m.div 
-                    whileHover={{ scale: 1.02, backgroundColor: "rgba(38, 38, 38, 0.8)" }}
-                    whileTap={{ scale: 0.98 }}
-                    className="bg-neutral-900/50 border border-neutral-800 p-6 rounded-2xl flex items-center gap-4 cursor-pointer hover:border-kabuki-red transition-all duration-300 shadow-xl"
-                  >
-                    <div className="p-3 bg-kabuki-red/10 rounded-xl text-kabuki-red">
-                      <Settings size={24} />
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="text-white font-bold text-sm uppercase tracking-wider">Paramètres</h3>
-                      <p className="text-[10px] text-gray-500 uppercase">Gérer le compte</p>
-                    </div>
-                    <ChevronRight size={18} className="text-neutral-600" />
-                  </m.div>
-                </TransitionLink>
-
-                <div className="bg-neutral-900/30 border border-neutral-800/50 p-6 rounded-2xl">
-                  <p className="text-[10px] text-gray-500 uppercase leading-relaxed">
-                    Besoin d&apos;aide ? Contactez notre support pour toute question concernant vos commandes.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </>
-        )}
+        </div>
       </div>
     </div>
   );

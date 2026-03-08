@@ -10,7 +10,7 @@ export async function GET(request: Request) {
   const next = searchParams.get('next') ?? '/fr/profile'
 
   if (code) {
-    // 1. On utilise l'API native de Next.js pour gérer les cookies (100% fiable sur Vercel)
+    // 1. On utilise l'API native de Next.js pour gérer les cookies
     const cookieStore = await cookies()
     
     const supabase = createServerClient(
@@ -26,7 +26,8 @@ export async function GET(request: Request) {
               cookiesToSet.forEach(({ name, value, options }) =>
                 cookieStore.set(name, value, options)
               )
-            } catch (error) {
+            } catch {
+              // ✅ CORRECTION ESLINT : Variable 'error' retirée car inutilisée
               // Ignoré de manière sécurisée si appelé depuis un Server Component
             }
           },
@@ -38,18 +39,15 @@ export async function GET(request: Request) {
     const { error } = await supabase.auth.exchangeCodeForSession(code)
     
     if (!error) {
-      // 3. 🚨 LE FIX VERCEL CRUCIAL : Forcer le vrai nom de domaine
+      // 3. Le fix Vercel crucial : Forcer le vrai nom de domaine
       const forwardedHost = request.headers.get('x-forwarded-host')
       const isLocalEnv = process.env.NODE_ENV === 'development'
 
       if (isLocalEnv) {
-        // En local (localhost)
         return NextResponse.redirect(`${origin}${next}`)
       } else if (forwardedHost) {
-        // Sur Vercel : On utilise le host forwardé (www.kabuki-sushi.ch) pour ancrer les cookies
         return NextResponse.redirect(`https://${forwardedHost}${next}`)
       } else {
-        // Fallback générique
         return NextResponse.redirect(`${origin}${next}`)
       }
     } else {

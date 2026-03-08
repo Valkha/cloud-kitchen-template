@@ -9,7 +9,6 @@ import { useParams } from "next/navigation";
 import TransitionLink from "@/components/TransitionLink";
 
 export default function SettingsPage() {
-  // ✅ On récupère 'user' et 'loading' pour la sécurité
   const { user, profile, refreshProfile, loading } = useUser(); 
   const { lang } = useParams();
   const supabase = createClient();
@@ -33,24 +32,30 @@ export default function SettingsPage() {
   }, [profile]);
 
   const handleUpdate = async () => {
-    // ✅ PRIORITÉ : On utilise l'ID du user Google si le profil n'est pas encore synchronisé
     const targetId = profile?.id || user?.id;
-
-    console.log("🔥 BOUTON CLIQUÉ : Lancement de handleUpdate");
+    console.log("🔥 ETAPE 1 : Clic détecté. ID :", targetId);
 
     if (!targetId) {
-      console.error("❌ Erreur: Aucun ID utilisateur trouvé (Session expirée ?)");
+      alert("Session perdue.");
       return;
     }
 
     setIsUpdating(true);
+
+    // ✅ Alerte inévitable après 6 secondes (preuve du gel par extension)
+    setTimeout(() => {
+      console.log("⏱️ ETAPE TIMEOUT : 6 secondes écoulées !");
+      setIsUpdating(false);
+      alert("La requête est bloquée. C'est définitivement une extension qui gèle la page !");
+    }, 6000);
+
     try {
-      console.log("📡 Upsert Supabase pour l'ID:", targetId);
+      console.log("📡 ETAPE 2 : Envoi de la requête Supabase...");
       
       const { data, error } = await supabase
         .from("profiles")
         .upsert({
-          id: targetId, // ✅ Obligatoire pour l'upsert
+          id: targetId,
           full_name: fullName,
           phone: phone,
           address: address,
@@ -60,24 +65,21 @@ export default function SettingsPage() {
         })
         .select();
 
-      if (error) {
-        console.error("❌ Erreur Supabase:", error.message);
-        throw error;
-      }
+      console.log("✅ ETAPE 3 : Réponse reçue de Supabase !", data, error);
 
-      console.log("✅ Mise à jour réussie:", data);
-      
+      if (error) throw error;
+
       await refreshProfile();
       setShowSuccess(true);
       setTimeout(() => setShowSuccess(false), 3000);
     } catch (err) {
-      console.error("💥 Erreur critique lors de la sauvegarde:", err);
+      console.error("💥 ETAPE ERREUR :", err);
     } finally {
+      console.log("🏁 ETAPE 4 : Fin du processus");
       setIsUpdating(false);
     }
   };
 
-  // ✅ Gestion de l'état de chargement initial
   if (loading) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center">
@@ -86,7 +88,6 @@ export default function SettingsPage() {
     );
   }
 
-  // ✅ PROTECTION DE ROUTE : Si pas d'utilisateur, on bloque l'accès au formulaire
   if (!user) {
     return (
       <div className="min-h-screen bg-black flex flex-col items-center justify-center p-6 text-center">

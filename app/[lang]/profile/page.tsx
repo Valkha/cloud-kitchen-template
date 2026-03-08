@@ -10,7 +10,9 @@ import OrderHistory from "@/components/OrderHistory";
 export default function ProfilePage() {
   const { user, profile, loading } = useUser();
   const params = useParams();
-  const lang = params.lang as string;
+  
+  // ✅ Correction ESLint : typage sécurisé des paramètres d'URL
+  const lang = typeof params.lang === 'string' ? params.lang : 'fr';
 
   return (
     <div className="min-h-screen bg-black pt-32 pb-20 px-6">
@@ -78,6 +80,7 @@ export default function ProfilePage() {
                   </div>
                 </div>
 
+                {/* ✅ Le composant ci-dessous doit utiliser 'total_amount' en interne */}
                 <OrderHistory />
               </m.div>
 

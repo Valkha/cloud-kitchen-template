@@ -5,10 +5,11 @@ import { createClient } from "@/utils/supabase/client";
 import { useUser } from "@/context/UserContext";
 import { Package, Clock, CheckCircle2, Truck } from "lucide-react";
 
+// ✅ TYPAGE MIS À JOUR : total_price devient total_amount
 type Order = {
   id: string;
   created_at: string;
-  total_price: number;
+  total_amount: number; 
   status: 'pending' | 'preparing' | 'shipping' | 'completed' | 'cancelled';
 };
 
@@ -25,25 +26,31 @@ export default function OrderHistory() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   
-  // ✅ CORRECTION CRITIQUE : useState empêche Supabase d'être recréé à chaque rendu
+  // ✅ Toujours stable via useState
   const [supabase] = useState(() => createClient());
 
   useEffect(() => {
     async function fetchOrders() {
       if (!user) return;
       
+      // ✅ CORRECTION DU SELECT : total_amount au lieu de total_price
       const { data, error } = await supabase
         .from("orders")
-        .select("id, created_at, total_price, status")
+        .select("id, created_at, total_amount, status")
         .eq("user_id", user.id)
         .order("created_at", { ascending: false });
 
-      if (!error && data) setOrders(data as Order[]);
+      if (!error && data) {
+        // Cast sécurisé vers notre type Order
+        setOrders(data as Order[]);
+      } else if (error) {
+        console.error("[DIAG] Erreur lors de la récupération des commandes :", error.message);
+      }
       setLoading(false);
     }
 
     fetchOrders();
-  }, [user, supabase]); // supabase est maintenant stable, le useEffect ne bouclera plus
+  }, [user, supabase]);
 
   if (loading) return <div className="text-gray-500 animate-pulse uppercase text-[10px] font-bold">Chargement des commandes...</div>;
   if (orders.length === 0) return <div className="text-gray-500 text-xs uppercase italic">Aucune commande passée.</div>;
@@ -66,7 +73,8 @@ export default function OrderHistory() {
               </div>
             </div>
             <div className="text-right">
-              <p className="text-white font-bold text-sm">{order.total_price.toFixed(2)} CHF</p>
+              {/* ✅ AFFICHAGE MIS À JOUR : total_amount */}
+              <p className="text-white font-bold text-sm">{Number(order.total_amount).toFixed(2)} CHF</p>
               <p className={`text-[9px] font-black uppercase tracking-widest ${status.color}`}>{status.label}</p>
             </div>
           </div>

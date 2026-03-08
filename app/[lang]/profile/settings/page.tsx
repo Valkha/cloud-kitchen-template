@@ -64,13 +64,13 @@ export default function SettingsPage() {
     setErrorMsg(null);
     console.log(`[DIAG] 2. User ID : ${user.id}. Envoi imminent...`);
 
-    // 🕒 Timeout de sécurité (5 secondes)
+    // 🕒 Timeout de sécurité étendu à 8s pour diagnostiquer les blocages RLS/Locks
     const timeout = new Promise<UpsertResult>((_, reject) => 
-      setTimeout(() => reject(new Error("La base de données ne répond pas (Timeout 5s).")), 5000)
+      setTimeout(() => reject(new Error("Délai dépassé : Les règles de sécurité (RLS) ou un verrou bloquent peut-être la requête.")), 8000)
     );
 
     try {
-      console.log("[DIAG] 3. Envoi de la requête upsert (sans select)...");
+      console.log("[DIAG] 3. Envoi de la requête upsert (optimisée sans select)...");
 
       const upsertTask = supabase
         .from("profiles")

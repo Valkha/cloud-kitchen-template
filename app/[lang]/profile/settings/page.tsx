@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useUser } from "@/context/UserContext";
 import { createClient } from "@/utils/supabase/client";
-import { ArrowLeft, CheckCircle, AlertTriangle, Save } from "lucide-react";
+import { ArrowLeft, CheckCircle, AlertTriangle, Save, Loader2 } from "lucide-react";
 import { useParams } from "next/navigation";
 import TransitionLink from "@/components/TransitionLink";
 
@@ -21,19 +21,21 @@ export default function SettingsPage() {
   const [showSuccess, setShowSuccess] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  // Initialisation synchronisée avec le profil
   useEffect(() => {
     if (profile) {
       setFullName(profile.full_name || "");
       setPhone(profile.phone || "");
       setAddress(profile.address || "");
-      setZipCode(profile.zip_code || "");
+      // ✅ Correction TS : On utilise uniquement la propriété strictement typée
+      setZipCode(profile.zip_code || ""); 
       setCity(profile.city || "");
     }
   }, [profile]);
 
-  const handleUpdate = async () => {
+  const handleUpdate = async (e: React.FormEvent) => {
+    e.preventDefault(); // 🛑 BLOQUE LE RECHARGEMENT NATIF DE LA PAGE
     if (!user?.id) return;
+    
     setIsUpdating(true);
     setErrorMsg(null);
 
@@ -52,21 +54,18 @@ export default function SettingsPage() {
 
       if (error) throw error;
 
-      // refreshProfile est maintenant "silent" (voir modif UserContext précédente)
       await refreshProfile();
       setShowSuccess(true);
       setTimeout(() => setShowSuccess(false), 3000);
     } catch (err: unknown) {
-      // ✅ Correction ESLint : On traite 'unknown' au lieu de 'any'
-      const errorMessage = err instanceof Error ? err.message : "Une erreur inconnue est survenue";
-      setErrorMsg(errorMessage);
+      const errorMessage = err instanceof Error ? err.message : "Erreur de base de données";
+      console.error("Erreur Upsert:", errorMessage);
+      setErrorMsg(`Impossible de sauvegarder: ${errorMessage}`);
     } finally {
       setIsUpdating(false);
     }
   };
 
-  // 🛡️ ON NE RETOURNE PLUS JAMAIS DE SPINNER ICI
-  // On laisse la page affichée même si loading est true dans le contexte
   return (
     <div className="min-h-screen bg-black pt-32 pb-20 px-6 text-white">
       <div className="max-w-2xl mx-auto">
@@ -77,10 +76,10 @@ export default function SettingsPage() {
         <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-8 shadow-2xl space-y-8">
           <div className="flex items-center justify-between">
             <h1 className="text-2xl font-display font-bold uppercase tracking-widest">Mon Profil</h1>
-            {isUpdating && <div className="w-4 h-4 border-2 border-kabuki-red border-t-transparent rounded-full animate-spin" />}
           </div>
           
-          <div className="space-y-6">
+          {/* ✅ Transformation en formulaire strict */}
+          <form onSubmit={handleUpdate} className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
                 <label className="text-[10px] font-bold text-neutral-500 uppercase ml-1">Nom complet</label>
@@ -109,14 +108,13 @@ export default function SettingsPage() {
             )}
 
             <button 
-              type="button"
-              onClick={handleUpdate}
+              type="submit"
               disabled={isUpdating} 
               className="w-full bg-kabuki-red text-white py-4 rounded-xl font-bold uppercase tracking-[0.2em] hover:bg-white hover:text-black transition-all flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isUpdating ? "Mise à jour..." : <><Save size={18} /> Sauvegarder</>}
+              {isUpdating ? <><Loader2 size={18} className="animate-spin" /> Mise à jour...</> : <><Save size={18} /> Sauvegarder</>}
             </button>
-          </div>
+          </form>
         </div>
       </div>
 

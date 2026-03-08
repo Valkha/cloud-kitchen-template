@@ -8,7 +8,7 @@ import { useParams } from "next/navigation";
 import TransitionLink from "@/components/TransitionLink";
 
 export default function SettingsPage() {
-  const { user, profile, loading } = useUser(); 
+  const { profile } = useUser(); // On ne garde que profile ici pour l'affichage initial
   const { lang } = useParams();
   const supabase = createClient();
 
@@ -30,27 +30,29 @@ export default function SettingsPage() {
     }
   }, [profile]);
 
-  // Utilisation de MouseEvent au lieu de FormEvent pour plus de stabilité
   const handleUpdate = async () => {
     alert("1. Entrée dans handleUpdate");
-
-    if (!user) {
-      alert("2. ERREUR : L'objet user est introuvable");
-      return;
-    }
-
-    alert("3. ID utilisateur détecté : " + user.id);
-    
     setIsUpdating(true);
     setErrorMsg(null);
 
     try {
-      alert("4. Envoi de la requête à Supabase...");
-      
+      // 🕵️ RÉCUPÉRATION DIRECTE DE L'USER (Bypass context)
+      alert("2. Vérification de session en cours...");
+      const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
+
+      if (authError || !authUser) {
+        alert("❌ ERREUR AUTH : " + (authError?.message || "Pas de session"));
+        setIsUpdating(false);
+        return;
+      }
+
+      alert("3. ID trouvé en direct : " + authUser.id);
+
+      // 🚀 UPSERT
       const { error } = await supabase
         .from("profiles")
         .upsert({
-          id: user.id,
+          id: authUser.id,
           full_name: fullName,
           phone: phone,
           address: address,
@@ -60,51 +62,42 @@ export default function SettingsPage() {
         }, { onConflict: 'id' });
 
       if (error) {
-        alert("5. ERREUR SUPABASE : " + error.message);
+        alert("❌ ERREUR SUPABASE : " + error.message);
         throw error;
       }
 
-      alert("6. SUCCESS ! Les données sont enregistrées.");
+      alert("✅ FÉLICITATIONS : Sauvegarde réussie !");
       
-      // On reste sur la page sans recharger pour l'instant
-      setIsUpdating(false);
+      // On redirige manuellement pour forcer le rafraîchissement propre
+      window.location.href = `/${lang}/profile`;
 
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Erreur inconnue";
-      alert("7. CATCH ERROR : " + msg);
+      alert("💥 CRASH CATCH : " + msg);
       setErrorMsg(msg);
+    } finally {
       setIsUpdating(false);
     }
   };
 
-  if (loading) return (
-    <div className="min-h-screen bg-black flex items-center justify-center">
-      <div className="w-12 h-12 border-4 border-kabuki-red border-t-transparent rounded-full animate-spin" />
-    </div>
-  );
-
   return (
     <div className="min-h-screen bg-black pt-32 pb-20 px-6 text-white">
       <div className="max-w-2xl mx-auto">
-        <TransitionLink href={`/${lang}/profile`} className="inline-flex items-center gap-2 text-gray-500 hover:text-white mb-8">
+        <TransitionLink href={`/${lang}/profile`} className="inline-flex items-center gap-2 text-gray-500 mb-8">
           <ArrowLeft size={20} /> <span className="text-xs font-bold uppercase tracking-widest">Retour</span>
         </TransitionLink>
 
-        {/* Suppression de la balise <form> pour éviter tout rechargement sauvage */}
         <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-8 shadow-2xl space-y-6">
-          <h1 className="text-2xl font-display font-bold text-white uppercase tracking-widest mb-4">Finaliser le Profil</h1>
+          <h1 className="text-2xl font-display font-bold uppercase tracking-widest mb-4">Mise à jour du profil</h1>
           
           <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <input type="text" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Nom complet" className="w-full bg-black border border-neutral-800 rounded-xl py-4 px-4 text-white outline-none focus:border-kabuki-red" />
-              <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Téléphone" className="w-full bg-black border border-neutral-800 rounded-xl py-4 px-4 text-white outline-none focus:border-kabuki-red" />
-            </div>
-
+            <input type="text" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Nom complet" className="w-full bg-black border border-neutral-800 rounded-xl py-4 px-4 text-white outline-none focus:border-kabuki-red" />
+            <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Téléphone" className="w-full bg-black border border-neutral-800 rounded-xl py-4 px-4 text-white outline-none focus:border-kabuki-red" />
             <input type="text" value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Adresse" className="w-full bg-black border border-neutral-800 rounded-xl py-4 px-4 text-white outline-none focus:border-kabuki-red" />
             
             <div className="grid grid-cols-2 gap-4">
-               <input type="text" value={zipCode} onChange={(e) => setZipCode(e.target.value)} placeholder="Code Postal" className="w-full bg-black border border-neutral-800 rounded-xl py-4 px-4 text-white outline-none focus:border-kabuki-red" />
-               <input type="text" value={city} onChange={(e) => setCity(e.target.value)} placeholder="Ville" className="w-full bg-black border border-neutral-800 rounded-xl py-4 px-4 text-white outline-none focus:border-kabuki-red" />
+               <input type="text" value={zipCode} onChange={(e) => setZipCode(e.target.value)} placeholder="CP" className="w-full bg-black border border-neutral-800 rounded-xl py-4 px-4 text-white outline-none" />
+               <input type="text" value={city} onChange={(e) => setCity(e.target.value)} placeholder="Ville" className="w-full bg-black border border-neutral-800 rounded-xl py-4 px-4 text-white outline-none" />
             </div>
 
             {errorMsg && (
@@ -117,9 +110,9 @@ export default function SettingsPage() {
               type="button" 
               onClick={handleUpdate}
               disabled={isUpdating} 
-              className="w-full bg-kabuki-red text-white py-4 rounded-xl font-bold uppercase tracking-widest hover:bg-white hover:text-black transition-all disabled:opacity-50"
+              className="w-full bg-kabuki-red text-white py-4 rounded-xl font-bold uppercase tracking-widest hover:bg-white hover:text-black transition-all disabled:opacity-50 mt-4"
             >
-              {isUpdating ? "En cours..." : "Enregistrer les informations"}
+              {isUpdating ? "En cours..." : "Enregistrer"}
             </button>
           </div>
         </div>

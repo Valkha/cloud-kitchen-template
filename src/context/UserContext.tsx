@@ -10,9 +10,9 @@ export type UserProfile = {
   phone: string | null;
   wallet_balance: number;
   is_admin: boolean;
-  address: string | null;  // ✅ AJOUT
-  zip_code: string | null; // ✅ AJOUT
-  city: string | null;     // ✅ AJOUT
+  address: string | null;
+  zip_code: string | null;
+  city: string | null;
 };
 
 type UserContextType = {
@@ -32,19 +32,22 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   const [supabase] = useState(() => createClient());
   const isInitialMount = useRef(true);
 
-  const fetchProfile = useCallback(async (userId: string) => {
+  const fetchProfile = useCallback(async (userId: string, silent = false) => {
     if (!userId) {
       setLoading(false);
       return;
     }
 
-    // ✅ SÉCURITÉ : Timeout pour éviter le spinner infini si le réseau ou un AdBlocker bloque la requête
+    // On n'active le chargement visuel que si ce n'est pas un rafraîchissement silencieux
+    if (!silent) {
+      setLoading(true);
+    }
+
     const timeoutId = setTimeout(() => {
       setLoading(false);
-      console.warn("⚠️ UserContext: Timeout de récupération du profil (potentiel blocage client).");
+      console.warn("⚠️ UserContext: Timeout de récupération du profil.");
     }, 5000);
 
-    console.log("🔍 UserContext: Récupération du profil pour", userId);
     try {
       const { data, error } = await supabase
         .from("profiles")
@@ -53,45 +56,38 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         .single();
 
       if (error) {
-        if (error.code === 'PGRST116') {
-          console.warn("⚠️ UserContext: Aucun profil trouvé dans la table 'profiles'.");
-        } else {
-          throw error;
-        }
+        if (error.code !== 'PGRST116') throw error;
         setProfile(null);
       } else if (data) {
         setProfile(data as UserProfile);
-        console.log("✅ UserContext: Profil chargé avec succès");
       }
     } catch (err) {
-      console.error("❌ UserContext: Erreur lors du fetchProfile", err);
+      console.error("❌ UserContext Error:", err);
       setProfile(null);
     } finally {
-      clearTimeout(timeoutId); // ✅ Annule le timeout si la réponse arrive à temps
+      clearTimeout(timeoutId);
       setLoading(false);
     }
   }, [supabase]);
 
   const refreshProfile = async () => {
     if (user?.id) {
-      setLoading(true);
-      await fetchProfile(user.id);
+      // ✅ Rafraîchissement silencieux pour éviter de couper les requêtes en cours
+      await fetchProfile(user.id, true);
     }
   };
 
   const signOut = async () => {
-    console.log("🚪 UserContext: Déconnexion nucléaire...");
     try {
       localStorage.clear();
       sessionStorage.clear();
       await supabase.auth.signOut();
     } catch (error) {
-      console.error("UserContext: Erreur pendant le signOut", error);
+      console.error("UserContext Error:", error);
     } finally {
       setUser(null);
       setProfile(null);
       setLoading(false);
-      console.log("✅ UserContext: Session nettoyée");
     }
   };
 
@@ -122,15 +118,14 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (!mounted) return;
-        console.log("🔔 UserContext: AuthStateChange -", event);
-
+        
         if (event === "SIGNED_OUT") {
           setUser(null);
           setProfile(null);
           setLoading(false);
         } else if (session?.user) {
           setUser(session.user);
-          await fetchProfile(session.user.id);
+          await fetchProfile(session.user.id, true); // Refresh silencieux sur changement d'état
         } else {
           setLoading(false);
         }

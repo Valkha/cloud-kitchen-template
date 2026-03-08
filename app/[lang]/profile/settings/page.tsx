@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useUser } from "@/context/UserContext";
+import { createClient } from "@/utils/supabase/client";
 import { ArrowLeft, CheckCircle, AlertTriangle } from "lucide-react";
 import { useParams } from "next/navigation";
 import TransitionLink from "@/components/TransitionLink";
@@ -9,6 +10,7 @@ import TransitionLink from "@/components/TransitionLink";
 export default function SettingsPage() {
   const { user, profile, refreshProfile, loading } = useUser();
   const { lang } = useParams();
+  const supabase = createClient();
 
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
@@ -36,42 +38,37 @@ export default function SettingsPage() {
     setErrorMsg(null);
 
     try {
-      const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-      const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-      const response = await fetch(`${url}/rest/v1/profiles?id=eq.${user.id}`, {
-        method: 'PATCH',
-        headers: {
-          'apikey': key!,
-          'Authorization': `Bearer ${key}`,
-          'Content-Type': 'application/json',
-          'Prefer': 'return=minimal'
-        },
-        body: JSON.stringify({
+      // ✅ UPSERT via SDK (plus propre maintenant que le contexte est stable)
+      const { error } = await supabase
+        .from("profiles")
+        .upsert({
+          id: user.id,
           full_name: fullName,
           phone: phone,
           address: address,
           zip_code: zipCode,
           city: city,
-          updated_at: new Date().toISOString()
-        })
-      });
+          updated_at: new Date().toISOString(),
+        });
 
-      if (!response.ok) throw new Error("Échec de la mise à jour");
+      if (error) throw error;
 
-      // On rafraîchit les données du contexte sans recharger la page entière
+      // ✅ REFRESH SILENCIEUX (ne déclenchera pas le spinner de loading)
       await refreshProfile();
+      
       setShowSuccess(true);
       setTimeout(() => setShowSuccess(false), 3000);
-
-    } catch (err: unknown) {
-      setErrorMsg(err instanceof Error ? err.message : "Erreur de connexion");
+    } catch (err: any) {
+      console.error(err);
+      setErrorMsg(err.message || "Erreur de sauvegarde");
     } finally {
       setIsUpdating(false);
     }
   };
 
-  if (loading) return (
+  // ⚠️ TRÈS IMPORTANT : On ne bloque l'affichage que si le user est null au premier chargement
+  // Si on est déjà sur la page et qu'on rafraîchit, loading ne doit pas nous éjecter
+  if (loading && !profile) return (
     <div className="min-h-screen bg-black flex items-center justify-center">
       <div className="w-12 h-12 border-4 border-kabuki-red border-t-transparent rounded-full animate-spin" />
     </div>
@@ -81,54 +78,40 @@ export default function SettingsPage() {
     <div className="min-h-screen bg-black pt-32 pb-20 px-6 text-white">
       <div className="max-w-2xl mx-auto">
         <TransitionLink href={`/${lang}/profile`} className="mb-8 inline-flex items-center gap-2 text-neutral-500 hover:text-white transition-colors">
-          <ArrowLeft size={20} /> <span className="text-xs font-bold uppercase tracking-widest">Retour au profil</span>
+          <ArrowLeft size={20} /> <span className="text-xs font-bold uppercase tracking-widest">Retour</span>
         </TransitionLink>
 
-        <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-8 space-y-8 shadow-2xl">
+        <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-8 shadow-2xl space-y-8">
           <h1 className="text-2xl font-display font-bold uppercase tracking-widest">Paramètres</h1>
           
           <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <label className="text-[10px] font-bold text-neutral-500 uppercase ml-1">Nom complet</label>
-                <input type="text" value={fullName} onChange={(e) => setFullName(e.target.value)} className="w-full bg-black border border-neutral-800 p-4 rounded-xl focus:border-kabuki-red outline-none transition-colors" />
-              </div>
-              <div className="space-y-2">
-                <label className="text-[10px] font-bold text-neutral-500 uppercase ml-1">Téléphone</label>
-                <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} className="w-full bg-black border border-neutral-800 p-4 rounded-xl focus:border-kabuki-red outline-none transition-colors" />
-              </div>
+              <input type="text" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Nom" className="w-full bg-black border border-neutral-800 p-4 rounded-xl focus:border-kabuki-red outline-none" />
+              <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Tel" className="w-full bg-black border border-neutral-800 p-4 rounded-xl focus:border-kabuki-red outline-none" />
             </div>
 
-            <div className="space-y-2">
-              <label className="text-[10px] font-bold text-neutral-500 uppercase ml-1">Adresse de livraison</label>
-              <input type="text" value={address} onChange={(e) => setAddress(e.target.value)} className="w-full bg-black border border-neutral-800 p-4 rounded-xl focus:border-kabuki-red outline-none transition-colors" />
-            </div>
+            <input type="text" value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Adresse" className="w-full bg-black border border-neutral-800 p-4 rounded-xl focus:border-kabuki-red outline-none" />
             
             <div className="grid grid-cols-2 gap-6">
-               <input type="text" value={zipCode} onChange={(e) => setZipCode(e.target.value)} placeholder="Code Postal" className="w-full bg-black border border-neutral-800 p-4 rounded-xl focus:border-kabuki-red outline-none transition-colors" />
-               <input type="text" value={city} onChange={(e) => setCity(e.target.value)} placeholder="Ville" className="w-full bg-black border border-neutral-800 p-4 rounded-xl focus:border-kabuki-red outline-none transition-colors" />
+               <input type="text" value={zipCode} onChange={(e) => setZipCode(e.target.value)} placeholder="CP" className="w-full bg-black border border-neutral-800 p-4 rounded-xl focus:border-kabuki-red outline-none" />
+               <input type="text" value={city} onChange={(e) => setCity(e.target.value)} placeholder="Ville" className="w-full bg-black border border-neutral-800 p-4 rounded-xl focus:border-kabuki-red outline-none" />
             </div>
 
-            {errorMsg && (
-              <div className="bg-red-900/20 border border-red-500/50 text-red-500 p-4 rounded-xl flex items-center gap-2 text-xs uppercase">
-                <AlertTriangle size={16} /> {errorMsg}
-              </div>
-            )}
+            {errorMsg && <div className="text-red-500 text-xs flex items-center gap-2"><AlertTriangle size={16} /> {errorMsg}</div>}
 
             <button 
-              type="button" 
               onClick={handleUpdate}
               disabled={isUpdating} 
-              className="w-full bg-kabuki-red text-white py-4 rounded-xl font-bold uppercase tracking-widest hover:bg-white hover:text-black transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+              className="w-full bg-kabuki-red text-white py-4 rounded-xl font-bold uppercase tracking-widest hover:bg-white hover:text-black transition-all flex items-center justify-center gap-2"
             >
-              {isUpdating ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : "Enregistrer les modifications"}
+              {isUpdating ? "Enregistrement..." : "Sauvegarder"}
             </button>
           </div>
         </div>
       </div>
 
       {showSuccess && (
-        <div className="fixed bottom-10 left-1/2 -translate-x-1/2 bg-green-600 text-white px-8 py-4 rounded-full flex items-center gap-3 shadow-2xl animate-bounce">
+        <div className="fixed bottom-10 left-1/2 -translate-x-1/2 bg-green-600 text-white px-8 py-4 rounded-full flex items-center gap-3 shadow-2xl z-50">
           <CheckCircle size={20} /> <span className="text-xs font-bold uppercase tracking-widest">Profil mis à jour !</span>
         </div>
       )}

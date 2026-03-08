@@ -11,7 +11,8 @@ import TransitionLink from "@/components/TransitionLink";
 export default function SettingsPage() {
   const { user, profile, refreshProfile, loading } = useUser(); 
   const { lang } = useParams();
-  const supabase = createClient();
+  
+  // ❌ ON SUPPRIME LA CRÉATION DU CLIENT ICI POUR ÉVITER LE DEADLOCK DE RENDU
 
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
@@ -45,19 +46,14 @@ export default function SettingsPage() {
 
     const safetyTimeout = setTimeout(() => {
       setIsUpdating(false);
-      setErrorMsg("La connexion semble bloquée par un problème de cache (Cookies désynchronisés).");
-      console.warn("⏱️ Timeout déclenché : Le client Supabase est resté figé en cherchant la session.");
+      setErrorMsg("La requête a échoué (Timeout). Vérifiez votre connexion.");
     }, 8000);
 
     try {
-      console.log("📡 ETAPE 2 : Supabase cherche la session interne...");
+      // ✅ ON CRÉE LE CLIENT SUPABASE ICI : Une seule fois, juste pour la sauvegarde !
+      const supabase = createClient();
       
-      // ✅ ANTI-FREEZE : On force le réveil de la session AVANT la requête réseau
-      const { data: sessionData } = await supabase.auth.getSession();
-      console.log("✅ ETAPE 2.5 : Session réveillée !", sessionData);
-      
-      console.log("📡 ETAPE 3 : Envoi de l'Upsert à la base de données...");
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from("profiles")
         .upsert({
           id: targetId,
@@ -70,15 +66,13 @@ export default function SettingsPage() {
         })
         .select();
 
-      console.log("✅ ETAPE 4 : Réponse de la base de données !", data);
-
       if (error) throw error;
 
       await refreshProfile();
       setShowSuccess(true);
       setTimeout(() => setShowSuccess(false), 3000);
     } catch (err) {
-      console.error("💥 ETAPE ERREUR :", err);
+      console.error("💥 Erreur de sauvegarde:", err);
       setErrorMsg("Une erreur est survenue lors de la sauvegarde.");
     } finally {
       clearTimeout(safetyTimeout);

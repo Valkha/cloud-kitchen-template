@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { useUser } from "@/context/UserContext";
-import { createClient } from "@/utils/supabase/client";
 import { m, AnimatePresence } from "framer-motion";
 import { ArrowLeft, Save, User, Phone, CheckCircle, MapPin, Trash2, AlertTriangle } from "lucide-react";
 import { useParams } from "next/navigation";
@@ -33,25 +32,29 @@ export default function SettingsPage() {
 
   const handleUpdate = async () => {
     const targetId = profile?.id || user?.id;
-    setErrorMsg(null);
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
+    setErrorMsg(null);
     if (!targetId) {
-      setErrorMsg("Session expirée. Veuillez recharger la page.");
+      setErrorMsg("Session expirée.");
       return;
     }
 
     setIsUpdating(true);
 
     try {
-      // ✅ SOLUTION FINALE : On initialise le client avec les options de sécurité minimales
-      // pour éviter que la gestion des cookies ne bloque le thread JavaScript
-      const supabase = createClient();
-      
-      console.log("📡 Tentative de mise à jour pour l'ID:", targetId);
-
-      const { error } = await supabase
-        .from("profiles")
-        .update({
+      // ✅ MÉTHODE DE SECOURS : Puisque la librairie Supabase fige, 
+      // on utilise l'API REST directe de Supabase (PostgREST)
+      const response = await fetch(`${url}/rest/v1/profiles?id=eq.${targetId}`, {
+        method: 'PATCH', // PATCH = Update en REST
+        headers: {
+          'apikey': key!,
+          'Authorization': `Bearer ${key}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=minimal'
+        },
+        body: JSON.stringify({
           full_name: fullName,
           phone: phone,
           address: address,
@@ -59,27 +62,22 @@ export default function SettingsPage() {
           city: city,
           updated_at: new Date().toISOString(),
         })
-        .eq("id", targetId);
+      });
 
-      if (error) {
-        // Si Supabase renvoie une erreur (ex: RLS), on l'attrape ici
-        throw error;
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.message || "Erreur lors de la mise à jour");
       }
 
-      // ✅ Succès
+      // ✅ On force le rafraîchissement du contexte global
       await refreshProfile();
+      
       setShowSuccess(true);
       setTimeout(() => setShowSuccess(false), 3000);
-      
+
     } catch (err) {
-      console.error("💥 Erreur lors de la sauvegarde:", err);
-      
-      // Tentative de secours automatique si le client fige
-      setErrorMsg(
-        err instanceof Error 
-          ? `Erreur: ${err.message}` 
-          : "Le serveur n'a pas répondu. Vérifiez vos permissions SQL."
-      );
+      console.error("💥 Erreur:", err);
+      setErrorMsg(err instanceof Error ? err.message : "Une erreur est survenue.");
     } finally {
       setIsUpdating(false);
     }

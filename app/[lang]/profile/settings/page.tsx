@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useUser } from "@/context/UserContext";
 import { createClient } from "@/utils/supabase/client";
-import { ArrowLeft, User, Phone, MapPin, AlertTriangle } from "lucide-react";
+import { ArrowLeft, AlertTriangle } from "lucide-react";
 import { useParams } from "next/navigation";
 import TransitionLink from "@/components/TransitionLink";
 
@@ -34,18 +34,21 @@ export default function SettingsPage() {
     e.preventDefault();
     e.stopPropagation();
 
-    // Si cette alerte n'apparaît pas, le code ne tourne pas.
-    alert("🚀 BOUTON CLIQUÉ - DÉBUT");
+    alert("1. Bouton cliqué");
 
-    if (!user?.id) {
-      alert("❌ ERREUR : ID utilisateur manquant");
+    if (!user) {
+      alert("2a. Erreur : L'objet 'user' est null");
       return;
     }
+    
+    alert("2b. ID utilisateur : " + user.id);
 
     setIsUpdating(true);
     setErrorMsg(null);
 
     try {
+      alert("3. Tentative d'upsert Supabase...");
+
       const { error } = await supabase
         .from("profiles")
         .upsert({
@@ -58,18 +61,18 @@ export default function SettingsPage() {
           updated_at: new Date().toISOString(),
         }, { onConflict: 'id' });
 
-      if (error) throw error;
+      if (error) {
+        alert("4a. Erreur retournée : " + error.message);
+        throw error;
+      }
 
-      alert("✅ SUCCÈS : Base de données mise à jour !");
-      
-      // On force le rechargement pour voir les changements
-      window.location.reload();
+      alert("4b. UPSERT RÉUSSI !");
+      setIsUpdating(false);
 
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Erreur inconnue";
+      alert("5. Bloc catch : " + msg);
       setErrorMsg(msg);
-      alert("❌ ERREUR SUPABASE : " + msg);
-    } finally {
       setIsUpdating(false);
     }
   };
@@ -83,57 +86,30 @@ export default function SettingsPage() {
   return (
     <div className="min-h-screen bg-black pt-32 pb-20 px-6 text-white">
       <div className="max-w-2xl mx-auto">
-        <TransitionLink href={`/${lang}/profile`} className="inline-flex items-center gap-2 text-gray-500 hover:text-white mb-8 group">
-          <ArrowLeft size={20} className="group-hover:-translate-x-1 transition-transform" />
-          <span className="text-xs font-bold uppercase tracking-widest">Retour</span>
+        <TransitionLink href={`/${lang}/profile`} className="inline-flex items-center gap-2 text-gray-500 hover:text-white mb-8">
+          <ArrowLeft size={20} /> <span className="text-xs font-bold uppercase tracking-widest">Retour</span>
         </TransitionLink>
 
         <form onSubmit={handleUpdate} className="bg-neutral-900 border border-neutral-800 rounded-3xl p-8 shadow-2xl space-y-6">
-          <h1 className="text-2xl font-display font-bold text-white uppercase tracking-widest mb-4">Paramètres</h1>
-          
+          <h1 className="text-2xl font-display font-bold text-white uppercase tracking-widest">Réglages</h1>
           <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <label className="text-[10px] font-bold text-gray-500 uppercase ml-1">Nom complet</label>
-                <div className="relative">
-                  <User className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
-                  <input required type="text" value={fullName} onChange={(e) => setFullName(e.target.value)} className="w-full bg-black border border-neutral-800 rounded-xl py-4 pl-12 pr-4 text-white focus:border-kabuki-red outline-none" />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <label className="text-[10px] font-bold text-gray-500 uppercase ml-1">Téléphone</label>
-                <div className="relative">
-                  <Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
-                  <input required type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} className="w-full bg-black border border-neutral-800 rounded-xl py-4 pl-12 pr-4 text-white focus:border-kabuki-red outline-none" />
-                </div>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-[10px] font-bold text-gray-500 uppercase ml-1">Adresse</label>
-              <div className="relative">
-                <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
-                <input required type="text" value={address} onChange={(e) => setAddress(e.target.value)} className="w-full bg-black border border-neutral-800 rounded-xl py-4 pl-12 pr-4 text-white focus:border-kabuki-red outline-none" />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-6">
-              <input required type="text" value={zipCode} onChange={(e) => setZipCode(e.target.value)} placeholder="CP" className="w-full bg-black border border-neutral-800 rounded-xl py-4 px-4 text-white focus:border-kabuki-red outline-none" />
-              <input required type="text" value={city} onChange={(e) => setCity(e.target.value)} placeholder="Ville" className="w-full bg-black border border-neutral-800 rounded-xl py-4 px-4 text-white focus:border-kabuki-red outline-none" />
+            <input required type="text" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Nom" className="w-full bg-black border border-neutral-800 rounded-xl py-4 px-4 text-white outline-none focus:border-kabuki-red" />
+            <input required type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Téléphone" className="w-full bg-black border border-neutral-800 rounded-xl py-4 px-4 text-white outline-none focus:border-kabuki-red" />
+            <input required type="text" value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Adresse" className="w-full bg-black border border-neutral-800 rounded-xl py-4 px-4 text-white outline-none focus:border-kabuki-red" />
+            
+            <div className="grid grid-cols-2 gap-4">
+               <input required type="text" value={zipCode} onChange={(e) => setZipCode(e.target.value)} placeholder="Code Postal" className="w-full bg-black border border-neutral-800 rounded-xl py-4 px-4 text-white outline-none focus:border-kabuki-red" />
+               <input required type="text" value={city} onChange={(e) => setCity(e.target.value)} placeholder="Ville" className="w-full bg-black border border-neutral-800 rounded-xl py-4 px-4 text-white outline-none focus:border-kabuki-red" />
             </div>
 
             {errorMsg && (
-              <div className="bg-red-900/20 border border-red-500/30 text-red-400 p-4 rounded-xl flex items-center gap-3 text-xs uppercase tracking-wider">
-                <AlertTriangle size={16} /> {errorMsg}
+              <div className="text-red-500 text-xs flex items-center gap-2">
+                <AlertTriangle size={14}/> {errorMsg}
               </div>
             )}
 
-            <button 
-              type="submit" 
-              disabled={isUpdating} 
-              className="w-full bg-kabuki-red text-white py-4 rounded-xl font-bold uppercase tracking-[0.2em] hover:bg-white hover:text-black transition-all flex items-center justify-center gap-2 disabled:opacity-50 mt-4 shadow-lg shadow-red-900/20"
-            >
-              {isUpdating ? <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" /> : "Sauvegarder"}
+            <button type="submit" disabled={isUpdating} className="w-full bg-kabuki-red text-white py-4 rounded-xl font-bold uppercase tracking-widest hover:bg-white hover:text-black transition-all disabled:opacity-50">
+              {isUpdating ? "En cours..." : "Enregistrer"}
             </button>
           </div>
         </form>

@@ -1,13 +1,15 @@
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
-import { createClient } from "@supabase/supabase-js";
+import { createClient as createSupabaseAdmin } from "@supabase/supabase-js";
+// ✅ IMPORT DU CLIENT SSR POUR LIRE LE COOKIE DE SESSION SÉCURISÉ
+import { createClient } from "@/utils/supabase/server"; 
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2023-10-16" as Stripe.LatestApiVersion,
 });
 
 // ✅ Client service_role — bypass RLS pour les opérations serveur
-const supabaseAdmin = createClient(
+const supabaseAdmin = createSupabaseAdmin(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!, 
   { auth: { autoRefreshToken: false, persistSession: false } }
@@ -17,18 +19,18 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
 
-    // On reçoit TOUTES les infos nécessaires pour créer la commande
     const { 
-        amount, // Le total brut calculé par le front (pourrait être sécurisé davantage en recalculant via les items)
-        couponCode, items, customerName, customerPhone, 
+        amount, couponCode, useWallet, items, customerName, customerPhone, 
         pickupDate, pickupTime, orderType, deliveryAddress, deliveryZip, comments 
     } = body;
 
+    // ✅ 0. RÉCUPÉRATION SÉCURISÉE DE L'UTILISATEUR
+    const supabaseServer = await createClient();
+    const { data: { user } } = await supabaseServer.auth.getUser();
+
     // --- 1.5 SÉCURITÉ : Vérification de la zone de livraison (Genève uniquement) ---
     if (orderType === "Livraison") {
-      // Vérifie si le code postal commence par 12 et contient exactement 4 chiffres
       const isGenevaZip = /^12\d{2}$/.test(String(deliveryZip).trim());
-      
       if (!isGenevaZip) {
         return NextResponse.json(
           { error: "La livraison est restreinte au canton de Genève (NPA 12xx)." }, 
@@ -64,16 +66,50 @@ export async function POST(request: Request) {
       }
     }
 
+    // --- 2. LOGIQUE DE CAGNOTTE (WALLET) ---
+    let walletUsed = 0;
+    if (useWallet && user) {
+      // On récupère le solde réel depuis la base de données (sécurité anti-triche)
+      const { data: profile } = await supabaseAdmin
+        .from("profiles")
+        .select("wallet_balance")
+        .eq("id", user.id)
+        .single();
+
+      if (profile && profile.wallet_balance > 0) {
+        // Règle Stripe : Un paiement CB doit être de minimum 0.50 CHF
+        // On empêche la cagnotte de descendre le total en dessous de cette limite
+        const maxWalletAllowed = Math.max(0, finalAmount - 0.50);
+        walletUsed = Math.min(maxWalletAllowed, Number(profile.wallet_balance));
+        finalAmount = finalAmount - walletUsed;
+
+        // ✅ DÉDUCTION IMMÉDIATE DANS SUPABASE (Via la table de transactions)
+        if (walletUsed > 0) {
+          await supabaseAdmin.from("loyalty_transactions").insert([{
+            user_id: user.id,
+            amount: -walletUsed,
+            description: "Utilisation cagnotte (Paiement en cours)"
+          }]);
+        }
+      }
+    }
+
     const amountInCents = Math.round(finalAmount * 100);
 
     if (amountInCents < 50) {
-      return NextResponse.json({ error: "Montant trop faible" }, { status: 400 });
+      return NextResponse.json({ error: "Montant trop faible pour Stripe (Minimum 0.50 CHF)." }, { status: 400 });
     }
 
-    // --- 2. CRÉATION DE LA COMMANDE DANS SUPABASE ---
+    // On prépare une note propre pour la cuisine
+    const finalComments = walletUsed > 0 
+      ? `[Cagnotte client déduite: -${walletUsed.toFixed(2)} CHF]\n${comments || ""}` 
+      : comments;
+
+    // --- 3. CRÉATION DE LA COMMANDE DANS SUPABASE ---
     const { data: orderData, error: orderError } = await supabaseAdmin
       .from('orders')
       .insert([{
+        user_id: user?.id || null, // ✅ On lie enfin la commande au compte client !
         customer_name: customerName, 
         customer_phone: customerPhone, 
         pickup_date: pickupDate,
@@ -86,7 +122,7 @@ export async function POST(request: Request) {
         coupon_code: couponCode || null, 
         items: items, 
         status: "Paiement en cours",
-        comments: comments 
+        comments: finalComments 
       }])
       .select('id')
       .single();
@@ -98,20 +134,21 @@ export async function POST(request: Request) {
 
     const newOrderId = orderData.id;
 
-    // --- 3. CRÉATION DU PAYMENT INTENT STRIPE ---
+    // --- 4. CRÉATION DU PAYMENT INTENT STRIPE ---
     const paymentIntent = await stripe.paymentIntents.create({
       amount: amountInCents,
       currency: "chf",
       automatic_payment_methods: { enabled: true },
       metadata: {
         orderId: String(newOrderId),
+        userId: user?.id || "guest",
         couponUsed: (couponCode as string) || "none",
         discountAmount: discountApplied.toFixed(2),
+        walletUsed: walletUsed.toFixed(2), // Trace pour la compta
         originalAmount: amount.toFixed(2),
       },
     });
 
-    // On renvoie le secret ET le nouvel ID de commande
     return NextResponse.json({
       clientSecret: paymentIntent.client_secret,
       orderId: newOrderId

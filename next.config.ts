@@ -15,9 +15,7 @@ const nextConfig: NextConfig = {
             key: 'Content-Security-Policy',
             value: [
               "default-src 'self'",
-              // ✅ script-src : Ajout de mixpanel pour éviter les blocages de scripts tiers
               "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://js.stripe.com https://*.supabase.co https://accounts.google.com https://*.gstatic.com https://api-js.mixpanel.com",
-              // ✅ connect-src : Ajout de mixpanel et précision pour Sentry ingest
               "connect-src 'self' https://api.stripe.com https://r.stripe.com https://*.supabase.co https://api.resend.com https://*.sentry.io https://ingest.de.sentry.io https://accounts.google.com https://api-js.mixpanel.com",
               "frame-src 'self' https://js.stripe.com https://accounts.google.com",
               "img-src 'self' data: blob: https://*.supabase.co https://*.gstatic.com https://lh3.googleusercontent.com",

@@ -29,12 +29,17 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   const [supabase] = useState(() => createClient());
   const isInitialMount = useRef(true);
 
-  // ✅ fetchProfile renforcé : Arrête le chargement même en cas d'erreur ou de profil absent
   const fetchProfile = useCallback(async (userId: string) => {
     if (!userId) {
       setLoading(false);
       return;
     }
+
+    // ✅ SÉCURITÉ : Timeout pour éviter le spinner infini si le réseau ou un AdBlocker bloque la requête
+    const timeoutId = setTimeout(() => {
+      setLoading(false);
+      console.warn("⚠️ UserContext: Timeout de récupération du profil (potentiel blocage client).");
+    }, 5000);
 
     console.log("🔍 UserContext: Récupération du profil pour", userId);
     try {
@@ -45,7 +50,6 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         .single();
 
       if (error) {
-        // Erreur PGRST116 = La ligne n'existe pas dans la table profiles
         if (error.code === 'PGRST116') {
           console.warn("⚠️ UserContext: Aucun profil trouvé dans la table 'profiles'.");
         } else {
@@ -60,12 +64,11 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       console.error("❌ UserContext: Erreur lors du fetchProfile", err);
       setProfile(null);
     } finally {
-      // ✅ Quoiqu'il arrive, on libère l'interface
+      clearTimeout(timeoutId); // ✅ Annule le timeout si la réponse arrive à temps
       setLoading(false);
     }
   }, [supabase]);
 
-  // ✅ refreshProfile simplifié
   const refreshProfile = async () => {
     if (user?.id) {
       setLoading(true);
@@ -76,10 +79,8 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   const signOut = async () => {
     console.log("🚪 UserContext: Déconnexion nucléaire...");
     try {
-      // Nettoyage immédiat pour la réactivité de l'UI
       localStorage.clear();
       sessionStorage.clear();
-      
       await supabase.auth.signOut();
     } catch (error) {
       console.error("UserContext: Erreur pendant le signOut", error);

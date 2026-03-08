@@ -31,21 +31,23 @@ export default function SettingsPage() {
     }
   }, [profile]);
 
-  const handleUpdate = async (e: React.FormEvent) => {
-    // ✅ Empêche le navigateur de recharger la page (cause du 404)
-    e.preventDefault();
-    e.stopPropagation();
+  // ✅ Fonction de sauvegarde renforcée
+  const handleUpdate = async (e?: React.BaseSyntheticEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
 
-    console.log("🚀 Tentative de sauvegarde déclenchée...");
+    console.log("🔥 BOUTON CLIQUÉ : Début de handleUpdate");
 
     if (!profile?.id) {
-      console.error("❌ Erreur: Impossible de sauvegarder, l'ID du profil est introuvable.");
+      console.error("❌ Erreur: ID du profil introuvable dans le contexte.");
       return;
     }
 
     setIsUpdating(true);
     try {
-      console.log("📡 Mise à jour Supabase pour l'ID:", profile.id);
+      console.log("📡 Envoi des données à Supabase pour l'ID:", profile.id);
       
       const { data, error } = await supabase
         .from("profiles")
@@ -57,7 +59,7 @@ export default function SettingsPage() {
           city: city
         })
         .eq("id", profile.id)
-        .select(); // On force le select pour confirmer la réception
+        .select();
 
       if (error) {
         console.error("❌ Erreur Supabase reçue:", error.message);
@@ -70,7 +72,7 @@ export default function SettingsPage() {
       setShowSuccess(true);
       setTimeout(() => setShowSuccess(false), 3000);
     } catch (err) {
-      console.error("💥 Erreur critique lors de handleUpdate:", err);
+      console.error("💥 Erreur critique lors de la sauvegarde:", err);
     } finally {
       setIsUpdating(false);
     }
@@ -85,8 +87,8 @@ export default function SettingsPage() {
         </TransitionLink>
 
         <m.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-8">
-          {/* ✅ Le onSubmit est bien lié ici */}
-          <form onSubmit={handleUpdate} className="bg-neutral-900 border border-neutral-800 rounded-3xl p-8 shadow-2xl space-y-6">
+          {/* ✅ On garde le form pour l'accessibilité mais la logique est portée par le bouton */}
+          <form className="bg-neutral-900 border border-neutral-800 rounded-3xl p-8 shadow-2xl space-y-6">
             <h1 className="text-2xl font-display font-bold text-white uppercase tracking-widest mb-4">Informations Personnelles</h1>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -94,24 +96,14 @@ export default function SettingsPage() {
                 <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest ml-1">Nom complet</label>
                 <div className="relative">
                   <User className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
-                  <input 
-                    type="text" 
-                    value={fullName} 
-                    onChange={(e) => setFullName(e.target.value)} 
-                    className="w-full bg-black border border-neutral-800 rounded-xl py-4 pl-12 pr-4 text-white focus:border-kabuki-red outline-none transition-colors" 
-                  />
+                  <input type="text" value={fullName} onChange={(e) => setFullName(e.target.value)} className="w-full bg-black border border-neutral-800 rounded-xl py-4 pl-12 pr-4 text-white focus:border-kabuki-red outline-none transition-colors" />
                 </div>
               </div>
               <div className="space-y-2">
                 <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest ml-1">Téléphone</label>
                 <div className="relative">
                   <Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
-                  <input 
-                    type="tel" 
-                    value={phone} 
-                    onChange={(e) => setPhone(e.target.value)} 
-                    className="w-full bg-black border border-neutral-800 rounded-xl py-4 pl-12 pr-4 text-white focus:border-kabuki-red outline-none transition-colors" 
-                  />
+                  <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} className="w-full bg-black border border-neutral-800 rounded-xl py-4 pl-12 pr-4 text-white focus:border-kabuki-red outline-none transition-colors" />
                 </div>
               </div>
             </div>
@@ -120,37 +112,21 @@ export default function SettingsPage() {
               <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest ml-1">Adresse de livraison</label>
               <div className="relative">
                 <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
-                <input 
-                  type="text" 
-                  value={address} 
-                  onChange={(e) => setAddress(e.target.value)} 
-                  placeholder="Rue et numéro" 
-                  className="w-full bg-black border border-neutral-800 rounded-xl py-4 pl-12 pr-4 text-white focus:border-kabuki-red outline-none transition-colors" 
-                />
+                <input type="text" value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Rue et numéro" className="w-full bg-black border border-neutral-800 rounded-xl py-4 pl-12 pr-4 text-white focus:border-kabuki-red outline-none transition-colors" />
               </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <input 
-                type="text" 
-                value={zipCode} 
-                onChange={(e) => setZipCode(e.target.value)} 
-                placeholder="Code Postal" 
-                className="w-full bg-black border border-neutral-800 rounded-xl py-4 px-4 text-white focus:border-kabuki-red outline-none transition-colors" 
-              />
-              <input 
-                type="text" 
-                value={city} 
-                onChange={(e) => setCity(e.target.value)} 
-                placeholder="Ville" 
-                className="w-full bg-black border border-neutral-800 rounded-xl py-4 px-4 text-white focus:border-kabuki-red outline-none transition-colors" 
-              />
+              <input type="text" value={zipCode} onChange={(e) => setZipCode(e.target.value)} placeholder="Code Postal" className="w-full bg-black border border-neutral-800 rounded-xl py-4 px-4 text-white focus:border-kabuki-red outline-none transition-colors" />
+              <input type="text" value={city} onChange={(e) => setCity(e.target.value)} placeholder="Ville" className="w-full bg-black border border-neutral-800 rounded-xl py-4 px-4 text-white focus:border-kabuki-red outline-none transition-colors" />
             </div>
 
+            {/* ✅ BOUTON TYPE="BUTTON" pour bypasser le comportement HTML par défaut */}
             <button 
-              type="submit" 
+              type="button" 
+              onClick={handleUpdate}
               disabled={isUpdating} 
-              className="w-full bg-kabuki-red text-white py-4 rounded-xl font-bold uppercase tracking-[0.2em] hover:bg-white hover:text-black transition-all flex items-center justify-center gap-2 disabled:opacity-50 mt-4"
+              className="w-full bg-kabuki-red text-white py-4 rounded-xl font-bold uppercase tracking-[0.2em] hover:bg-white hover:text-black transition-all flex items-center justify-center gap-2 disabled:opacity-50 mt-4 shadow-lg shadow-red-900/20"
             >
               {isUpdating ? <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" /> : <><Save size={18} /> Sauvegarder</>}
             </button>

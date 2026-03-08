@@ -7,14 +7,15 @@ import { ArrowLeft, CheckCircle, AlertTriangle, Save, Loader2 } from "lucide-rea
 import { useParams } from "next/navigation";
 import TransitionLink from "@/components/TransitionLink";
 
-// 🛡️ Définition d'un type strict pour la réponse du serveur
+// 🛡️ Typage strict pour éviter les erreurs ESLint 'any'
 interface SupabaseUpsertResponse {
   data: unknown[] | null;
   error: { message: string; code?: string } | null;
 }
 
 export default function SettingsPage() {
-  const { user, profile, refreshProfile } = useUser();
+  // ✅ On récupère 'loading' pour savoir si le contexte est en train de se synchroniser
+  const { user, profile, loading, refreshProfile } = useUser();
   const { lang } = useParams();
   
   const [supabase] = useState(() => createClient());
@@ -42,18 +43,35 @@ export default function SettingsPage() {
     e.preventDefault(); 
     console.log("[DIAG] 1. Clic sur Sauvegarder intercepté.");
     
-    if (!user?.id) return;
+    // 🔍 ANALYSE DE LA SESSION AU MOMENT DU CLIC
+    if (!user) {
+      console.log("[DIAG] ❌ ARRÊT : L'objet 'user' est totalement NULL.");
+      setErrorMsg("Session introuvable. Essayez de vous reconnecter.");
+      return;
+    }
+    
+    if (!user.id) {
+      console.log("[DIAG] ❌ ARRÊT : 'user' existe mais 'user.id' est absent.", user);
+      setErrorMsg("Identifiant utilisateur manquant.");
+      return;
+    }
+
+    if (loading) {
+      console.log("[DIAG] ❌ ARRÊT : Le contexte est encore en mode LOADING (synchronisation).");
+      return;
+    }
     
     setIsUpdating(true);
     setErrorMsg(null);
+    console.log(`[DIAG] 2. OK ! User ID détecté : ${user.id}. Préparation de l'envoi...`);
 
     // 🕒 Timeout de sécurité (5 secondes)
     const timeout = new Promise<SupabaseUpsertResponse>((_, reject) => 
-      setTimeout(() => reject(new Error("Délai d'attente dépassé : La base de données ne répond pas.")), 5000)
+      setTimeout(() => reject(new Error("La base de données ne répond pas (Timeout 5s).")), 5000)
     );
 
     try {
-      console.log("[DIAG] 2. Envoi de l'upsert...");
+      console.log("[DIAG] 3. Envoi de la requête upsert...");
 
       const upsertTask = supabase
         .from("profiles")
@@ -71,7 +89,6 @@ export default function SettingsPage() {
         )
         .select();
 
-      // ✅ Typage sécurisé pour la course de promesses
       const response = await Promise.race([upsertTask, timeout]) as SupabaseUpsertResponse;
       const { data, error } = response;
 
@@ -85,14 +102,15 @@ export default function SettingsPage() {
       console.log("[DIAG] ✅ Succès DB :", data);
       await refreshProfile();
       
+      console.log("[DIAG] 6. refreshProfile() terminé.");
       setShowSuccess(true);
       setTimeout(() => setShowSuccess(false), 3000);
     } catch (err: unknown) {
-      console.error("[DIAG] ❌ Erreur attrapée :", err);
+      console.error("[DIAG] ❌ Crash intercepté :", err);
       const errorMessage = err instanceof Error ? err.message : "Erreur de base de données";
-      setErrorMsg(`Impossible de sauvegarder : ${errorMessage}`);
+      setErrorMsg(errorMessage);
     } finally {
-      console.log("[DIAG] 7. Procédure terminée.");
+      console.log("[DIAG] 7. Procédure terminée (Finally).");
       setIsUpdating(false);
     }
   };
@@ -130,17 +148,24 @@ export default function SettingsPage() {
             </div>
 
             {errorMsg && (
-              <div className="bg-red-900/20 border border-red-500/50 text-red-500 p-4 rounded-xl flex items-center gap-2 text-xs font-bold uppercase">
+              <div className="bg-red-900/20 border border-red-500/50 text-red-500 p-4 rounded-xl flex items-center gap-2 text-xs font-bold uppercase animate-pulse">
                 <AlertTriangle size={16} /> {errorMsg}
               </div>
             )}
 
             <button 
               type="submit"
-              disabled={isUpdating} 
+              // ✅ On bloque si on met à jour, si le contexte charge, ou si pas d'user
+              disabled={isUpdating || loading || !user} 
               className="w-full bg-kabuki-red text-white py-4 rounded-xl font-bold uppercase tracking-[0.2em] hover:bg-white hover:text-black transition-all flex items-center justify-center gap-3 disabled:opacity-50"
             >
-              {isUpdating ? <><Loader2 size={18} className="animate-spin" /> Traitement...</> : <><Save size={18} /> Sauvegarder</>}
+              {isUpdating ? (
+                <><Loader2 size={18} className="animate-spin" /> Traitement...</>
+              ) : loading ? (
+                <><Loader2 size={18} className="animate-spin" /> Synchronisation...</>
+              ) : (
+                <><Save size={18} /> Sauvegarder</>
+              )}
             </button>
           </form>
         </div>

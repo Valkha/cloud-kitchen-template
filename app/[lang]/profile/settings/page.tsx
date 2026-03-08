@@ -136,9 +136,9 @@ export default function SettingsPage() {
 
             <button 
               type="submit"
-              // ✅ Sécurité : On bloque tant que le profil n'est pas synchronisé
-              disabled={isUpdating || loading || !user || !profile} 
-              className="w-full bg-kabuki-red text-white py-4 rounded-xl font-bold uppercase tracking-[0.2em] hover:bg-white hover:text-black transition-all flex items-center justify-center gap-3 disabled:opacity-50"
+              // ✅ CORRECTION : !profile retiré pour autoriser la création initiale du profil
+              disabled={isUpdating || loading || !user} 
+              className="w-full bg-kabuki-red text-white py-4 rounded-xl font-bold uppercase tracking-[0.2em] hover:bg-white hover:text-black transition-all flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isUpdating ? <><Loader2 size={18} className="animate-spin" /> Traitement...</> : <><Save size={18} /> Sauvegarder</>}
             </button>

@@ -4,25 +4,30 @@ import { useState, useEffect } from "react";
 import { useUser } from "@/context/UserContext";
 import { createClient } from "@/utils/supabase/client";
 import { m, AnimatePresence } from "framer-motion";
-import { ArrowLeft, Save, User, Phone, CheckCircle } from "lucide-react";
+import { ArrowLeft, Save, User, Phone, CheckCircle, MapPin, Trash2 } from "lucide-react";
 import { useParams } from "next/navigation";
 import TransitionLink from "@/components/TransitionLink";
 
 export default function SettingsPage() {
-  const { profile, refreshProfile } = useUser();
+  const { profile, refreshProfile } = useUser(); 
   const { lang } = useParams();
   const supabase = createClient();
 
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
+  const [address, setAddress] = useState("");
+  const [zipCode, setZipCode] = useState("");
+  const [city, setCity] = useState("");
   const [isUpdating, setIsUpdating] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
 
-  // Synchronisation initiale avec le profil existant
   useEffect(() => {
     if (profile) {
       setFullName(profile.full_name || "");
       setPhone(profile.phone || "");
+      setAddress(profile.address || "");
+      setZipCode(profile.zip_code || "");
+      setCity(profile.city || "");
     }
   }, [profile]);
 
@@ -37,17 +42,18 @@ export default function SettingsPage() {
         .update({
           full_name: fullName,
           phone: phone,
+          address: address,
+          zip_code: zipCode,
+          city: city
         })
         .eq("id", profile.id);
 
       if (error) throw error;
-
       await refreshProfile();
       setShowSuccess(true);
       setTimeout(() => setShowSuccess(false), 3000);
     } catch (err) {
-      console.error("Erreur lors de la mise à jour:", err);
-      alert("Une erreur est survenue lors de la mise à jour.");
+      console.error("Erreur mise à jour:", err);
     } finally {
       setIsUpdating(false);
     }
@@ -56,88 +62,66 @@ export default function SettingsPage() {
   return (
     <div className="min-h-screen bg-black pt-32 pb-20 px-6">
       <div className="max-w-2xl mx-auto">
-        {/* RETOUR */}
-        <TransitionLink 
-          href={`/${lang}/profile`}
-          className="inline-flex items-center gap-2 text-gray-500 hover:text-white transition-colors mb-8 group"
-        >
+        <TransitionLink href={`/${lang}/profile`} className="inline-flex items-center gap-2 text-gray-500 hover:text-white mb-8 group">
           <ArrowLeft size={20} className="group-hover:-translate-x-1 transition-transform" />
-          <span className="text-xs font-bold uppercase tracking-widest">Retour au profil</span>
+          <span className="text-xs font-bold uppercase tracking-widest">Retour</span>
         </TransitionLink>
 
-        <m.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-neutral-900 border border-neutral-800 rounded-3xl p-8 shadow-2xl"
-        >
-          <h1 className="text-2xl font-display font-bold text-white uppercase tracking-widest mb-8">
-            Paramètres du compte
-          </h1>
-
-          <form onSubmit={handleUpdate} className="space-y-6">
-            {/* NOM COMPLET */}
-            <div className="space-y-2">
-              <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest ml-1">
-                Nom complet
-              </label>
-              <div className="relative">
-                <User className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
-                <input 
-                  type="text"
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  placeholder="Votre nom"
-                  className="w-full bg-black border border-neutral-800 rounded-xl py-4 pl-12 pr-4 text-white focus:border-kabuki-red outline-none transition-colors"
-                  required
-                />
+        <m.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-8">
+          <form onSubmit={handleUpdate} className="bg-neutral-900 border border-neutral-800 rounded-3xl p-8 shadow-2xl space-y-6">
+            <h1 className="text-2xl font-display font-bold text-white uppercase tracking-widest mb-4">Informations Personnelles</h1>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest ml-1">Nom complet</label>
+                <div className="relative">
+                  <User className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
+                  <input type="text" value={fullName} onChange={(e) => setFullName(e.target.value)} className="w-full bg-black border border-neutral-800 rounded-xl py-4 pl-12 pr-4 text-white focus:border-kabuki-red outline-none transition-colors" />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest ml-1">Téléphone</label>
+                <div className="relative">
+                  <Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
+                  <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} className="w-full bg-black border border-neutral-800 rounded-xl py-4 pl-12 pr-4 text-white focus:border-kabuki-red outline-none transition-colors" />
+                </div>
               </div>
             </div>
 
-            {/* TÉLÉPHONE */}
             <div className="space-y-2">
-              <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest ml-1">
-                Numéro de téléphone
-              </label>
+              <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest ml-1">Adresse de livraison</label>
               <div className="relative">
-                <Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
-                <input 
-                  type="tel"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  placeholder="+41 XX XXX XX XX"
-                  className="w-full bg-black border border-neutral-800 rounded-xl py-4 pl-12 pr-4 text-white focus:border-kabuki-red outline-none transition-colors"
-                />
+                <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
+                <input type="text" value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Rue et numéro" className="w-full bg-black border border-neutral-800 rounded-xl py-4 pl-12 pr-4 text-white focus:border-kabuki-red outline-none transition-colors" />
               </div>
             </div>
 
-            {/* BOUTON SAUVEGARDER */}
-            <button
-              type="submit"
-              disabled={isUpdating}
-              className="w-full bg-kabuki-red text-white py-4 rounded-xl font-bold uppercase tracking-[0.2em] hover:bg-white hover:text-black transition-all duration-300 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed mt-4 shadow-lg shadow-red-900/20"
-            >
-              {isUpdating ? (
-                <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" />
-              ) : (
-                <>
-                  <Save size={18} /> Sauvegarder les modifications
-                </>
-              )}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <input type="text" value={zipCode} onChange={(e) => setZipCode(e.target.value)} placeholder="Code Postal" className="w-full bg-black border border-neutral-800 rounded-xl py-4 px-4 text-white focus:border-kabuki-red outline-none transition-colors" />
+              <input type="text" value={city} onChange={(e) => setCity(e.target.value)} placeholder="Ville" className="w-full bg-black border border-neutral-800 rounded-xl py-4 px-4 text-white focus:border-kabuki-red outline-none transition-colors" />
+            </div>
+
+            <button type="submit" disabled={isUpdating} className="w-full bg-kabuki-red text-white py-4 rounded-xl font-bold uppercase tracking-[0.2em] hover:bg-white hover:text-black transition-all flex items-center justify-center gap-2 disabled:opacity-50 mt-4">
+              {isUpdating ? <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" /> : <><Save size={18} /> Sauvegarder</>}
             </button>
           </form>
+
+          {/* ZONE DE DANGER */}
+          <div className="bg-red-900/10 border border-red-900/20 rounded-3xl p-8">
+            <h2 className="text-red-500 font-bold uppercase tracking-widest text-sm mb-2 flex items-center gap-2">
+              <Trash2 size={16} /> Zone de danger
+            </h2>
+            <p className="text-xs text-gray-500 mb-6 uppercase tracking-wider">La suppression de votre compte est irréversible et supprimera votre cagnotte.</p>
+            <button onClick={() => alert("Contactez le support pour la suppression")} className="text-red-500 text-[10px] font-bold uppercase border border-red-500/30 px-4 py-2 rounded-lg hover:bg-red-500 hover:text-white transition-all">
+              Supprimer mon compte
+            </button>
+          </div>
         </m.div>
 
-        {/* FEEDBACK SUCCÈS */}
         <AnimatePresence>
           {showSuccess && (
-            <m.div 
-              initial={{ opacity: 0, y: 50 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 50 }}
-              className="fixed bottom-10 left-1/2 -translate-x-1/2 bg-green-500 text-white px-6 py-3 rounded-full flex items-center gap-3 shadow-2xl z-50"
-            >
-              <CheckCircle size={20} />
-              <span className="text-xs font-bold uppercase tracking-widest">Profil mis à jour !</span>
+            <m.div initial={{ opacity: 0, y: 50 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 50 }} className="fixed bottom-10 left-1/2 -translate-x-1/2 bg-green-500 text-white px-6 py-3 rounded-full flex items-center gap-3 shadow-2xl z-50">
+              <CheckCircle size={20} /><span className="text-xs font-bold uppercase tracking-widest">Profil mis à jour !</span>
             </m.div>
           )}
         </AnimatePresence>

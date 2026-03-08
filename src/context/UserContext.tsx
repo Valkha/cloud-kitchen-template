@@ -10,6 +10,9 @@ export type UserProfile = {
   phone: string | null;
   wallet_balance: number;
   is_admin: boolean;
+  address: string | null;  // ✅ AJOUT
+  zip_code: string | null; // ✅ AJOUT
+  city: string | null;     // ✅ AJOUT
 };
 
 type UserContextType = {

@@ -3,9 +3,11 @@ import { Inter, Oswald } from "next/font/google";
 import "../globals.css";
 import { LanguageProvider } from "@/context/LanguageContext";
 import { CartProvider } from "@/context/CartContext";
+import { UserProvider } from "@/context/UserContext"; 
 import LayoutClient from "@/components/LayoutClient"; 
 import ActiveOrderButton from "@/components/ActiveOrderButton";
 
+// ✅ 1. Définition des polices (manquante dans le précédent)
 const inter = Inter({ 
   subsets: ["latin"], 
   variable: "--font-inter",
@@ -19,6 +21,7 @@ const oswald = Oswald({
   weight: ['400', '700'], 
 });
 
+// ✅ 2. Utilisation correcte de Metadata pour le SEO
 export async function generateMetadata({ 
   params 
 }: { 
@@ -61,47 +64,49 @@ export async function generateMetadata({
 export default async function RootLayout({
   children,
   params,
-}: Readonly<{
+}: {
   children: React.ReactNode;
   params: Promise<{ lang: string }>;
-}>) {
+}) {
   const resolvedParams = await params;
   const lang = resolvedParams.lang || 'fr';
 
   return (
-    <html lang={lang} className={`${inter.variable} ${oswald.variable}`}>
-      {/* ✅ CORRECTION UX : bg-[#080808] et text-white pour éviter le flash blanc au chargement */}
+    <html lang={lang} className={`${inter.variable} ${oswald.variable}`} suppressHydrationWarning>
       <body className="antialiased flex flex-col min-h-screen bg-[#080808] text-white">
-        <LanguageProvider>
-          <CartProvider>
-            <LayoutClient>
-              {children}
-            </LayoutClient>
-            <ActiveOrderButton />
+        {/* ✅ 3. Structure des Providers avec UserProvider en premier */}
+        <UserProvider>
+          <LanguageProvider>
+            <CartProvider>
+              <LayoutClient>
+                {children}
+              </LayoutClient>
+              <ActiveOrderButton />
 
-            {/* Schéma JSON-LD pour le SEO */}
-            <script
-              type="application/ld+json"
-              dangerouslySetInnerHTML={{
-                __html: JSON.stringify({
-                  "@context": "https://schema.org",
-                  "@type": "Restaurant",
-                  "name": "Kabuki Sushi Genève",
-                  "address": {
-                    "@type": "PostalAddress",
-                    "streetAddress": "1 Boulevard de la Tour",
-                    "addressLocality": "Genève",
-                    "postalCode": "1205",
-                    "addressCountry": "CH"
-                  },
-                  "telephone": "+41786041542",
-                  "priceRange": "$$",
-                  "servesCuisine": "Japanese, Sushi"
-                })
-              }}
-            />
-          </CartProvider>
-        </LanguageProvider>
+              {/* Schéma JSON-LD pour le SEO */}
+              <script
+                type="application/ld+json"
+                dangerouslySetInnerHTML={{
+                  __html: JSON.stringify({
+                    "@context": "https://schema.org",
+                    "@type": "Restaurant",
+                    "name": "Kabuki Sushi Genève",
+                    "address": {
+                      "@type": "PostalAddress",
+                      "streetAddress": "1 Boulevard de la Tour",
+                      "addressLocality": "Genève",
+                      "postalCode": "1205",
+                      "addressCountry": "CH"
+                    },
+                    "telephone": "+41786041542",
+                    "priceRange": "$$",
+                    "servesCuisine": "Japanese, Sushi"
+                  })
+                }}
+              />
+            </CartProvider>
+          </LanguageProvider>
+        </UserProvider>
       </body>
     </html>
   );

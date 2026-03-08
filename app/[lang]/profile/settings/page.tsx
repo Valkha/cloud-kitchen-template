@@ -7,18 +7,7 @@ import { ArrowLeft, CheckCircle, AlertTriangle, Save, Loader2 } from "lucide-rea
 import { useParams } from "next/navigation";
 import TransitionLink from "@/components/TransitionLink";
 
-// 🛡️ Typage strict
-interface SupabaseError {
-  message: string;
-  code?: string;
-}
-
-interface UpsertResponse {
-  error: SupabaseError | null;
-}
-
 export default function SettingsPage() {
-  // On récupère les infos, mais on sait que "loading" peut être buggé à cause de l'absence de profil
   const { user, profile, refreshProfile } = useUser();
   const params = useParams();
   
@@ -49,13 +38,10 @@ export default function SettingsPage() {
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault(); 
     
-    // 🛡️ DIAGNOSTIC : On retire "loading" de la sécurité. 
-    // Si l'utilisateur clique, on y va !
     if (isProcessing.current || isUpdating) return;
 
-    // Sécurité au cas où la session n'est vraiment pas là
     if (!user || !user.id) {
-      setErrorMsg("Session introuvable. Veuillez recharger la page ou vous reconnecter.");
+      setErrorMsg("Session introuvable. Veuillez recharger la page.");
       return;
     }
     
@@ -63,14 +49,27 @@ export default function SettingsPage() {
     setIsUpdating(true);
     setErrorMsg(null);
 
-    const timeout = new Promise<UpsertResponse>((_, reject) => 
-      setTimeout(() => reject(new Error("La base de données est trop lente. Veuillez rafraîchir et réessayer.")), 8000)
-    );
-
     try {
-      const upsertTask = supabase
-        .from("profiles")
-        .upsert({
+      console.log("[DIAG] 1. Extraction du Token de Session...");
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) throw new Error("Vous devez être connecté.");
+
+      console.log("[DIAG] 2. Exécution du Fetch natif (Bypass Supabase JS)...");
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+      const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+      // ⚡ BYPASS : On utilise l'API REST brute (PostgREST) pour court-circuiter le deadlock
+      const response = await fetch(`${supabaseUrl}/rest/v1/profiles`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${session.access_token}`,
+          "apikey": supabaseAnonKey!,
+          // Cette ligne ordonne un UPSERT au lieu d'un simple INSERT
+          "Prefer": "resolution=merge-duplicates" 
+        },
+        body: JSON.stringify({
           id: user.id,
           full_name: fullName,
           phone: phone,
@@ -78,15 +77,16 @@ export default function SettingsPage() {
           zip_code: zipCode,
           city: city,
           updated_at: new Date().toISOString(),
-        }, { onConflict: 'id' });
+        })
+      });
 
-      const result = await Promise.race([upsertTask, timeout]) as UpsertResponse;
-
-      if (result.error) {
-        throw new Error(result.error.message);
+      if (!response.ok) {
+        const errText = await response.text();
+        throw new Error(errText || "Échec de l'enregistrement réseau");
       }
 
-      // Une fois créé, on rafraîchit le contexte qui devrait refonctionner normalement
+      console.log("[DIAG] 3. Sauvegarde Réussie !");
+
       await refreshProfile();
       setShowSuccess(true);
       setTimeout(() => setShowSuccess(false), 3000);
@@ -133,15 +133,13 @@ export default function SettingsPage() {
             </div>
 
             {errorMsg && (
-              <div className="bg-red-900/20 border border-red-500/50 text-red-500 p-4 rounded-xl flex items-center gap-2 text-xs font-bold uppercase animate-pulse">
-                <AlertTriangle size={16} /> {errorMsg}
+              <div className="bg-red-900/20 border border-red-500/50 text-red-500 p-4 rounded-xl flex items-center gap-2 text-xs font-bold uppercase animate-pulse break-words">
+                <AlertTriangle size={16} className="shrink-0" /> <span className="flex-1">{errorMsg}</span>
               </div>
             )}
 
             <button 
               type="submit"
-              // ✅ CORRECTION VITALE : On écoute uniquement `isUpdating`.
-              // Cela contourne le bug de "loading infini" du UserContext.
               disabled={isUpdating} 
               className="w-full bg-kabuki-red text-white py-4 rounded-xl font-bold uppercase tracking-[0.2em] hover:bg-white hover:text-black transition-all flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
             >

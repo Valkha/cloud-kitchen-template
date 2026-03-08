@@ -10,7 +10,7 @@ import LanguageSwitcher from "./LanguageSwitcher";
 import { ShoppingCart, User as UserIcon } from "lucide-react"; 
 import { useCart } from "@/context/CartContext"; 
 
-// ✅ NOUVEAUX IMPORTS POUR L'AUTH
+// ✅ IMPORTS POUR L'AUTH
 import { useUser } from "@/context/UserContext"; 
 import AuthModal from "./AuthModal";
 
@@ -20,12 +20,12 @@ interface NavbarProps {
 
 export default function Navbar({ onOpenCart }: NavbarProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false); // ✅ État pour la modale
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false); 
   
   const pathname = usePathname();
   const { t, lang } = useTranslation();
   const { totalItems } = useCart(); 
-  const { user, profile, signOut } = useUser(); // ✅ On récupère l'user depuis le contexte !
+  const { user, profile, signOut } = useUser(); 
 
   const [prevPathname, setPrevPathname] = useState(pathname);
 
@@ -65,7 +65,7 @@ export default function Navbar({ onOpenCart }: NavbarProps) {
         </TransitionLink>
 
         {/* --- DESKTOP NAV --- */}
-        <div className="hidden md:flex space-x-8 items-center">
+        <div className="hidden md:flex space-x-6 items-center">
           {navLinks.map((link) => (
             <TransitionLink 
               key={link.path} 
@@ -84,11 +84,40 @@ export default function Navbar({ onOpenCart }: NavbarProps) {
               )}
             </TransitionLink>
           ))}
+
+          {/* ✅ NOUVEAU PLACEMENT : Bouton Connexion bien visible AVANT le panier */}
+          <div className="border-l border-neutral-800 pl-6 ml-2 flex items-center">
+            {user ? (
+              <div className="flex items-center gap-3 bg-neutral-900/50 px-4 py-2 rounded-full border border-neutral-800">
+                <div className="flex flex-col items-end">
+                  <span className="text-[11px] font-bold text-white capitalize leading-tight">{profile?.full_name || "Client"}</span>
+                  <span className="text-[9px] font-bold text-kabuki-red uppercase tracking-widest leading-tight">
+                    {profile?.wallet_balance ? Number(profile.wallet_balance).toFixed(2) : "0.00"} CHF
+                  </span>
+                </div>
+                <button 
+                  onClick={signOut}
+                  className="text-[10px] text-gray-400 hover:text-white transition uppercase tracking-widest ml-2"
+                  title="Se déconnecter"
+                >
+                  Déco
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setIsAuthModalOpen(true)}
+                className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-white hover:text-kabuki-red transition bg-neutral-900 px-5 py-2.5 rounded-full border border-neutral-800 shadow-md hover:border-kabuki-red/50"
+              >
+                <UserIcon size={16} className="text-kabuki-red" /> Connexion
+              </button>
+            )}
+          </div>
           
+          {/* BOUTON PANIER */}
           <button 
             onClick={onOpenCart} 
             aria-label={`Ouvrir le panier, ${totalItems} articles`}
-            className="relative group p-2 active:scale-90 transition-transform"
+            className="relative group p-2 active:scale-90 transition-transform ml-2"
           >
             <ShoppingCart size={22} className="text-gray-300 group-hover:text-white transition-colors" />
             <AnimatePresence>
@@ -107,33 +136,7 @@ export default function Navbar({ onOpenCart }: NavbarProps) {
 
           <LanguageSwitcher />
 
-          {/* ✅ BOUTON CONNEXION / PROFIL DESKTOP */}
-          <div className="pl-4 border-l border-neutral-800 flex items-center h-8">
-            {user ? (
-              <div className="flex items-center gap-4">
-                <div className="flex flex-col items-end">
-                  <span className="text-xs font-bold text-white capitalize">{profile?.full_name || "Client"}</span>
-                  <span className="text-[10px] font-bold text-kabuki-red uppercase tracking-widest">
-                    Cagnotte: {profile?.wallet_balance ? Number(profile.wallet_balance).toFixed(2) : "0.00"} CHF
-                  </span>
-                </div>
-                <button 
-                  onClick={signOut}
-                  className="text-[10px] text-gray-400 hover:text-white transition uppercase tracking-widest bg-neutral-900 px-2 py-1 rounded"
-                >
-                  Déco
-                </button>
-              </div>
-            ) : (
-              <button
-                onClick={() => setIsAuthModalOpen(true)}
-                className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-gray-300 hover:text-white transition"
-              >
-                <UserIcon size={16} className="text-kabuki-red" /> Connexion
-              </button>
-            )}
-          </div>
-
+          {/* BOUTON TRAITEUR ADMIN */}
           {user && (
             <TransitionLink 
               href={`/${lang}/admin/menu`} 
@@ -146,8 +149,8 @@ export default function Navbar({ onOpenCart }: NavbarProps) {
         </div>
 
         {/* --- MOBILE NAV BUTTONS --- */}
-        <div className="flex md:hidden items-center space-x-5">
-          {/* ✅ BOUTON CONNEXION MOBILE (Icone seule) */}
+        <div className="flex md:hidden items-center space-x-4">
+          {/* ✅ BOUTON CONNEXION MOBILE (Icône seule) */}
           <button
             onClick={() => user ? signOut() : setIsAuthModalOpen(true)}
             aria-label={user ? "Déconnexion" : "Connexion"}
@@ -208,10 +211,10 @@ export default function Navbar({ onOpenCart }: NavbarProps) {
             transition={{ duration: 0.4, ease: "easeInOut" }}
             className="fixed inset-0 bg-kabuki-black z-40 flex flex-col items-center justify-center md:hidden"
           >
-            {/* ✅ AFFICHAGE CAGNOTTE DANS LE MENU MOBILE */}
+            {/* AFFICHAGE CAGNOTTE DANS LE MENU MOBILE */}
             {user && profile && (
               <div className="absolute top-24 w-full flex justify-center">
-                <div className="bg-neutral-900 border border-neutral-800 rounded-full px-6 py-2 flex items-center gap-3">
+                <div className="bg-neutral-900 border border-neutral-800 rounded-full px-6 py-2 flex items-center gap-3 shadow-lg">
                   <span className="text-xs font-bold text-white capitalize">{profile.full_name}</span>
                   <span className="w-1 h-1 bg-kabuki-red rounded-full" />
                   <span className="text-[10px] font-bold text-kabuki-red uppercase tracking-widest">
@@ -240,7 +243,7 @@ export default function Navbar({ onOpenCart }: NavbarProps) {
                     href={`/${lang}/traiteur#devis`} 
                     className="bg-kabuki-red text-white px-8 py-4 rounded-full font-bold text-lg uppercase tracking-wider hover:bg-red-700 transition shadow-xl"
                   >
-                    {t?.hero?.btnTraiteur || "Devis Traiteur"}
+                    {t?.hero?.btnTraiteur || "Traiteur"}
                   </TransitionLink>
 
                   <div className="pt-4 border-t border-neutral-800 w-full flex justify-center">
@@ -252,7 +255,7 @@ export default function Navbar({ onOpenCart }: NavbarProps) {
         )}
       </AnimatePresence>
 
-      {/* ✅ LA MODALE D'AUTHENTIFICATION */}
+      {/* ✅ LA MODALE D'AUTHENTIFICATION (Qui sert de page de Login) */}
       <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
     </nav>
   );

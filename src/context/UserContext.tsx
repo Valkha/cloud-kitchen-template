@@ -38,13 +38,8 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    // ✅ Empêche l'affichage du spinner global si silent est vrai
+    // On n'active le loading que si ce n'est pas silencieux
     if (!silent) setLoading(true);
-
-    const timeoutId = setTimeout(() => {
-      setLoading(false);
-      console.warn("⚠️ UserContext: Timeout de récupération du profil.");
-    }, 5000);
 
     try {
       const { data, error } = await supabase
@@ -60,17 +55,15 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         setProfile(data as UserProfile);
       }
     } catch (err) {
-      console.error("❌ UserContext: Erreur lors du fetchProfile", err);
-      setProfile(null);
+      console.error("UserContext Error:", err);
     } finally {
-      clearTimeout(timeoutId);
       setLoading(false);
     }
   }, [supabase]);
 
   const refreshProfile = async () => {
     if (user?.id) {
-      // ✅ Rafraîchissement silencieux pour ne pas couper l'UI
+      // ✅ APPEL SILENCIEUX : Pas de setLoading(true) ici
       await fetchProfile(user.id, true);
     }
   };

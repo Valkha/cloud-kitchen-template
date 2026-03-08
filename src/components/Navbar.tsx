@@ -3,16 +3,23 @@
 import { useState } from "react";
 import TransitionLink from "./TransitionLink";
 import Image from "next/image";
-import { usePathname, useRouter } from "next/navigation"; // ✅ Ajout de useRouter
+import { usePathname, useRouter } from "next/navigation";
 import { m, AnimatePresence } from "framer-motion"; 
 import { useTranslation } from "@/context/LanguageContext";
 import LanguageSwitcher from "./LanguageSwitcher";
-import { ShoppingCart, User as UserIcon, LogOut } from "lucide-react"; // ✅ Ajout de LogOut
+import { ShoppingCart, User as UserIcon, LogOut } from "lucide-react"; 
 import { useCart } from "@/context/CartContext"; 
-
-// ✅ IMPORTS POUR L'AUTH
 import { useUser } from "@/context/UserContext"; 
 import AuthModal from "./AuthModal";
+
+// ✅ 1. Interface pour typer proprement les traductions et éviter le "any"
+interface NavTranslations {
+  home?: string;
+  menu?: string;
+  catering?: string;
+  contact?: string;
+  profile?: string;
+}
 
 interface NavbarProps {
   onOpenCart: () => void;
@@ -23,7 +30,7 @@ export default function Navbar({ onOpenCart }: NavbarProps) {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false); 
   
   const pathname = usePathname();
-  const router = useRouter(); // ✅ Initialisation du routeur
+  const router = useRouter();
   const { t, lang } = useTranslation();
   const { totalItems } = useCart(); 
   const { user, profile, signOut } = useUser(); 
@@ -37,10 +44,9 @@ export default function Navbar({ onOpenCart }: NavbarProps) {
 
   const isActive = (path: string) => pathname === path;
 
-  // ✅ Gestionnaire de déconnexion robuste
   const handleSignOut = async () => {
     await signOut();
-    router.refresh(); // ✅ Force le middleware à vider les cookies de session
+    router.refresh(); 
     if (isOpen) setIsOpen(false);
   };
 
@@ -66,7 +72,6 @@ export default function Navbar({ onOpenCart }: NavbarProps) {
             alt="Kabuki Logo" 
             width={120} 
             height={120}
-            sizes="(max-width: 768px) 96px, 120px" 
             className="w-full h-auto object-contain"
             priority
           />
@@ -93,18 +98,20 @@ export default function Navbar({ onOpenCart }: NavbarProps) {
             </TransitionLink>
           ))}
 
-          {/* SECTION AUTH DESKTOP */}
           <div className="border-l border-neutral-800 pl-6 ml-2 flex items-center">
             {user ? (
               <div className="flex items-center gap-3 bg-neutral-900/50 px-4 py-2 rounded-full border border-neutral-800">
-                <div className="flex flex-col items-end">
+                <TransitionLink 
+                  href={`/${lang}/profile`}
+                  className="flex flex-col items-end hover:opacity-70 transition-opacity"
+                >
                   <span className="text-[11px] font-bold text-white capitalize leading-tight">
                     {profile?.full_name || "Client"}
                   </span>
                   <span className="text-[9px] font-bold text-kabuki-red uppercase tracking-widest leading-tight">
                     {profile?.wallet_balance ? Number(profile.wallet_balance).toFixed(2) : "0.00"} CHF
                   </span>
-                </div>
+                </TransitionLink>
                 <button 
                   onClick={handleSignOut}
                   className="text-gray-500 hover:text-white transition ml-2 p-1"
@@ -123,19 +130,12 @@ export default function Navbar({ onOpenCart }: NavbarProps) {
             )}
           </div>
           
-          {/* BOUTON PANIER */}
-          <button 
-            onClick={onOpenCart} 
-            aria-label={`Ouvrir le panier, ${totalItems} articles`}
-            className="relative group p-2 active:scale-90 transition-transform ml-2"
-          >
+          <button onClick={onOpenCart} className="relative group p-2 active:scale-90 transition-transform ml-2">
             <ShoppingCart size={22} className="text-gray-300 group-hover:text-white transition-colors" />
             <AnimatePresence>
               {totalItems > 0 && (
                 <m.div 
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  exit={{ scale: 0 }}
+                  initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}
                   className="absolute -top-1 -right-1 bg-kabuki-red text-white text-[10px] font-bold w-5 h-5 flex items-center justify-center rounded-full border-2 border-kabuki-black"
                 >
                   {totalItems}
@@ -146,7 +146,6 @@ export default function Navbar({ onOpenCart }: NavbarProps) {
 
           <LanguageSwitcher />
 
-          {/* ADMIN LINK */}
           {user && (
             <TransitionLink 
               href={`/${lang}/admin/menu`} 
@@ -157,20 +156,13 @@ export default function Navbar({ onOpenCart }: NavbarProps) {
           )}
         </div>
 
-        {/* --- MOBILE NAV BUTTONS --- */}
+        {/* --- MOBILE NAV --- */}
         <div className="flex md:hidden items-center space-x-4">
-          <button
-            onClick={() => user ? handleSignOut() : setIsAuthModalOpen(true)}
-            aria-label={user ? "Déconnexion" : "Connexion"}
-            className="relative p-2 active:scale-90 transition-transform"
-          >
+          <button onClick={() => user ? handleSignOut() : setIsAuthModalOpen(true)} className="relative p-2 active:scale-90 transition-transform">
             {user ? <LogOut size={22} className="text-kabuki-red" /> : <UserIcon size={22} className="text-white" />}
           </button>
 
-          <button 
-            onClick={onOpenCart} 
-            className="relative p-2 z-50 active:scale-90 transition-transform"
-          >
+          <button onClick={onOpenCart} className="relative p-2 z-50 active:scale-90 transition-transform">
             <ShoppingCart size={24} className="text-white" />
             {totalItems > 0 && (
               <span className="absolute top-0 right-0 bg-kabuki-red text-white text-[10px] font-bold w-5 h-5 flex items-center justify-center rounded-full border-2 border-kabuki-black">
@@ -179,10 +171,7 @@ export default function Navbar({ onOpenCart }: NavbarProps) {
             )}
           </button>
 
-          <button 
-            onClick={() => setIsOpen(!isOpen)} 
-            className="z-50 w-8 h-10 flex flex-col justify-center items-center"
-          >
+          <button onClick={() => setIsOpen(!isOpen)} className="z-50 w-8 h-10 flex flex-col justify-center items-center">
             <m.span animate={isOpen ? { rotate: 45, y: 8 } : { rotate: 0, y: 0 }} className="w-8 h-0.5 bg-white block mb-2 rounded-full" />
             <m.span animate={isOpen ? { opacity: 0 } : { opacity: 1 }} className="w-8 h-0.5 bg-kabuki-red block mb-2 rounded-full" />
             <m.span animate={isOpen ? { rotate: -45, y: -10 } : { rotate: 0, y: 0 }} className="w-8 h-0.5 bg-white block rounded-full" />
@@ -194,42 +183,42 @@ export default function Navbar({ onOpenCart }: NavbarProps) {
       <AnimatePresence>
         {isOpen && (
           <m.div
-            initial={{ opacity: 0, x: "100%" }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: "100%" }}
+            initial={{ opacity: 0, x: "100%" }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: "100%" }}
             transition={{ duration: 0.4, ease: "easeInOut" }}
             className="fixed inset-0 bg-kabuki-black z-40 flex flex-col items-center justify-center md:hidden"
           >
             {user && profile && (
-              <div className="absolute top-24 w-full flex justify-center">
+              <TransitionLink href={`/${lang}/profile`} className="absolute top-24 w-full flex justify-center">
                 <div className="bg-neutral-900 border border-neutral-800 rounded-full px-6 py-2 flex items-center gap-3 shadow-lg">
                   <span className="text-xs font-bold text-white capitalize">{profile.full_name}</span>
-                  <span className="w-1 h-1 bg-kabuki-red rounded-full" />
                   <span className="text-[10px] font-bold text-kabuki-red uppercase tracking-widest">
                     {Number(profile.wallet_balance).toFixed(2)} CHF
                   </span>
                 </div>
-              </div>
+              </TransitionLink>
             )}
 
             <ul className="space-y-8 text-center mt-12">
               {navLinks.map((link) => (
                 <li key={link.path}>
-                  <TransitionLink 
-                    href={link.path}
-                    className={`text-3xl font-display font-bold uppercase tracking-widest block transition-colors ${
-                      isActive(link.path) ? "text-kabuki-red" : "text-white hover:text-gray-300"
-                    }`}
-                  >
+                  <TransitionLink href={link.path} className={`text-3xl font-display font-bold uppercase tracking-widest block transition-colors ${isActive(link.path) ? "text-kabuki-red" : "text-white hover:text-gray-300"}`}>
                     {link.name}
                   </TransitionLink>
                 </li>
               ))}
-              <li className="pt-8 flex flex-col items-center gap-6">
+              {user && (
+                <li>
                   <TransitionLink 
-                    href={`/${lang}/traiteur#devis`} 
-                    className="bg-kabuki-red text-white px-8 py-4 rounded-full font-bold text-lg uppercase tracking-wider shadow-xl"
+                    href={`/${lang}/profile`} 
+                    className={`text-3xl font-display font-bold uppercase tracking-widest block transition-colors ${isActive(`/${lang}/profile`) ? "text-kabuki-red" : "text-white hover:text-gray-300"}`}
                   >
+                    {/* ✅ 2. Utilisation du type NavTranslations au lieu de any */}
+                    {(t?.nav as NavTranslations)?.profile || "Mon Profil"}
+                  </TransitionLink>
+                </li>
+              )}
+              <li className="pt-8 flex flex-col items-center gap-6">
+                  <TransitionLink href={`/${lang}/traiteur#devis`} className="bg-kabuki-red text-white px-8 py-4 rounded-full font-bold text-lg uppercase tracking-wider shadow-xl">
                     {t?.hero?.btnTraiteur || "Traiteur"}
                   </TransitionLink>
                   <LanguageSwitcher />

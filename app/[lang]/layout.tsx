@@ -7,7 +7,7 @@ import { UserProvider } from "@/context/UserContext";
 import LayoutClient from "@/components/LayoutClient"; 
 import ActiveOrderButton from "@/components/ActiveOrderButton";
 
-// ✅ 1. Définition des polices (manquante dans le précédent)
+// Définition des polices
 const inter = Inter({ 
   subsets: ["latin"], 
   variable: "--font-inter",
@@ -21,7 +21,7 @@ const oswald = Oswald({
   weight: ['400', '700'], 
 });
 
-// ✅ 2. Utilisation correcte de Metadata pour le SEO
+// Utilisation correcte de Metadata pour le SEO
 export async function generateMetadata({ 
   params 
 }: { 
@@ -71,10 +71,12 @@ export default async function RootLayout({
   const resolvedParams = await params;
   const lang = resolvedParams.lang || 'fr';
 
+  // ✅ SÉCURITÉ #7 : Récupération du numéro via variable d'environnement
+  const contactPhone = process.env.NEXT_PUBLIC_CONTACT_PHONE || "";
+
   return (
     <html lang={lang} className={`${inter.variable} ${oswald.variable}`} suppressHydrationWarning>
       <body className="antialiased flex flex-col min-h-screen bg-[#080808] text-white">
-        {/* ✅ 3. Structure des Providers avec UserProvider en premier */}
         <UserProvider>
           <LanguageProvider>
             <CartProvider>
@@ -98,7 +100,7 @@ export default async function RootLayout({
                       "postalCode": "1205",
                       "addressCountry": "CH"
                     },
-                    "telephone": "+41786041542",
+                    "telephone": contactPhone, // ✅ SÉCURITÉ #7 : Plus de numéro hardcodé
                     "priceRange": "$$",
                     "servesCuisine": "Japanese, Sushi"
                   })

@@ -5,22 +5,14 @@ import { User } from "@supabase/supabase-js";
 import { createClient } from "@/utils/supabase/client";
 
 export type UserProfile = {
-  id: string;
-  full_name: string | null;
-  phone: string | null;
-  wallet_balance: number;
-  is_admin: boolean;
-  address: string | null;
-  zip_code: string | null;
-  city: string | null;
+  id: string; full_name: string | null; phone: string | null;
+  wallet_balance: number; is_admin: boolean; address: string | null;
+  zip_code: string | null; city: string | null;
 };
 
 type UserContextType = {
-  user: User | null;
-  profile: UserProfile | null;
-  loading: boolean;
-  refreshProfile: () => Promise<void>;
-  signOut: () => Promise<void>;
+  user: User | null; profile: UserProfile | null; loading: boolean;
+  refreshProfile: () => Promise<void>; signOut: () => Promise<void>;
 };
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
@@ -31,44 +23,29 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [supabase] = useState(() => createClient());
 
-  const fetchProfile = useCallback(async (userId: string, silent = false) => {
-    if (!userId) {
-      setLoading(false);
-      return;
-    }
-
+  const fetchProfile = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
 
-    const fallbackTimeout = setTimeout(() => {
-      setLoading(false);
-    }, 5000);
-
     try {
-      // ✅ CORRECTION : Retrait du .setHeader() qui faisait planter la requête
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", userId)
-        .single();
+      // ⚡ BYPASS CLIENT : On utilise l'API serveur pour lire le profil
+      const response = await fetch("/api/get-profile");
+      const data = await response.json();
 
-      if (error) {
-        if (error.code !== 'PGRST116') throw error;
-        setProfile(null);
+      if (response.ok) {
+        setProfile(data.profile);
       } else {
-        setProfile(data as UserProfile);
+        setProfile(null);
       }
     } catch (err) {
-      // ✅ Si une erreur survient, on l'affiche clairement dans la console
       console.error("[UserContext Fetch Error]:", err);
       setProfile(null);
     } finally {
-      clearTimeout(fallbackTimeout);
-      setLoading(false); 
+      setLoading(false);
     }
-  }, [supabase]);
+  }, []);
 
   const refreshProfile = async () => {
-    if (user?.id) await fetchProfile(user.id, true);
+    await fetchProfile(true);
   };
 
   const signOut = async () => {
@@ -76,37 +53,23 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       await supabase.auth.signOut();
       setUser(null);
       setProfile(null);
-    } catch (err) {
-      console.error("UserContext SignOut Error:", err);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    let mounted = true;
-    let isFirstLoad = true;
-
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        if (!mounted) return;
-
         if (session?.user) {
           setUser(session.user);
-          await fetchProfile(session.user.id, !isFirstLoad);
-          isFirstLoad = false;
+          await fetchProfile();
         } else {
-          setUser(null);
-          setProfile(null);
-          setLoading(false);
+          setUser(null); setProfile(null); setLoading(false);
         }
       }
     );
-
-    return () => {
-      mounted = false;
-      subscription.unsubscribe();
-    };
+    return () => subscription.unsubscribe();
   }, [supabase, fetchProfile]);
 
   return (

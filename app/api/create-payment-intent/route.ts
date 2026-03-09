@@ -9,6 +9,10 @@ interface CartItem {
   name?: string;
 }
 
+// ✅ SÉCURITÉ #6 : Liste stricte des types de commandes autorisés
+const VALID_ORDER_TYPES = ["Livraison", "À emporter"] as const;
+type OrderType = typeof VALID_ORDER_TYPES[number];
+
 interface RequestBody {
   items: CartItem[];
   couponCode?: string;
@@ -17,11 +21,11 @@ interface RequestBody {
   customerPhone: string;
   pickupDate: string;
   pickupTime: string;
-  orderType: "Livraison" | "À emporter";
+  orderType: OrderType;
   deliveryAddress?: string;
   deliveryZip?: string | number;
   comments?: string;
-  lang?: string; // On le garde dans l'interface car le front l'envoie
+  lang?: string;
 }
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
@@ -38,7 +42,6 @@ export async function POST(request: Request) {
   try {
     const body = await request.json() as RequestBody;
 
-    // ✅ CORRECTION : 'lang' est retiré ici pour supprimer l'erreur de variable inutilisée
     const { 
         couponCode, useWallet, items, customerName, customerPhone, 
         pickupDate, pickupTime, orderType, deliveryAddress, deliveryZip, comments 
@@ -47,12 +50,31 @@ export async function POST(request: Request) {
     const supabaseServer = await createClient();
     const { data: { user } } = await supabaseServer.auth.getUser();
 
+    // --- 🛡️ SÉCURITÉ #6 : VALIDATION DU TYPE DE COMMANDE (WHITELIST) ---
+    if (!VALID_ORDER_TYPES.includes(orderType)) {
+      return NextResponse.json({ error: "Type de commande invalide." }, { status: 400 });
+    }
+
+    // --- 🛡️ SÉCURITÉ #6 : VALIDATION ROBUSTE DU NPA (GENÈVE UNIQUEMENT) ---
+    if (orderType === "Livraison") {
+      // On évite le cast String() aveugle pour empêcher les contournements via objets/tableaux
+      const zipStr = typeof deliveryZip === 'string' ? deliveryZip.trim() : 
+                     typeof deliveryZip === 'number' ? String(deliveryZip) : '';
+
+      if (!/^12\d{2}$/.test(zipStr)) {
+        return NextResponse.json(
+          { error: "La livraison est restreinte au canton de Genève (NPA 12xx)." }, 
+          { status: 400 }
+        );
+      }
+    }
+
     if (!Array.isArray(items) || items.length === 0) {
       return NextResponse.json({ error: "Le panier est vide." }, { status: 400 });
     }
 
+    // Recalcul du montant via la DB (Sécurité #1 déjà appliquée)
     const menuItemIds = items.map((i) => i.menuItemId);
-    
     const { data: dbItems, error: dbError } = await supabaseAdmin
       .from("menu_items")
       .select("id, price_cents, is_available")
@@ -71,19 +93,10 @@ export async function POST(request: Request) {
       serverBaseAmount += (dbItem.price_cents * (clientItem.quantity || 1)) / 100;
     }
 
-    if (orderType === "Livraison") {
-      const isGenevaZip = /^12\d{2}$/.test(String(deliveryZip || "").trim());
-      if (!isGenevaZip) {
-        return NextResponse.json(
-          { error: "La livraison est restreinte au canton de Genève (NPA 12xx)." }, 
-          { status: 400 }
-        );
-      }
-    }
-
     let finalAmount = serverBaseAmount;
     let discountApplied = 0;
 
+    // Logique Coupon
     if (couponCode) {
       const { data: coupon } = await supabaseAdmin
         .from("coupons")
@@ -107,6 +120,7 @@ export async function POST(request: Request) {
       }
     }
 
+    // Logique Wallet
     let walletUsed = 0;
     if (useWallet && user) {
       const { data: profile } = await supabaseAdmin
@@ -140,6 +154,7 @@ export async function POST(request: Request) {
       ? `[Cagnotte déduite: -${walletUsed.toFixed(2)} CHF]\n${comments || ""}` 
       : comments;
 
+    // Création de la commande
     const { data: orderData, error: orderError } = await supabaseAdmin
       .from('orders')
       .insert([{

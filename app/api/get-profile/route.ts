@@ -43,7 +43,7 @@ export async function GET() {
     }
 
     // 🛡️ 3. SÉCURITÉ : Le Filtre Serveur (Data Minimization)
-    // On ne renvoie au front-end QUE ce qui est inoffensif (pas de is_admin, pas de is_livreur)
+    // On ne renvoie au front-end QUE ce qui est inoffensif et ce qui est strictement nécessaire pour l'UI
     const safeProfile = {
       id: rawProfile.id,
       full_name: rawProfile.full_name,
@@ -51,7 +51,10 @@ export async function GET() {
       address: rawProfile.address,
       avatar_url: rawProfile.avatar_url,
       loyalty_points: rawProfile.loyalty_points,
-      wallet_balance: rawProfile.wallet_balance
+      wallet_balance: rawProfile.wallet_balance,
+      // ✅ RETOUR À LA NORMALE : Indispensable pour l'affichage du menu Admin/Livreur
+      is_admin: rawProfile.is_admin,
+      is_livreur: rawProfile.is_livreur
     };
 
     return NextResponse.json({ profile: safeProfile }, { status: 200 });

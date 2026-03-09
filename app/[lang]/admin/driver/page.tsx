@@ -25,6 +25,22 @@ export default function DriverDashboard() {
   
   const watchIdRef = useRef<number | null>(null);
 
+  // 🛡️ NOUVEAU : Fonction utilitaire pour communiquer avec l'API sécurisée
+  const updateOrderSecurely = async (payload: { orderId: number; status?: string; lat?: number; lng?: number }) => {
+    try {
+      const res = await fetch('/api/driver/update-order', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) throw new Error("Erreur lors de la mise à jour");
+      return true;
+    } catch (err) {
+      console.error("[SECURITY_GUARD] Échec de mutation :", err);
+      return false;
+    }
+  };
+
   const fetchDriverOrders = useCallback(async () => {
     setLoading(true);
     const { data, error } = await supabase
@@ -45,10 +61,7 @@ export default function DriverDashboard() {
   }, [supabase]);
 
   useEffect(() => {
-    const loadData = async () => {
-      await fetchDriverOrders();
-    };
-    loadData();
+    fetchDriverOrders();
 
     const subscription = supabase
       .channel("driver-monitor")
@@ -68,30 +81,30 @@ export default function DriverDashboard() {
 
     setGeoError(null);
 
-    await supabase.from("orders").update({ status: "En livraison" }).eq("id", orderId);
-    setActiveDeliveryId(orderId);
-    fetchDriverOrders();
+    // ✅ SÉCURITÉ #4 : On passe par l'API au lieu de l'écriture directe client
+    const success = await updateOrderSecurely({ orderId, status: "En livraison" });
+    
+    if (success) {
+      setActiveDeliveryId(orderId);
+      fetchDriverOrders();
 
-    watchIdRef.current = navigator.geolocation.watchPosition(
-      async (position) => {
-        const { latitude, longitude } = position.coords;
-        // ✅ CORRECTION : console.log de suivi GPS supprimé pour la sécurité et propreté prod
-        
-        await supabase
-          .from("orders")
-          .update({ driver_lat: latitude, driver_lng: longitude })
-          .eq("id", orderId);
-      },
-      (error) => {
-        setGeoError("Veuillez autoriser l'accès au GPS pour le suivi.");
-        console.error("[DIAG] Erreur GPS:", error);
-      },
-      {
-        enableHighAccuracy: true,
-        maximumAge: 0,
-        timeout: 10000,
-      }
-    );
+      watchIdRef.current = navigator.geolocation.watchPosition(
+        async (position) => {
+          const { latitude, longitude } = position.coords;
+          // ✅ SÉCURITÉ #4 : Mise à jour GPS via API
+          await updateOrderSecurely({ orderId, lat: latitude, lng: longitude });
+        },
+        (error) => {
+          setGeoError("Veuillez autoriser l'accès au GPS pour le suivi.");
+          console.error("[DIAG] Erreur GPS:", error);
+        },
+        {
+          enableHighAccuracy: true,
+          maximumAge: 0,
+          timeout: 10000,
+        }
+      );
+    }
   };
 
   const endDelivery = async (orderId: number) => {
@@ -100,17 +113,13 @@ export default function DriverDashboard() {
       watchIdRef.current = null;
     }
 
-    await supabase
-      .from("orders")
-      .update({ 
-        status: "Livrée", 
-        driver_lat: null, 
-        driver_lng: null 
-      })
-      .eq("id", orderId);
+    // ✅ SÉCURITÉ #4 : Clôture via API (nettoyage lat/lng automatique côté serveur)
+    const success = await updateOrderSecurely({ orderId, status: "Livrée" });
 
-    setActiveDeliveryId(null);
-    fetchDriverOrders();
+    if (success) {
+      setActiveDeliveryId(null);
+      fetchDriverOrders();
+    }
   };
 
   if (loading) return <div className="min-h-screen bg-black flex items-center justify-center"><Loader2 className="animate-spin text-kabuki-red" size={40} /></div>;
@@ -172,9 +181,9 @@ export default function DriverDashboard() {
                     </div>
                   </div>
                   
-                  {/* ✅ CORRECTION : Lien Google Maps valide pour ouverture app mobile */}
+                  {/* ✅ CORRECTION : Lien Google Maps valide */}
                   <a 
-                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${order.delivery_address}, ${order.delivery_zip}, Suisse`)}`}
+                    href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(`${order.delivery_address}, ${order.delivery_zip}, Suisse`)}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="mt-4 flex items-center justify-center gap-2 w-full bg-neutral-800 hover:bg-neutral-700 py-3 rounded-xl text-xs font-bold uppercase transition"

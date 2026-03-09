@@ -1,13 +1,5 @@
 /**
  * 🔒 WEBHOOK STRIPE SÉCURISÉ — kabuki-sushi.ch
- *
- * Protections implémentées :
- *  1. Vérification de signature HMAC (constructEvent)
- *  2. Protection anti-replay via idempotence en base
- *  3. Lecture du body en raw text (obligatoire pour Stripe)
- *  4. Vérification de fraîcheur de l'événement (5 min max)
- *  5. Gestion d'erreurs granulaire avec logs structurés
- *  6. Utilisation du service_role (bypass RLS pour écriture serveur)
  */
 
 import Stripe from 'stripe';
@@ -19,8 +11,6 @@ import { createClient } from '@supabase/supabase-js';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
-// ⚠️ SERVICE ROLE : bypass complet du RLS
-// Ce client ne doit JAMAIS être instancié côté client (browser)
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
@@ -34,11 +24,6 @@ const supabaseAdmin = createClient(
 
 // ─── Idempotence (Anti-Replay) ─────────────────────────────────────────────────
 
-/**
- * Vérifie si un event Stripe a déjà été traité.
- * Utilise une contrainte UNIQUE sur stripe_event_id pour être
- * thread-safe même en cas de requêtes concurrentes.
- */
 async function isAlreadyProcessed(eventId: string): Promise<boolean> {
   const { data, error } = await supabaseAdmin
     .from('processed_webhook_events')
@@ -48,18 +33,11 @@ async function isAlreadyProcessed(eventId: string): Promise<boolean> {
 
   if (error) {
     console.error('[webhook] Erreur lecture idempotence:', error.message);
-    // En cas de doute, on refuse de retraiter
     return true;
   }
-
   return !!data;
 }
 
-/**
- * Marque un event comme traité.
- * La contrainte UNIQUE en DB assure qu'un double-traitement concurrent
- * résulte en une erreur DB plutôt qu'un double-insert silencieux.
- */
 async function markAsProcessed(
   eventId: string,
   eventType: string
@@ -73,7 +51,6 @@ async function markAsProcessed(
     });
 
   if (error) {
-    // Erreur 23505 = violation de contrainte UNIQUE (double traitement concurrent)
     if (error.code === '23505') {
       console.warn(`[webhook] Double traitement détecté pour ${eventId}, ignoré`);
     } else {
@@ -87,6 +64,14 @@ async function markAsProcessed(
 async function handleCheckoutCompleted(
   session: Stripe.Checkout.Session
 ): Promise<void> {
+  // ✅ CORRECTIF SÉCURITÉ #5 : Vérification du paiement réel
+  if (session.payment_status !== 'paid') {
+    console.info(
+      `[webhook] Session ${session.id} terminée mais payment_status=${session.payment_status}, skip.`
+    );
+    return;
+  }
+
   const cartMetadata = session.metadata?.cart;
 
   if (!cartMetadata) {
@@ -102,7 +87,6 @@ async function handleCheckoutCompleted(
     return;
   }
 
-  // Récupérer les vrais prix depuis la DB (jamais depuis Stripe metadata)
   const menuItemIds = cart.map((i) => i.menuItemId);
   const { data: menuItems, error: menuError } = await supabaseAdmin
     .from('menu_items')
@@ -114,7 +98,6 @@ async function handleCheckoutCompleted(
     return;
   }
 
-  // Créer la commande
   const { data: order, error: orderError } = await supabaseAdmin
     .from('orders')
     .insert({
@@ -134,14 +117,13 @@ async function handleCheckoutCompleted(
     return;
   }
 
-  // Créer les items avec les prix SERVEUR (pas ceux du client)
   const orderItems = cart.map((cartItem) => {
     const menuItem = menuItems.find((m) => m.id === cartItem.menuItemId);
     return {
       order_id: order.id,
       menu_item_id: cartItem.menuItemId,
       quantity: cartItem.quantity,
-      unit_price_cents: menuItem?.price_cents ?? 0, // ✅ Prix depuis la DB
+      unit_price_cents: menuItem?.price_cents ?? 0,
       name_snapshot: menuItem?.name ?? 'Article inconnu',
     };
   });
@@ -191,38 +173,29 @@ async function handleRefundCreated(charge: Stripe.Charge): Promise<void> {
 // ─── Handler principal ────────────────────────────────────────────────────────
 
 export async function POST(req: Request): Promise<Response> {
-  // 🔑 CRITIQUE : Lire le body en RAW TEXT avant tout parsing
-  // JSON.parse() ou req.json() altère le body et invalide la signature HMAC
   const rawBody = await req.text();
   const headersList = await headers();
   const stripeSignature = headersList.get('stripe-signature');
 
-  // ── Guard 1 : Signature présente ──
   if (!stripeSignature) {
     console.warn('[webhook] Requête reçue sans header stripe-signature');
     return new Response('Missing stripe-signature header', { status: 400 });
   }
 
-  // ── Guard 2 : Vérification cryptographique de la signature ──
   let event: Stripe.Event;
   try {
     event = stripe.webhooks.constructEvent(
       rawBody,
       stripeSignature,
-      process.env.STRIPE_WEBHOOK_SECRET! // whsec_... depuis Dashboard Stripe
+      process.env.STRIPE_WEBHOOK_SECRET!
     );
   } catch (err) {
-    // Ne pas logger le body complet (peut contenir des données sensibles)
     console.error('[webhook] ❌ Signature invalide:', err instanceof Error ? err.message : err);
     return new Response('Webhook signature verification failed', { status: 400 });
   }
 
-  // ── Guard 3 : Fraîcheur de l'événement (anti-replay temporel) ──
-  // Stripe envoie les webhooks max 72h après l'événement, mais on reste strict à 10min
-  // pour les événements de paiement. Note : Stripe gère déjà une tolérance de 5min
-  // avec constructEvent, ce check est une couche de défense supplémentaire.
   const eventAgeSeconds = Math.floor(Date.now() / 1000) - event.created;
-  const MAX_EVENT_AGE_SECONDS = 600; // 10 minutes
+  const MAX_EVENT_AGE_SECONDS = 600;
 
   if (eventAgeSeconds > MAX_EVENT_AGE_SECONDS) {
     console.warn(
@@ -231,14 +204,11 @@ export async function POST(req: Request): Promise<Response> {
     return new Response('Event timestamp too old', { status: 400 });
   }
 
-  // ── Guard 4 : Idempotence (anti-replay applicatif) ──
   if (await isAlreadyProcessed(event.id)) {
     console.info(`[webhook] Événement ${event.id} déjà traité, skip`);
-    // Retourner 200 : Stripe arrête de renvoyer si on répond 2xx
     return new Response('Already processed', { status: 200 });
   }
 
-  // ── Dispatch par type d'événement ──
   console.info(`[webhook] Traitement de l'événement: ${event.type} (${event.id})`);
 
   try {
@@ -256,17 +226,13 @@ export async function POST(req: Request): Promise<Response> {
         break;
 
       default:
-        // Logger les événements non gérés (utile pour le monitoring)
         console.info(`[webhook] Événement non géré: ${event.type}`);
     }
   } catch (err) {
-    // Ne PAS marquer comme traité si une erreur survient
-    // Stripe retentera l'envoi automatiquement
     console.error(`[webhook] Erreur non gérée pour ${event.type}:`, err);
     return new Response('Internal processing error', { status: 500 });
   }
 
-  // Marquer comme traité APRÈS le traitement réussi
   await markAsProcessed(event.id, event.type);
 
   return new Response('OK', { status: 200 });

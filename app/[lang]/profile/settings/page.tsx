@@ -7,7 +7,7 @@ import { useParams } from "next/navigation";
 import TransitionLink from "@/components/TransitionLink";
 
 export default function SettingsPage() {
-  const { user, profile, refreshProfile } = useUser();
+  const { user, profile } = useUser();
   const params = useParams();
   const lang = typeof params?.lang === 'string' ? params.lang : 'fr';
 
@@ -49,7 +49,8 @@ export default function SettingsPage() {
       const response = await fetch("/api/update-profile", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ fullName, phone, address, zipCode, city }),
+        // ✅ On envoie la langue (lang) pour que l'API puisse vider le bon cache
+        body: JSON.stringify({ fullName, phone, address, zipCode, city, lang }),
       });
 
       const data = await response.json();
@@ -58,7 +59,7 @@ export default function SettingsPage() {
         throw new Error(data.error || "Échec de la sauvegarde réseau.");
       }
 
-      // ✅ VICTOIRE : On met à jour les champs visuels IMMÉDIATEMENT avec la réponse du serveur
+      // On met à jour les champs visuels IMMÉDIATEMENT
       if (data.profile) {
         setFullName(data.profile.full_name || "");
         setPhone(data.profile.phone || "");
@@ -69,19 +70,17 @@ export default function SettingsPage() {
 
       setShowSuccess(true);
       
-      // On met à jour le contexte en arrière-plan discrètement
-      refreshProfile().catch(() => {});
-
-      // ✅ Fini le window.location.reload() qui vidait les champs !
+      // ✅ SOLUTION RADICALE : On attend 1.5s pour que l'utilisateur voie le message vert,
+      // puis on redirige brutalement vers le profil. Cela force le navigateur à télécharger
+      // les données fraîches validées par l'API.
       setTimeout(() => {
-        setShowSuccess(false);
-      }, 3000);
+        window.location.href = `/${lang}/profile`;
+      }, 1500);
 
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : "Erreur inconnue";
       console.error("[SETTINGS_ERROR]:", errorMessage);
       setErrorMsg(errorMessage);
-    } finally {
       isProcessing.current = false;
       setIsUpdating(false);
     }

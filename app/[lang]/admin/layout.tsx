@@ -1,4 +1,3 @@
-// app/[lang]/admin/layout.tsx
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
@@ -9,13 +8,9 @@ export default async function AdminLayout({
   params
 }: {
   children: React.ReactNode,
-  // ✅ CORRECTION 1 : params est maintenant une Promise dans Next.js
   params: Promise<{ lang: string }> 
 }) {
-  // ✅ On "déballe" la promise des params
   const { lang } = await params 
-  
-  // ✅ CORRECTION 2 : cookies() est asynchrone, il faut l'attendre
   const cookieStore = await cookies() 
 
   const supabase = createServerClient(
@@ -30,15 +25,29 @@ export default async function AdminLayout({
     }
   )
 
+  // 1. On vérifie si un utilisateur est connecté
   const { data: { user } } = await supabase.auth.getUser()
 
   if (!user) {
-    redirect(`/${lang || 'fr'}/login`)
+    // 🔀 Redirection vers l'accueil car la page /login a été supprimée
+    redirect(`/${lang || 'fr'}`)
   }
 
+  // 2. On interroge la table profiles pour vérifier le rôle de cet utilisateur
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('is_admin')
+    .eq('id', user.id)
+    .single()
+
+  // 3. Le Videur : Si le profil n'existe pas ou n'est pas admin, on l'éjecte !
+  if (!profile || profile.is_admin !== true) {
+    redirect(`/${lang || 'fr'}`)
+  }
+
+  // 4. Si on arrive ici, l'utilisateur est un Admin légitime. On affiche le contenu.
   return (
     <div className="min-h-screen bg-[#080808] text-white">
-      {/* On appelle le composant d'interface client */}
       <AdminHeader lang={lang} />
 
       {/* --- ZONE DE CONTENU --- */}

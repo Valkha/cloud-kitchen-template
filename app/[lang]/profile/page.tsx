@@ -11,7 +11,7 @@ export default function ProfilePage() {
   const { user, profile, loading } = useUser();
   const params = useParams();
   
-  // ✅ Correction ESLint : typage sécurisé des paramètres d'URL
+  // ✅ Typage sécurisé des paramètres d'URL
   const lang = typeof params.lang === 'string' ? params.lang : 'fr';
 
   return (
@@ -32,12 +32,16 @@ export default function ProfilePage() {
             <p className="text-gray-400 max-w-md mx-auto">
               Votre session a expiré ou vous n&apos;êtes pas connecté. Veuillez vous identifier pour accéder à votre espace.
             </p>
-            <TransitionLink 
-              href={`/${lang}/login`}
+            {/* ✅ CORRECTION : Remplacement du TransitionLink par un bouton d'ouverture de modale */}
+            <button 
+              onClick={() => {
+                // 🔔 À MODIFIER : Appelle ici la fonction qui ouvre ta modale de connexion
+                console.log("Ouverture de la modale de connexion...");
+              }}
               className="bg-kabuki-red text-white px-8 py-4 rounded-full font-bold uppercase tracking-widest hover:bg-white hover:text-black transition-all"
             >
               Se connecter
-            </TransitionLink>
+            </button>
           </div>
         ) : (
           <>
@@ -80,7 +84,6 @@ export default function ProfilePage() {
                   </div>
                 </div>
 
-                {/* ✅ Le composant ci-dessous doit utiliser 'total_amount' en interne */}
                 <OrderHistory />
               </m.div>
 

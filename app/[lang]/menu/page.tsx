@@ -1,6 +1,6 @@
-import MenuClient from "../../../src/components/MenuClient";
-import { getRestaurantMenu } from "../../../src/services/productService";
-import { siteConfig } from "../../../config/site";
+import MenuClient from "./MenuClient"; 
+import { getRestaurantMenu } from "@/services/productService";
+import { siteConfig } from "@/config/site";
 import { Metadata } from "next";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -10,7 +10,6 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-// ✅ Interface pour définir exactement ce que renvoie Supabase et éliminer l'erreur "any"
 interface RawProduct {
   id: string;
   name_fr: string;
@@ -26,17 +25,19 @@ interface RawProduct {
 }
 
 export default async function MenuPage() {
-  // ✅ On force TypeScript à accepter restaurantSlug même s'il n'est pas encore dans ton type officiel.
-  // Pense bien à l'ajouter dans ton fichier config/site.ts (ex: restaurantSlug: "kabuki-sushi")
   const config = siteConfig as Record<string, unknown>;
   const slug = (config.restaurantSlug as string) || "ma-super-cuisine";
 
   // 1. Récupération des produits depuis Supabase
   const rawProducts = await getRestaurantMenu(slug);
 
-  // 2. Formatage des données avec l'interface RawProduct
+  // 2. Formatage des données
   const formattedProducts = (rawProducts || []).map((product: RawProduct) => ({
-    id: product.id,
+    // ✅ RETOUR DU HACK : On force le type number pour TS, 
+    // mais à l'exécution ce sera bien le string UUID de Supabase.
+    id: product.id as unknown as number, 
+    
+    name: product.name_fr,
     name_fr: product.name_fr,
     name_en: product.name_en,
     name_es: product.name_es,

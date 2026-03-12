@@ -4,28 +4,29 @@ import { createClient as createSupabaseAdmin } from "@supabase/supabase-js";
 import { createClient } from "@/utils/supabase/server"; 
 
 interface CartItem {
-  menuItemId: string;
+  id: string; 
   quantity: number;
   name?: string;
+  price?: number;
 }
 
-// ✅ SÉCURITÉ #6 : Liste stricte des types de commandes autorisés
-const VALID_ORDER_TYPES = ["Livraison", "À emporter"] as const;
+const VALID_ORDER_TYPES = ["Livraison", "Click & Collect"] as const; 
 type OrderType = typeof VALID_ORDER_TYPES[number];
 
 interface RequestBody {
+  amount: number; 
   items: CartItem[];
   couponCode?: string;
   useWallet?: boolean;
-  customerName: string;
-  customerPhone: string;
+  customerName: string; // Gardé dans l'interface car le front l'envoie toujours
+  customerPhone: string; // Gardé dans l'interface
   pickupDate: string;
   pickupTime: string;
   orderType: OrderType;
   deliveryAddress?: string;
   deliveryZip?: string | number;
   comments?: string;
-  lang?: string;
+  databaseOrderId: string; 
 }
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
@@ -42,22 +43,23 @@ export async function POST(request: Request) {
   try {
     const body = await request.json() as RequestBody;
 
+    // ✅ CORRECTION : On ne déstructure plus customerName et customerPhone ici
     const { 
-        couponCode, useWallet, items, customerName, customerPhone, 
-        pickupDate, pickupTime, orderType, deliveryAddress, deliveryZip, comments 
+        couponCode, useWallet, items, 
+        pickupDate, pickupTime, orderType, deliveryAddress, deliveryZip, comments,
+        databaseOrderId 
     } = body;
 
     const supabaseServer = await createClient();
     const { data: { user } } = await supabaseServer.auth.getUser();
 
-    // --- 🛡️ SÉCURITÉ #6 : VALIDATION DU TYPE DE COMMANDE (WHITELIST) ---
+    // --- 🛡️ SÉCURITÉ #1 : VALIDATION DU TYPE DE COMMANDE ---
     if (!VALID_ORDER_TYPES.includes(orderType)) {
       return NextResponse.json({ error: "Type de commande invalide." }, { status: 400 });
     }
 
-    // --- 🛡️ SÉCURITÉ #6 : VALIDATION ROBUSTE DU NPA (GENÈVE UNIQUEMENT) ---
+    // --- 🛡️ SÉCURITÉ #2 : VALIDATION NPA (GENÈVE) ---
     if (orderType === "Livraison") {
-      // On évite le cast String() aveugle pour empêcher les contournements via objets/tableaux
       const zipStr = typeof deliveryZip === 'string' ? deliveryZip.trim() : 
                      typeof deliveryZip === 'number' ? String(deliveryZip) : '';
 
@@ -73,30 +75,36 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Le panier est vide." }, { status: 400 });
     }
 
-    // Recalcul du montant via la DB (Sécurité #1 déjà appliquée)
-    const menuItemIds = items.map((i) => i.menuItemId);
-    const { data: dbItems, error: dbError } = await supabaseAdmin
-      .from("menu_items")
-      .select("id, price_cents, is_available")
-      .in("id", menuItemIds);
+    if (!databaseOrderId) {
+      return NextResponse.json({ error: "Numéro de commande manquant." }, { status: 400 });
+    }
 
-    if (dbError || !dbItems) {
+    // --- 🛡️ SÉCURITÉ #3 : RECALCUL DU MONTANT CÔTÉ SERVEUR ---
+    const productIds = items.map((i) => i.id);
+    
+    const { data: dbProducts, error: dbError } = await supabaseAdmin
+      .from("products")
+      .select("id, price, is_available")
+      .in("id", productIds);
+
+    if (dbError || !dbProducts) {
+      console.error("Erreur vérification prix:", dbError);
       throw new Error("Impossible de vérifier les prix en base de données.");
     }
 
     let serverBaseAmount = 0;
     for (const clientItem of items) {
-      const dbItem = dbItems.find(d => d.id === clientItem.menuItemId);
-      if (!dbItem || !dbItem.is_available) {
-        return NextResponse.json({ error: "Un article n'est plus disponible." }, { status: 400 });
+      const dbProduct = dbProducts.find(d => d.id === clientItem.id);
+      if (!dbProduct || !dbProduct.is_available) {
+        return NextResponse.json({ error: `L'article ${clientItem.name || 'sélectionné'} n'est plus disponible.` }, { status: 400 });
       }
-      serverBaseAmount += (dbItem.price_cents * (clientItem.quantity || 1)) / 100;
+      serverBaseAmount += (dbProduct.price * (clientItem.quantity || 1));
     }
 
     let finalAmount = serverBaseAmount;
     let discountApplied = 0;
 
-    // Logique Coupon
+    // --- Logique Coupon ---
     if (couponCode) {
       const { data: coupon } = await supabaseAdmin
         .from("coupons")
@@ -120,7 +128,7 @@ export async function POST(request: Request) {
       }
     }
 
-    // Logique Wallet
+    // --- Logique Wallet ---
     let walletUsed = 0;
     if (useWallet && user) {
       const { data: profile } = await supabaseAdmin
@@ -133,14 +141,6 @@ export async function POST(request: Request) {
         const maxWalletAllowed = Math.max(0, finalAmount - 0.50);
         walletUsed = Math.min(maxWalletAllowed, Number(profile.wallet_balance));
         finalAmount = finalAmount - walletUsed;
-
-        if (walletUsed > 0) {
-          await supabaseAdmin.from("loyalty_transactions").insert([{
-            user_id: user.id,
-            amount: -walletUsed,
-            description: "Utilisation cagnotte (Paiement en cours)"
-          }]);
-        }
       }
     }
 
@@ -150,42 +150,26 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Montant trop faible (Min 0.50 CHF)." }, { status: 400 });
     }
 
+    // --- 🔗 LIEN AVEC LA COMMANDE EXISTANTE ---
     const finalComments = walletUsed > 0 
-      ? `[Cagnotte déduite: -${walletUsed.toFixed(2)} CHF]\n${comments || ""}` 
+      ? `[Cagnotte utilisée: -${walletUsed.toFixed(2)} CHF]\n${comments || ""}` 
       : comments;
 
-    // Création de la commande
-    const { data: orderData, error: orderError } = await supabaseAdmin
+    await supabaseAdmin
       .from('orders')
-      .insert([{
-        user_id: user?.id || null,
-        customer_name: customerName, 
-        customer_phone: customerPhone, 
-        pickup_date: pickupDate,
-        pickup_time: pickupTime, 
-        order_type: orderType, 
-        delivery_address: deliveryAddress, 
-        delivery_zip: deliveryZip, 
+      .update({ 
         total_amount: finalAmount, 
-        discount_amount: discountApplied, 
-        coupon_code: couponCode || null, 
-        items: items, 
-        status: "Paiement en cours",
-        comments: finalComments 
-      }])
-      .select('id')
-      .single();
+        special_instructions: `${orderType} | Date: ${pickupDate} ${pickupTime} | Addresse: ${deliveryAddress || 'N/A'} ${deliveryZip || ''} | Commentaire: ${finalComments}`
+      })
+      .eq('id', databaseOrderId);
 
-    if (orderError || !orderData) {
-      return NextResponse.json({ error: "Erreur création commande" }, { status: 500 });
-    }
-
+    // --- 💳 CRÉATION INTENTION STRIPE ---
     const paymentIntent = await stripe.paymentIntents.create({
       amount: amountInCents,
       currency: "chf",
       automatic_payment_methods: { enabled: true },
       metadata: {
-        orderId: String(orderData.id),
+        orderId: databaseOrderId,
         userId: user?.id || "guest",
         couponUsed: couponCode || "none",
         discountAmount: discountApplied.toFixed(2),
@@ -196,12 +180,12 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       clientSecret: paymentIntent.client_secret,
-      orderId: orderData.id
+      orderId: databaseOrderId
     });
 
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Erreur serveur";
     console.error("❌ Erreur API Stripe/Supabase:", errorMessage);
-    return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
+    return NextResponse.json({ error: "Erreur serveur lors de la préparation du paiement." }, { status: 500 });
   }
 }

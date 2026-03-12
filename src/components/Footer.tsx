@@ -54,7 +54,14 @@ export default function Footer() {
             <h3 className="text-lg font-display font-bold uppercase mb-6 border-l-4 border-brand-primary pl-3">{t.footer.linksTitle}</h3>
             <ul className="space-y-3 text-gray-400">
               <li><Link href={`/${lang}`} className="hover:text-red-400 transition">{t.nav.home}</Link></li>
-              <li><Link href={`/${lang}/menu`} className="hover:text-red-400 transition">{t.nav.menu}</Link></li>
+              
+              {/* ✅ CORRECTION : Lien Cloud Kitchen pointant vers l'ancre des enseignes */}
+              <li>
+                <Link href={`/${lang}#restaurants`} className="hover:text-red-400 transition">
+                  {lang === 'en' ? 'Brands' : lang === 'es' ? 'Nuestras Marcas' : 'Enseignes'}
+                </Link>
+              </li>
+              
               <li><Link href={`/${lang}/contact`} className="hover:text-red-400 transition">{t.nav.contact}</Link></li>
             </ul>
           </div>

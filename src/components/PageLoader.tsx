@@ -3,7 +3,7 @@
 import { m, AnimatePresence } from "framer-motion";
 import { useEffect, useState, useRef } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
-import Image from "next/image";
+import { Rocket } from "lucide-react";
 
 export default function PageLoader() {
   const [isLoading, setIsLoading] = useState(false);
@@ -12,19 +12,15 @@ export default function PageLoader() {
   const isFirstMount = useRef(true);
 
   useEffect(() => {
-    // 1. On ignore toujours le tout premier montage pour PageSpeed
     if (isFirstMount.current) {
       isFirstMount.current = false;
       return;
     }
 
-    // ✅ FIX : On utilise un timeout de 0 pour éviter le "cascading render"
-    // Cela déplace le setState dans la file d'attente des tâches suivante.
     const startTimer = setTimeout(() => {
       setIsLoading(true);
     }, 0);
 
-    // 2. On ferme le loader après un délai court pour l'effet visuel
     const stopTimer = setTimeout(() => {
       setIsLoading(false);
     }, 800);
@@ -35,7 +31,6 @@ export default function PageLoader() {
     };
   }, [pathname, searchParams]);
 
-  // Écouteurs pour déclenchement manuel (Admin, etc.)
   useEffect(() => {
     const handleStart = () => setIsLoading(true);
     const handleStop = () => setIsLoading(false);
@@ -56,55 +51,73 @@ export default function PageLoader() {
           exit={{ opacity: 0 }}
           transition={{ duration: 0.3 }}
           style={{ willChange: "opacity" }}
-          className="fixed inset-0 z-[9999] bg-[#080808]/90 backdrop-blur-md flex flex-col items-center justify-center pointer-events-none"
+          className="fixed inset-0 z-[9999] bg-[#080808]/95 backdrop-blur-xl flex flex-col items-center justify-center pointer-events-none"
         >
           <div className="relative w-48 h-48 flex items-center justify-center">
             
-            {/* --- CERCLE TOURNANT --- */}
+            {/* --- CERCLE DE CHARGEMENT DYNAMIQUE --- */}
             <m.svg
               className="absolute inset-0 w-full h-full"
               viewBox="0 0 100 100"
               animate={{ rotate: 360 }}
-              transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+              transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
             >
               <circle
                 cx="50" cy="50" r="42"
-                stroke="white" strokeWidth="0.5" fill="none" opacity="0.1"
+                stroke="white" strokeWidth="0.5" fill="none" opacity="0.05"
               />
               <m.circle
                 cx="50" cy="50" r="42"
-                stroke="#E60012"
+                stroke="var(--brand-primary)" // ✅ Utilise maintenant la couleur de l'enseigne
                 strokeWidth="2"
                 fill="none"
                 strokeLinecap="round"
-                strokeDasharray="120 300"
+                strokeDasharray="100 300"
+                style={{ filter: "drop-shadow(0 0 8px var(--brand-primary))" }}
               />
             </m.svg>
 
-            {/* --- LOGO CENTRAL --- */}
+            {/* --- ICONE FUSÉE CENTRALE --- */}
             <m.div 
-              animate={{ scale: [0.98, 1.02, 0.98] }} 
-              transition={{ repeat: Infinity, duration: 1.5, ease: "easeInOut" }}
-              className="relative z-10"
+              animate={{ 
+                scale: [0.9, 1.1, 0.9],
+                y: [0, -5, 0] 
+              }} 
+              transition={{ 
+                repeat: Infinity, 
+                duration: 2, 
+                ease: "easeInOut" 
+              }}
+              className="relative z-10 flex flex-col items-center"
             >
-              <Image 
-                src="/images/logo.png" 
-                alt="Kabuki" 
-                width={100} 
-                height={100} 
-                priority
-                className="object-contain"
+              <Rocket 
+                size={40} 
+                className="text-white" 
+                style={{ filter: "drop-shadow(0 0 15px var(--brand-primary))" }}
               />
             </m.div>
           </div>
 
-          <m.p
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="text-white/60 font-display uppercase tracking-[0.3em] mt-8 text-[10px] font-bold"
+          {/* --- TEXTE DE CHARGEMENT --- */}
+          <m.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex flex-col items-center gap-2 mt-8"
           >
-            Kabuki Sushi
-          </m.p>
+            <span className="text-white font-display uppercase tracking-[0.5em] text-[12px] font-black">
+              Planet <span className="text-brand-primary">Food</span>
+            </span>
+            <div className="flex gap-1">
+              {[0, 1, 2].map((i) => (
+                <m.div
+                  key={i}
+                  animate={{ opacity: [0.2, 1, 0.2] }}
+                  transition={{ repeat: Infinity, duration: 1, delay: i * 0.2 }}
+                  className="w-1 h-1 bg-brand-primary rounded-full"
+                />
+              ))}
+            </div>
+          </m.div>
         </m.div>
       )}
     </AnimatePresence>

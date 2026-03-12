@@ -8,7 +8,6 @@ import { siteConfig } from "@/config/site";
 import TransitionLink from "./TransitionLink";
 import { useParams } from "next/navigation";
 
-// ✅ Types alignés sur la nouvelle architecture UUID
 type Order = {
   id: string;
   created_at: string;
@@ -35,32 +34,39 @@ export default function OrderHistory() {
   const [loading, setLoading] = useState(true);
 
   const fetchOrders = useCallback(async () => {
-    if (!user) {
-      console.warn("[HISTORY_DEBUG] Aucun utilisateur détecté dans le contexte.");
+    // 1. Vérification de l'utilisateur
+    if (!user?.id) {
+      console.error("[HISTORY_DEBUG] Erreur : Pas d'ID utilisateur trouvé dans le contexte.");
+      setLoading(false);
       return;
     }
     
     try {
-      console.log("[HISTORY_DEBUG] Recherche du restaurant pour le slug:", siteConfig.restaurantSlug);
-      
+      console.log("[HISTORY_DEBUG] Début du fetch...");
+      console.log("[HISTORY_DEBUG] User ID:", user.id);
+      console.log("[HISTORY_DEBUG] Restaurant Slug ciblé:", siteConfig.restaurantSlug);
+
+      // 2. Récupération du restaurant
       const { data: resto, error: restoError } = await supabase
         .from('restaurants')
-        .select('id')
+        .select('id, name')
         .eq('slug', siteConfig.restaurantSlug)
         .single();
 
       if (restoError) {
-        console.error("[HISTORY_DEBUG] Erreur table 'restaurants':", restoError.message, restoError.details);
+        console.error("[HISTORY_DEBUG] Erreur table 'restaurants':", {
+          message: restoError.message,
+          code: restoError.code,
+          details: restoError.details
+        });
+        setLoading(false);
         return;
       }
 
-      if (!resto) {
-        console.warn("[HISTORY_DEBUG] Aucun restaurant trouvé avec ce slug.");
-        return;
-      }
+      console.log("[HISTORY_DEBUG] Restaurant identifié:", resto.name, "(ID:", resto.id, ")");
 
-      console.log("[HISTORY_DEBUG] ID Restaurant trouvé:", resto.id, "| Recherche des commandes pour User:", user.id);
-
+      // 3. Récupération des commandes
+      // On teste d'abord une requête simple pour voir si la table répond
       const { data, error: ordersError } = await supabase
         .from("orders")
         .select("id, created_at, total_amount, status")
@@ -69,27 +75,24 @@ export default function OrderHistory() {
         .order("created_at", { ascending: false });
 
       if (ordersError) {
-        console.error("[HISTORY_DEBUG] Erreur table 'orders' DETAILED:", {
-          message: ordersError.message,
-          code: ordersError.code,
-          details: ordersError.details,
-          hint: ordersError.hint
-        });
+        // ✅ On stringify l'erreur pour forcer l'affichage des détails cachés
+        console.error("[HISTORY_DEBUG] Erreur table 'orders' COMPLETE:", JSON.stringify(ordersError, null, 2));
         throw ordersError;
       }
 
+      console.log("[HISTORY_DEBUG] Données brutes reçues:", data);
+      
       if (data) {
-        console.log(`[HISTORY_DEBUG] ${data.length} commande(s) récupérée(s).`);
         setOrders(data as Order[]);
       }
+
     } catch (err: unknown) {
-      // ✅ Type 'unknown' utilisé avec une vérification d'instance pour satisfaire ESLint
       const errorMessage = err instanceof Error ? err.message : "Erreur inconnue";
       console.error("[HISTORY_ERROR_FINAL]:", errorMessage, err);
     } finally {
       setLoading(false);
     }
-  }, [user, supabase]);
+  }, [user?.id, supabase]);
 
   useEffect(() => {
     fetchOrders();

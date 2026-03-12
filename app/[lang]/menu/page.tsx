@@ -1,57 +1,53 @@
+import MenuClient from "../../../src/components/MenuClient";
+import { getRestaurantMenu } from "../../../src/services/productService";
+import { siteConfig } from "../../../config/site";
 import { Metadata } from "next";
-import MenuClient from "./MenuClient";
-import { createClient } from "@/utils/supabase/server";
-import { siteConfig } from "../../../config/site"; // ✅ Import de la configuration globale
 
-// ✅ OPTIMISATION PERF : Mise en cache du menu côté serveur
-export const revalidate = 3600;
-
-type Props = {
-  params: Promise<{ lang: string }>;
-};
-
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const resolvedParams = await params;
-  const lang = resolvedParams.lang || "fr";
-
-  // ✅ SEO Dynamique et Vanillé
-  const titles: Record<string, string> = {
-    fr: `Notre Carte | ${siteConfig.name}`,
-    en: `Our Menu | ${siteConfig.name}`,
-    es: `Nuestra Carta | ${siteConfig.name}`,
-  };
-
-  const descriptions: Record<string, string> = {
-    fr: `Découvrez la carte de ${siteConfig.name}. Profitez de nos plats à emporter ou en livraison directe.`,
-    en: `Discover the menu at ${siteConfig.name}. Enjoy our dishes for takeaway or direct delivery.`,
-    es: `Descubre la carta de ${siteConfig.name}. Disfruta de nuestros platos para llevar o con entrega a domicilio.`,
-  };
-
+export async function generateMetadata(): Promise<Metadata> {
   return {
-    title: titles[lang] || titles.fr,
-    description: descriptions[lang] || descriptions.fr,
+    title: `Menu | ${siteConfig.name}`,
+    description: "Découvrez notre sélection de plats exceptionnels.",
   };
 }
 
-export default async function MenuPage({ params }: Props) {
-  // On attend la résolution des params pour Next.js 15+
-  await params; 
+// ✅ Interface pour définir exactement ce que renvoie Supabase et éliminer l'erreur "any"
+interface RawProduct {
+  id: string;
+  name_fr: string;
+  name_en?: string;
+  name_es?: string;
+  description_fr?: string;
+  description_en?: string;
+  description_es?: string;
+  price: number;
+  image_url?: string;
+  is_available: boolean;
+  categories?: { name_fr: string } | null;
+}
 
-  // ✅ INITIALISATION DU CLIENT SUPABASE SERVEUR
-  const supabase = await createClient();
+export default async function MenuPage() {
+  // ✅ On force TypeScript à accepter restaurantSlug même s'il n'est pas encore dans ton type officiel.
+  // Pense bien à l'ajouter dans ton fichier config/site.ts (ex: restaurantSlug: "kabuki-sushi")
+  const config = siteConfig as Record<string, unknown>;
+  const slug = (config.restaurantSlug as string) || "ma-super-cuisine";
 
-  const { data } = await supabase
-    .from("menu_items")
-    .select("id, name_fr, name_en, name_es, description_fr, description_en, description_es, price, image_url, category, is_available") 
-    .eq("is_available", true)
-    .order("id", { ascending: true });
+  // 1. Récupération des produits depuis Supabase
+  const rawProducts = await getRestaurantMenu(slug);
 
-  // ✅ CORRECTION TS : On formate les données pour le contexte du panier
-  const formattedData = (data || []).map((item) => ({
-    ...item,
-    name: item.name_fr 
+  // 2. Formatage des données avec l'interface RawProduct
+  const formattedProducts = (rawProducts || []).map((product: RawProduct) => ({
+    id: product.id,
+    name_fr: product.name_fr,
+    name_en: product.name_en,
+    name_es: product.name_es,
+    description_fr: product.description_fr || "",
+    description_en: product.description_en,
+    description_es: product.description_es,
+    price: product.price,
+    image_url: product.image_url,
+    is_available: product.is_available,
+    category: product.categories?.name_fr || "Non classé",
   }));
 
-  // ✅ FIX : On ne passe QUE initialItems car MenuClient ne gère pas la prop 'lang'
-  return <MenuClient initialItems={formattedData} />;
+  return <MenuClient initialItems={formattedProducts} />;
 }

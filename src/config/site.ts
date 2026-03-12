@@ -1,12 +1,12 @@
-// src/config/site.ts
-
 export const siteConfig = {
   // Identité du restaurant
   name: "Template Restaurant",
+  shortName: "Template", 
   description: "L'excellence culinaire, sur place ou chez vous.",
   url: "https://ton-domaine.com",
+  locale: "fr",
   
-  // 🔗 Le LIEN avec Supabase (Doit correspondre exactement au "slug" dans ta table restaurants)
+  // 🔗 Le LIEN avec Supabase (Doit correspondre exactement au "slug" de la table restaurants)
   restaurantSlug: "ma-super-cuisine", 
   
   // Paramètres e-commerce
@@ -28,6 +28,12 @@ export const siteConfig = {
   links: {
     instagram: "https://instagram.com",
     facebook: "https://facebook.com",
+  },
+
+  // Informations légales (Mentions légales, facturation)
+  business: {
+    companyName: "Template Corp",
+    vatNumber: "CHE-000.000.000 TVA",
   }
 };
 

@@ -8,7 +8,7 @@ import Reveal from "@/components/Reveal";
 import { useTranslation } from "@/context/LanguageContext";
 import ProductModal from "@/components/ProductModal";
 import { useCart, MenuItem as ContextMenuItem } from "@/context/CartContext";
-import { siteConfig } from "../../../config/site"; // ✅ Import de la configuration
+import { siteConfig } from "../../../config/site"; 
 
 export interface MenuItem extends ContextMenuItem {
   name_fr: string;
@@ -24,7 +24,6 @@ interface MenuClientProps {
   initialItems: MenuItem[];
 }
 
-// --- COMPOSANT CARTE 100% NATIF (SANS FRAMER MOTION POUR LA PERF) ---
 const MenuItemCard = memo(({ item, index, onClick }: { item: MenuItem; index: number; onClick: (item: MenuItem) => void }) => {
   const { lang } = useTranslation();
   const { items, addToCart, updateQuantity, removeFromCart } = useCart();
@@ -104,7 +103,6 @@ const MenuItemCard = memo(({ item, index, onClick }: { item: MenuItem; index: nu
           </>
         ) : (
           <div className="w-full h-full flex items-center justify-center bg-neutral-800 italic text-neutral-500 text-[10px] uppercase tracking-tighter px-4 text-center">
-            {/* ✅ Texte de secours dynamique */}
             {siteConfig.name}
           </div>
         )}
@@ -125,7 +123,6 @@ const MenuItemCard = memo(({ item, index, onClick }: { item: MenuItem; index: nu
 
         <div className="flex items-center justify-between gap-2 pt-2 border-t border-neutral-700/50">
           <span className="text-white font-bold text-[10px] whitespace-nowrap">
-            {/* ✅ Devise dynamique */}
             {Number(item.price).toFixed(2)} <span className="text-[7px] text-neutral-500 ml-0.5">{siteConfig.currency}</span>
           </span>
 
@@ -200,8 +197,8 @@ export default function MenuClient({ initialItems }: MenuClientProps) {
     <LazyMotion features={domAnimation}>
       <div className="bg-[#080808] min-h-screen pb-32 pt-24 relative">
         <div className="bg-black text-white py-12 md:py-16 text-center relative overflow-hidden">
-          {/* Note: pattern-kimono.png pourrait être remplacé ou géré via la configuration à l'avenir */}
-          <div className="absolute inset-0 bg-[url('/pattern-kimono.png')] opacity-5 z-0" aria-hidden="true"></div>
+          {/* ✅ Remplacement du motif Kimono par un fond générique */}
+          <div className="absolute inset-0 bg-neutral-900/30 z-0" aria-hidden="true"></div>
           <Reveal>
             <h1 className="text-4xl md:text-6xl font-display font-bold uppercase tracking-widest relative z-10">
               {t.menu.title}

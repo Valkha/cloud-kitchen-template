@@ -3,7 +3,6 @@
 import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { Truck, MapPin, CheckCircle2, Navigation, Loader2, AlertTriangle, X } from "lucide-react";
-// ✅ Import 'Store' supprimé pour corriger l'erreur ESLint
 import { m, AnimatePresence } from "framer-motion";
 
 interface Order {
@@ -44,10 +43,11 @@ export default function DriverDashboard() {
   const fetchDriverOrders = useCallback(async () => {
     setLoading(true);
     try {
+      // ✅ CORRECTION : Utilisation de la colonne 'type' au lieu de 'order_type'
       const { data, error } = await supabase
         .from("orders")
         .select("*")
-        .eq("order_type", "Livraison")
+        .eq("type", "Livraison") 
         .in("status", ["ready", "preparing", "shipped"]) 
         .order("created_at", { ascending: true });
 
@@ -183,7 +183,7 @@ export default function DriverDashboard() {
                   </div>
                   
                   <a 
-                    href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(`${order.delivery_address}, ${order.delivery_zip}, Suisse`)}`}
+                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${order.delivery_address}, ${order.delivery_zip}, Suisse`)}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="mt-4 flex items-center justify-center gap-2 w-full bg-neutral-800 hover:bg-neutral-700 py-3 rounded-xl text-xs font-bold uppercase transition"

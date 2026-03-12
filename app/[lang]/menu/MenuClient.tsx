@@ -20,8 +20,10 @@ export interface MenuItem extends ContextMenuItem {
   is_available: boolean;
 }
 
+// ✅ Ajout de la prop restaurantSlug
 interface MenuClientProps {
   initialItems: MenuItem[];
+  restaurantSlug: string; 
 }
 
 const MenuItemCard = memo(({ item, index, onClick }: { item: MenuItem; index: number; onClick: (item: MenuItem) => void }) => {
@@ -161,7 +163,8 @@ const MenuItemCard = memo(({ item, index, onClick }: { item: MenuItem; index: nu
 
 MenuItemCard.displayName = "MenuItemCard";
 
-export default function MenuClient({ initialItems }: MenuClientProps) {
+// ✅ On récupère restaurantSlug dans les props
+export default function MenuClient({ initialItems, restaurantSlug }: MenuClientProps) {
   const { t, lang } = useTranslation();
   const items = initialItems;
   
@@ -197,11 +200,11 @@ export default function MenuClient({ initialItems }: MenuClientProps) {
     <LazyMotion features={domAnimation}>
       <div className="bg-[#080808] min-h-screen pb-32 pt-24 relative">
         <div className="bg-black text-white py-12 md:py-16 text-center relative overflow-hidden">
-          {/* ✅ Remplacement du motif Kimono par un fond générique */}
           <div className="absolute inset-0 bg-neutral-900/30 z-0" aria-hidden="true"></div>
           <Reveal>
             <h1 className="text-4xl md:text-6xl font-display font-bold uppercase tracking-widest relative z-10">
-              {t.menu.title}
+              {/* ✅ On affiche le nom du restaurant formaté */}
+              {restaurantSlug.replace(/-/g, ' ')}
             </h1>
             <div className="w-12 h-1 bg-brand-primary mx-auto mt-6 relative z-10"></div>
           </Reveal>

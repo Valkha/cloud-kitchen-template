@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState, useCallback, useMemo } from "react";
-// ✅ CORRECTION IMPORT : On utilise la nouvelle méthode
 import { createClient } from "@/utils/supabase/client";
 import { 
   TrendingUp, ShoppingBag, 
@@ -10,18 +9,23 @@ import {
   Download, ArrowRight, ArrowDownRight
 } from "lucide-react";
 import { motion } from "framer-motion";
+import { siteConfig } from "@/config/site";
 
+// ✅ Mise à jour des interfaces pour correspondre à la nouvelle DB
 interface OrderItem {
-  name: string;
+  id: string;
+  product_name: string;
   quantity: number;
-  price?: number;
+  unit_price: number;
 }
 
 interface Order {
+  id: string;
   total_amount: number;
   created_at: string;
   order_type: string;
-  items: OrderItem[]; 
+  status: string;
+  order_items: OrderItem[]; 
 }
 
 interface StatCardProps {
@@ -33,24 +37,22 @@ interface StatCardProps {
 }
 
 export default function AdminStatsPage() {
-  // ✅ CORRECTION CLIENT : On initialise le client Supabase
   const supabase = useMemo(() => createClient(), []);
-
   const [loading, setLoading] = useState(true);
   
-  // États pour la plage de dates
   const now = new Date();
   const firstDay = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
   const lastDay = now.toISOString().split('T')[0];
 
   const [startDate, setStartDate] = useState(firstDay);
   const [endDate, setEndDate] = useState(lastDay);
+  const [allOrders, setAllOrders] = useState<Order[]>([]);
 
   const [stats, setStats] = useState({
     totalRevenue: 0,
-    rangeRevenueBrut: 0, // CA payé par les clients
-    rangeRevenueNet: 0,  // CA après commissions Stripe
-    rangeFees: 0,        // Total des frais Stripe
+    rangeRevenueBrut: 0, 
+    rangeRevenueNet: 0,  
+    rangeFees: 0,        
     totalOrdersCount: 0,
     rangeOrdersCount: 0,
     averageBasket: 0,
@@ -58,14 +60,11 @@ export default function AdminStatsPage() {
     deliverySplit: { delivery: 0, takeaway: 0 }
   });
 
-  const [allOrders, setAllOrders] = useState<Order[]>([]);
-
   const calculateStats = useCallback((orders: Order[]) => {
     const start = new Date(startDate);
     const end = new Date(endDate);
     end.setHours(23, 59, 59, 999);
 
-    // Configuration des frais Stripe (2.9% + 0.30 CHF)
     const STRIPE_PERCENT = 0.029;
     const STRIPE_FIXED = 0.30;
 
@@ -87,7 +86,6 @@ export default function AdminStatsPage() {
         rangeRevBrut += amount;
         rangeCount++;
         
-        // Calcul des frais Stripe sur cette commande
         if (amount > 0) {
           const orderFee = (amount * STRIPE_PERCENT) + STRIPE_FIXED;
           rangeFeesAccumulator += orderFee;
@@ -97,9 +95,10 @@ export default function AdminStatsPage() {
         if (order.order_type === "Livraison") deliveryCount++;
         else takeawayCount++;
 
-        if (Array.isArray(order.items)) {
-          order.items.forEach((item: OrderItem) => {
-            productMap[item.name] = (productMap[item.name] || 0) + (item.quantity || 1);
+        // ✅ Correction : On boucle sur order_items (nouvelle table)
+        if (Array.isArray(order.order_items)) {
+          order.order_items.forEach((item: OrderItem) => {
+            productMap[item.product_name] = (productMap[item.product_name] || 0) + (item.quantity || 1);
           });
         }
       }
@@ -126,11 +125,26 @@ export default function AdminStatsPage() {
   useEffect(() => {
     async function getStats() {
       setLoading(true);
+      
+      // 1. Récupérer l'ID du restaurant actuel
+      const { data: resto } = await supabase
+        .from('restaurants')
+        .select('id')
+        .eq('slug', siteConfig.restaurantSlug)
+        .single();
+
+      if (!resto) {
+        setLoading(false);
+        return;
+      }
+
+      // 2. Récupérer les commandes avec jointure sur order_items
       const { data } = await supabase
         .from("orders")
-        .select("total_amount, created_at, order_type, items")
-        .neq("status", "Annulée")
-        .neq("status", "Paiement en cours");
+        .select("*, order_items(*)")
+        .eq("restaurant_id", resto.id)
+        .neq("status", "cancelled")
+        .neq("status", "pending");
 
       if (data) {
         const typedData = data as unknown as Order[];
@@ -140,7 +154,7 @@ export default function AdminStatsPage() {
       setLoading(false);
     }
     getStats();
-  }, [calculateStats, supabase]); // Ajout de supabase aux dépendances
+  }, [calculateStats, supabase]);
 
   const exportToCSV = () => {
     const start = new Date(startDate);
@@ -163,7 +177,7 @@ export default function AdminStatsPage() {
           brut.toFixed(2),
           fees.toFixed(2),
           (brut - fees).toFixed(2),
-          o.items.map(i => `${i.quantity}x ${i.name}`).join(" | ")
+          o.order_items.map(i => `${i.quantity}x ${i.product_name}`).join(" | ")
         ];
       })
     ];
@@ -172,14 +186,14 @@ export default function AdminStatsPage() {
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
-    link.download = `Kabuki_Compta_${startDate}_au_${endDate}.csv`;
+    link.download = `Reporting_${siteConfig.restaurantSlug}_${startDate}.csv`;
     link.click();
   };
 
   if (loading) return (
     <div className="flex flex-col items-center justify-center p-20 space-y-4">
       <Loader2 className="animate-spin text-kabuki-red" size={32} />
-      <span className="text-[10px] font-bold text-gray-500 uppercase tracking-[0.3em]">Calcul des marges nettes...</span>
+      <span className="text-[10px] font-bold text-gray-500 uppercase tracking-[0.3em]">Analyse des performances...</span>
     </div>
   );
 
@@ -223,7 +237,6 @@ export default function AdminStatsPage() {
         </button>
       </div>
 
-      {/* KPI CARDS : FOCUS SUR LE NET */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard 
           title="CA Brut (Reçu)" 
@@ -256,11 +269,10 @@ export default function AdminStatsPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* TOP PRODUITS */}
         <div className="lg:col-span-2 bg-neutral-900/50 border border-neutral-800 rounded-[32px] p-8">
           <div className="flex items-center gap-3 mb-8">
             <div className="p-2 bg-kabuki-red/10 rounded-lg"><Trophy size={20} className="text-kabuki-red" /></div>
-            <h2 className="text-lg font-bold uppercase tracking-widest">Top 5 sur la période</h2>
+            <h2 className="text-lg font-bold uppercase tracking-widest">Top 5 des ventes</h2>
           </div>
           <div className="space-y-4">
             {stats.topProducts.length > 0 ? stats.topProducts.map((item, idx) => (
@@ -274,11 +286,10 @@ export default function AdminStatsPage() {
                   <span className="text-[10px] text-gray-500 uppercase font-bold">Vendus</span>
                 </div>
               </div>
-            )) : <p className="text-gray-500 text-sm italic">Aucune donnée pour cette sélection.</p>}
+            )) : <p className="text-gray-500 text-sm italic">Aucune vente enregistrée sur cette période.</p>}
           </div>
         </div>
 
-        {/* RÉPARTITION CANAUX */}
         <div className="bg-neutral-900/50 border border-neutral-800 rounded-[32px] p-8">
           <h2 className="text-lg font-bold uppercase tracking-widest mb-8">Canaux de vente</h2>
           <div className="space-y-6">

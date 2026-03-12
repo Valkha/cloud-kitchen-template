@@ -13,6 +13,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
 interface RawProduct {
   id: string;
+  restaurant_id: string; // ✅ Ajouté
   name_fr: string;
   name_en?: string;
   name_es?: string;
@@ -25,7 +26,6 @@ interface RawProduct {
   categories?: { name_fr: string } | null;
 }
 
-// ✅ Les Server Components Next.js 15+ reçoivent params et searchParams sous forme de Promesses
 export default async function MenuPage({
   params,
   searchParams,
@@ -37,21 +37,17 @@ export default async function MenuPage({
   const resolvedSearchParams = await searchParams;
   
   const lang = resolvedParams.lang || "fr";
-  
-  // ✅ 1. On lit le paramètre ?restaurant=slug dans l'URL
   const restaurantSlug = resolvedSearchParams.restaurant;
 
-  // ✅ 2. Si aucun restaurant n'est ciblé, on renvoie vers la Marketplace (l'accueil)
   if (!restaurantSlug || typeof restaurantSlug !== "string") {
     redirect(`/${lang}`);
   }
 
-  // ✅ 3. Récupération des produits pour ce restaurant spécifique
   const rawProducts = await getRestaurantMenu(restaurantSlug);
 
-  // 4. Formatage des données pour le client
+  // 2. Formatage des données pour correspondre à l'interface MenuItem du CartContext
   const formattedProducts = (rawProducts || []).map((product: RawProduct) => ({
-    id: product.id as unknown as number, 
+    id: product.id, // ✅ Plus de hack "as unknown as number", on garde l'UUID string
     name: product.name_fr,
     name_fr: product.name_fr,
     name_en: product.name_en,
@@ -63,8 +59,10 @@ export default async function MenuPage({
     image_url: product.image_url,
     is_available: product.is_available,
     category: product.categories?.name_fr || "Non classé",
+    // ✅ CHAMPS OBLIGATOIRES POUR LE MODE FOOD COURT
+    restaurant_id: product.restaurant_id,
+    restaurant_name: restaurantSlug.replace(/-/g, ' '), 
   }));
 
-  // ✅ 5. On passe les produits ET le nom du restaurant (via le slug pour l'instant) au client
   return <MenuClient initialItems={formattedProducts} restaurantSlug={restaurantSlug} />;
 }

@@ -20,7 +20,6 @@ export interface MenuItem extends ContextMenuItem {
   is_available: boolean;
 }
 
-// ✅ Ajout de la prop restaurantSlug
 interface MenuClientProps {
   initialItems: MenuItem[];
   restaurantSlug: string; 
@@ -51,7 +50,16 @@ const MenuItemCard = memo(({ item, index, onClick }: { item: MenuItem; index: nu
 
   const handleAdd = (e: React.MouseEvent) => {
     e.stopPropagation();
-    addToCart({ id: item.id, name: displayName, price: item.price, image_url: item.image_url, category: item.category });
+    // ✅ CORRECTION : Transmission des IDs et noms de restaurants au panier
+    addToCart({ 
+      id: item.id, 
+      name: displayName, 
+      price: item.price, 
+      image_url: item.image_url, 
+      category: item.category,
+      restaurant_id: item.restaurant_id,
+      restaurant_name: item.restaurant_name
+    });
   };
 
   const handleRemove = (e: React.MouseEvent) => {
@@ -163,7 +171,6 @@ const MenuItemCard = memo(({ item, index, onClick }: { item: MenuItem; index: nu
 
 MenuItemCard.displayName = "MenuItemCard";
 
-// ✅ On récupère restaurantSlug dans les props
 export default function MenuClient({ initialItems, restaurantSlug }: MenuClientProps) {
   const { t, lang } = useTranslation();
   const items = initialItems;
@@ -203,7 +210,6 @@ export default function MenuClient({ initialItems, restaurantSlug }: MenuClientP
           <div className="absolute inset-0 bg-neutral-900/30 z-0" aria-hidden="true"></div>
           <Reveal>
             <h1 className="text-4xl md:text-6xl font-display font-bold uppercase tracking-widest relative z-10">
-              {/* ✅ On affiche le nom du restaurant formaté */}
               {restaurantSlug.replace(/-/g, ' ')}
             </h1>
             <div className="w-12 h-1 bg-brand-primary mx-auto mt-6 relative z-10"></div>

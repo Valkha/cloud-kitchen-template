@@ -2,14 +2,16 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 
-// 1. Définition de la structure d'un plat
+// 1. Définition de la structure d'un plat (✅ MISE À JOUR MULTI-RESTOS)
 export interface MenuItem {
-  id: number;
+  id: string; // ✅ Remplacé par string car Supabase utilise des UUID
   name: string;
   description?: string;
   price: number;
   image_url?: string;
   category?: string;
+  restaurant_id: string; // ✅ Ajouté pour la Cloud Kitchen
+  restaurant_name?: string; // ✅ Ajouté pour l'affichage visuel
 }
 
 // 2. Un article du panier = un plat + une quantité
@@ -20,8 +22,8 @@ export interface CartItem extends MenuItem {
 interface CartContextType {
   items: CartItem[];
   addToCart: (item: MenuItem) => void;
-  removeFromCart: (id: number) => void;
-  updateQuantity: (id: number, quantity: number) => void;
+  removeFromCart: (id: string) => void; // ✅ id en string
+  updateQuantity: (id: string, quantity: number) => void; // ✅ id en string
   clearCart: () => void;
   totalItems: number;
   totalPrice: number;
@@ -41,8 +43,6 @@ export function CartProvider({ children }: { children: ReactNode }) {
     if (savedCart) {
       try {
         const parsedCart = JSON.parse(savedCart);
-        // ✅ On force le silence d'ESLint pour cette ligne précise 
-        // car c'est le comportement voulu pour l'hydratation Next.js
         // eslint-disable-next-line react-hooks/set-state-in-effect
         setItems(parsedCart);
       } catch (e) {
@@ -71,11 +71,11 @@ export function CartProvider({ children }: { children: ReactNode }) {
     });
   };
 
-  const removeFromCart = (id: number) => {
+  const removeFromCart = (id: string) => { // ✅ id en string
     setItems((prev) => prev.filter((i) => i.id !== id));
   };
 
-  const updateQuantity = (id: number, quantity: number) => {
+  const updateQuantity = (id: string, quantity: number) => { // ✅ id en string
     if (quantity < 1) {
       removeFromCart(id);
       return;

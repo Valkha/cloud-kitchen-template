@@ -6,20 +6,21 @@ export async function POST(request: Request) {
   try {
     const supabase = await createClient();
     
-    // ✅ SÉCURITÉ #7 : Vérification d'identité stricte avant modification
+    // ✅ SÉCURITÉ : Vérification d'identité stricte via la session
     const { data: { user }, error: authError } = await supabase.auth.getUser();
 
     if (authError || !user) {
-      return NextResponse.json({ error: "Session invalide." }, { status: 401 });
+      return NextResponse.json({ error: "Session invalide ou expirée." }, { status: 401 });
     }
 
     const body = await request.json();
     const { fullName, phone, address, zipCode, city, lang } = body;
 
+    // ✅ UPSERT sécurisé : On force l'ID de l'utilisateur connecté
     const { data: updatedProfile, error: dbError } = await supabase
       .from("profiles")
       .upsert({
-        id: user.id, // ✅ On force l'ID de la session pour empêcher l'usurpation
+        id: user.id, 
         full_name: fullName,
         phone,
         address,
@@ -32,16 +33,24 @@ export async function POST(request: Request) {
 
     if (dbError) throw dbError;
 
-    // ✅ On invalide le cache pour que les changements soient visibles immédiatement
+    // ✅ INVALIDATION DU CACHE : Pour une mise à jour instantanée côté serveur
     if (lang) {
       revalidatePath(`/${lang}/profile`);
       revalidatePath(`/${lang}/profile/settings`);
     }
 
-    return NextResponse.json({ success: true, profile: updatedProfile });
+    return NextResponse.json({ 
+      success: true, 
+      profile: updatedProfile 
+    });
+
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : "Erreur serveur";
-    console.error("[API] update-profile error:", errorMessage);
-    return NextResponse.json({ error: errorMessage }, { status: 500 });
+    console.error("[API_PROFILE_UPDATE_ERROR]:", errorMessage);
+    
+    return NextResponse.json(
+      { error: "Impossible de mettre à jour le profil." }, 
+      { status: 500 }
+    );
   }
 }

@@ -3,14 +3,17 @@
 import { useState, useEffect } from "react";
 import { useTranslation } from "@/context/LanguageContext";
 import { Cookie, X } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { m, AnimatePresence } from "framer-motion";
+// ✅ CORRECTION : On remonte de deux niveaux pour atteindre la racine depuis /src/components/
+import { siteConfig } from "../../config/site"; 
 
 export default function CookieBanner() {
   const [isVisible, setIsVisible] = useState(false);
-  const { t } = useTranslation(); // ✅ Désormais utilisé plus bas
+  const { t } = useTranslation();
 
   useEffect(() => {
-    const consent = localStorage.getItem("kabuki_cookie_consent");
+    // Clé générique pour le template
+    const consent = localStorage.getItem("site_cookie_consent");
     if (!consent) {
       const timer = setTimeout(() => setIsVisible(true), 2000);
       return () => clearTimeout(timer);
@@ -18,14 +21,14 @@ export default function CookieBanner() {
   }, []);
 
   const handleConsent = (status: "accepted" | "declined") => {
-    localStorage.setItem("kabuki_cookie_consent", status);
+    localStorage.setItem("site_cookie_consent", status);
     setIsVisible(false);
   };
 
   return (
     <AnimatePresence>
       {isVisible && (
-        <motion.div
+        <m.div 
           initial={{ y: 100, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           exit={{ y: 100, opacity: 0 }}
@@ -33,7 +36,7 @@ export default function CookieBanner() {
         >
           <div className="bg-neutral-900 border border-neutral-800 p-6 rounded-2xl shadow-2xl backdrop-blur-md">
             <div className="flex items-start gap-4">
-              <div className="bg-kabuki-red/10 p-3 rounded-xl text-kabuki-red">
+              <div className="bg-brand-primary/10 p-3 rounded-xl text-brand-primary">
                 <Cookie size={24} />
               </div>
               <div className="flex-1">
@@ -41,7 +44,7 @@ export default function CookieBanner() {
                   {t.nav.home ? "Cookies & Confidentialité" : "Privacy Policy"}
                 </h3>
                 <p className="text-gray-400 text-xs leading-relaxed mb-4">
-                  Nous utilisons des cookies pour améliorer votre expérience. En continuant, vous acceptez notre politique de confidentialité.
+                  Nous utilisons des cookies pour améliorer votre expérience sur {siteConfig.name}. En continuant, vous acceptez notre politique de confidentialité.
                 </p>
                 <div className="flex gap-3">
                   <button
@@ -66,7 +69,7 @@ export default function CookieBanner() {
               </button>
             </div>
           </div>
-        </motion.div>
+        </m.div>
       )}
     </AnimatePresence>
   );

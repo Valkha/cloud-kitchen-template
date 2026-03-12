@@ -34,7 +34,7 @@ export default function LayoutClient({ children }: { children: React.ReactNode }
 
         <ScrollToTop />
 
-        {/* ✅ L'Action Bar gère maintenant l'urgence (Appel/WhatsApp) de manière intégrée */}
+        {/* ✅ ActionBar intégrée pour le mobile */}
         <MobileActionBar onOpenCart={openCart} />
 
         <CookieBanner />

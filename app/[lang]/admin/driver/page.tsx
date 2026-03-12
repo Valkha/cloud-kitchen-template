@@ -3,8 +3,8 @@
 import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { Truck, MapPin, CheckCircle2, Navigation, Loader2, AlertTriangle, X } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
-import { siteConfig } from "@/config/site";
+// ✅ Import 'Store' supprimé pour corriger l'erreur ESLint
+import { m, AnimatePresence } from "framer-motion";
 
 interface Order {
   id: string; 
@@ -26,7 +26,6 @@ export default function DriverDashboard() {
   
   const watchIdRef = useRef<number | null>(null);
 
-  // Communication avec l'API sécurisée
   const updateOrderSecurely = async (payload: { orderId: string; status?: string; lat?: number; lng?: number }) => {
     try {
       const res = await fetch('/api/driver/update-order', {
@@ -45,20 +44,9 @@ export default function DriverDashboard() {
   const fetchDriverOrders = useCallback(async () => {
     setLoading(true);
     try {
-      // 1. Résolution de l'ID du restaurant (localement pour la requête)
-      const { data: resto, error: restoError } = await supabase
-        .from('restaurants')
-        .select('id')
-        .eq('slug', siteConfig.restaurantSlug)
-        .single();
-        
-      if (restoError || !resto) throw new Error("Restaurant introuvable");
-
-      // 2. Récupération des livraisons pour ce restaurant
       const { data, error } = await supabase
         .from("orders")
         .select("*")
-        .eq("restaurant_id", resto.id)
         .eq("order_type", "Livraison")
         .in("status", ["ready", "preparing", "shipped"]) 
         .order("created_at", { ascending: true });
@@ -98,12 +86,10 @@ export default function DriverDashboard() {
     }
 
     setGeoError(null);
-
     const success = await updateOrderSecurely({ orderId, status: "shipped" });
     
     if (success) {
       setActiveDeliveryId(orderId);
-      
       watchIdRef.current = navigator.geolocation.watchPosition(
         async (position) => {
           const { latitude, longitude } = position.coords;
@@ -113,11 +99,7 @@ export default function DriverDashboard() {
           setGeoError("Veuillez autoriser l'accès au GPS pour le suivi.");
           console.error("[DIAG] Erreur GPS :", error);
         },
-        {
-          enableHighAccuracy: true,
-          maximumAge: 0,
-          timeout: 10000,
-        }
+        { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 }
       );
     }
   };
@@ -138,7 +120,7 @@ export default function DriverDashboard() {
 
   if (loading) return (
     <div className="min-h-screen bg-black flex items-center justify-center">
-      <Loader2 className="animate-spin text-kabuki-red" size={40} />
+      <Loader2 className="animate-spin text-brand-primary" size={40} />
     </div>
   );
 
@@ -146,7 +128,7 @@ export default function DriverDashboard() {
     <div className="min-h-screen bg-black text-white p-4 pb-24 pt-20">
       <div className="mb-6">
         <h1 className="text-2xl font-display font-bold uppercase flex items-center gap-3 tracking-widest">
-          <Truck className="text-kabuki-red" size={28} /> Espace Livreur
+          <Truck className="text-brand-primary" size={28} /> Espace Livreur
         </h1>
         <p className="text-gray-500 text-xs mt-1 uppercase font-bold tracking-widest">
           {orders.length} livraison(s) en attente
@@ -167,14 +149,14 @@ export default function DriverDashboard() {
             const isTrackingMe = activeDeliveryId === order.id;
 
             return (
-              <motion.div 
+              <m.div 
                 key={order.id} 
                 layout 
                 initial={{ opacity: 0, y: 20 }} 
                 animate={{ opacity: 1, y: 0 }}
                 className={`p-5 rounded-3xl border transition-all duration-500 flex flex-col ${
                   isTrackingMe 
-                    ? "bg-kabuki-red/10 border-kabuki-red shadow-[0_0_30px_rgba(220,38,38,0.2)]" 
+                    ? "bg-brand-primary/10 border-brand-primary shadow-[0_0_30px_rgba(220,38,38,0.2)]" 
                     : "bg-neutral-900 border-neutral-800"
                 }`}
               >
@@ -196,12 +178,12 @@ export default function DriverDashboard() {
                     <MapPin className="text-gray-500 mt-0.5 shrink-0" size={18} />
                     <div>
                       <p className="font-bold text-sm leading-tight">{order.delivery_address}</p>
-                      <p className="text-kabuki-red font-black text-xs mt-1">{order.delivery_zip}</p>
+                      <p className="text-brand-primary font-black text-xs mt-1">{order.delivery_zip}</p>
                     </div>
                   </div>
                   
                   <a 
-                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${order.delivery_address}, ${order.delivery_zip}, Suisse`)}`}
+                    href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(`${order.delivery_address}, ${order.delivery_zip}, Suisse`)}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="mt-4 flex items-center justify-center gap-2 w-full bg-neutral-800 hover:bg-neutral-700 py-3 rounded-xl text-xs font-bold uppercase transition"
@@ -225,7 +207,7 @@ export default function DriverDashboard() {
                       className={`w-full py-4 rounded-xl font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-all active:scale-95 ${
                         activeDeliveryId !== null 
                           ? "bg-neutral-800 text-gray-600 cursor-not-allowed" 
-                          : "bg-kabuki-red text-white shadow-lg hover:bg-red-700 shadow-red-900/30"
+                          : "bg-brand-primary text-white shadow-lg hover:opacity-90 shadow-red-900/30"
                       }`}
                     >
                       <Navigation size={20} /> Démarrer la course
@@ -233,12 +215,12 @@ export default function DriverDashboard() {
                   )}
                   
                   {isTrackingMe && (
-                    <p className="text-center text-[10px] text-kabuki-red uppercase font-bold mt-4 animate-pulse tracking-widest">
+                    <p className="text-center text-[10px] text-brand-primary uppercase font-bold mt-4 animate-pulse tracking-widest">
                       📍 Partage GPS en direct activé...
                     </p>
                   )}
                 </div>
-              </motion.div>
+              </m.div>
             );
           })}
         </AnimatePresence>

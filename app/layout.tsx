@@ -1,11 +1,16 @@
-// app/layout.tsx
+// src/app/layout.tsx
+import { ReactNode } from "react";
 
 export default function RootLayout({
   children,
 }: {
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
-  // On ne met PAS de balises <html> ou <body> ici 
-  // car elles sont déjà gérées dans app/[lang]/layout.tsx
-  return children;
+  return (
+    <html lang="fr">
+      <body>
+        {children}
+      </body>
+    </html>
+  );
 }

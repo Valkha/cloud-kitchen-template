@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useMemo, useCallback, memo } from "react";
+import { useState, useMemo, memo } from "react"; // ✅ useCallback retiré
 import Image from "next/image";
 import { m, AnimatePresence, LazyMotion, domAnimation } from "framer-motion"; 
-import { Search, Info, Plus, Minus } from "lucide-react";
+import { Search, Info, Plus, Minus, ShoppingBag } from "lucide-react";
 import Reveal from "@/components/Reveal";
 import { useTranslation } from "@/context/LanguageContext";
 import ProductModal from "@/components/ProductModal";
@@ -18,6 +18,7 @@ export interface MenuItem extends ContextMenuItem {
   description_en?: string;
   description_es?: string;
   is_available: boolean;
+  restaurant_name: string;
 }
 
 interface MenuClientProps {
@@ -28,7 +29,7 @@ interface MenuClientProps {
 const MenuItemCard = memo(({ item, index, onClick }: { item: MenuItem; index: number; onClick: (item: MenuItem) => void }) => {
   const { lang } = useTranslation();
   const { items, addToCart, updateQuantity, removeFromCart } = useCart();
-  const [imgError, setImgError] = useState(false);
+  const [imgError, setImgError] = useState(false); // ✅ Utilisé maintenant
   const [isImageLoaded, setIsImageLoaded] = useState(false);
 
   const cartItem = items.find((i) => i.id === item.id);
@@ -36,21 +37,19 @@ const MenuItemCard = memo(({ item, index, onClick }: { item: MenuItem; index: nu
 
   const displayName = useMemo(() => {
     const currentLang = lang.toLowerCase();
-    if (currentLang === "es") return item.name_es?.trim() ? item.name_es : item.name_fr;
-    if (currentLang === "en") return item.name_en?.trim() ? item.name_en : item.name_fr;
-    return item.name_fr;
+    const n = currentLang === "es" ? item.name_es : currentLang === "en" ? item.name_en : item.name_fr;
+    return n?.trim() ? n : item.name_fr;
   }, [lang, item]);
 
   const displayDesc = useMemo(() => {
     const currentLang = lang.toLowerCase();
-    if (currentLang === "es") return item.description_es?.trim() ? item.description_es : item.description_fr;
-    if (currentLang === "en") return item.description_en?.trim() ? item.description_en : item.description_fr;
-    return item.description_fr;
+    const d = currentLang === "es" ? item.description_es : currentLang === "en" ? item.description_en : item.description_fr;
+    return d?.trim() ? d : item.description_fr;
   }, [lang, item]);
 
   const handleAdd = (e: React.MouseEvent) => {
     e.stopPropagation();
-    // ✅ CORRECTION : Transmission des IDs et noms de restaurants au panier
+    if (window.navigator?.vibrate) window.navigator.vibrate(15);
     addToCart({ 
       id: item.id, 
       name: displayName, 
@@ -72,18 +71,21 @@ const MenuItemCard = memo(({ item, index, onClick }: { item: MenuItem; index: nu
   };
 
   return (
-    <div 
+    <m.div 
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: index * 0.05 }}
       onClick={() => onClick(item)}
-      className="bg-neutral-800 rounded-xl shadow-lg overflow-hidden hover:border-brand-primary transition-colors duration-300 group border border-neutral-700 flex flex-col h-full cursor-pointer relative"
+      className="bg-neutral-900/50 backdrop-blur-sm rounded-[2rem] overflow-hidden hover:border-brand-primary/50 transition-all duration-500 group border border-neutral-800 flex flex-col h-full cursor-pointer relative"
     >
-      <div className="w-full bg-neutral-900 relative aspect-square overflow-hidden">
+      <div className="w-full bg-black/40 relative aspect-square overflow-hidden p-4">
         <AnimatePresence>
           {quantity > 0 && (
             <m.div
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
               exit={{ scale: 0 }}
-              className="absolute top-2 left-2 z-20 bg-brand-primary text-white text-[10px] font-black w-6 h-6 rounded-full flex items-center justify-center shadow-lg border border-white/10"
+              className="absolute top-4 left-4 z-20 bg-brand-primary text-white text-[10px] font-black w-7 h-7 rounded-full flex items-center justify-center shadow-lg border border-white/10"
             >
               {quantity}
             </m.div>
@@ -91,81 +93,69 @@ const MenuItemCard = memo(({ item, index, onClick }: { item: MenuItem; index: nu
         </AnimatePresence>
 
         {!imgError && item.image_url ? (
-          <>
+          <div className="relative w-full h-full">
             <Image 
               src={item.image_url}
               alt={displayName}
               fill
-              quality={70} 
-              sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
-              className={`object-cover transition-opacity duration-300 group-hover:scale-105 ${
+              quality={80} 
+              className={`object-contain transition-all duration-700 group-hover:scale-110 ${
                 isImageLoaded ? "opacity-100" : "opacity-0"
               }`}
               onLoad={() => setIsImageLoaded(true)}
-              priority={index < 4} 
-              fetchPriority={index < 4 ? "high" : "auto"}
-              loading={index < 4 ? "eager" : "lazy"}
-              onError={() => setImgError(true)}
+              onError={() => setImgError(true)} // ✅ setImgError est appelé ici
+              priority={index < 6}
             />
-            {!isImageLoaded && (
-              <div className="absolute inset-0 bg-neutral-800 animate-pulse z-10" />
-            )}
-          </>
+          </div>
         ) : (
-          <div className="w-full h-full flex items-center justify-center bg-neutral-800 italic text-neutral-500 text-[10px] uppercase tracking-tighter px-4 text-center">
+          <div className="w-full h-full flex items-center justify-center italic text-neutral-700 text-[10px] uppercase font-display tracking-widest text-center">
             {siteConfig.name}
           </div>
         )}
-        <div className="absolute top-2 right-2 bg-black/50 backdrop-blur-md p-1.5 rounded-full text-white opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-            <Info size={14} aria-hidden="true" />
-        </div>
       </div>
       
-      <div className="p-3 flex flex-col flex-grow relative">
-        <div className="flex-1 min-w-0 mb-3">
-          <h3 className="text-[11px] font-bold text-white uppercase line-clamp-1 leading-tight font-display tracking-wide mb-1">
-            {displayName.split('(')[0]}
-          </h3>
-          <p className="text-neutral-400 text-[9px] line-clamp-2 leading-tight">
+      <div className="p-5 flex flex-col flex-grow">
+        <div className="flex-1 mb-4">
+          <div className="flex justify-between items-start gap-2 mb-1">
+            <h3 className="text-sm font-bold text-white uppercase leading-tight font-display tracking-wide group-hover:text-brand-primary transition-colors">
+              {displayName.split('(')[0]}
+            </h3>
+            <Info size={14} className="text-neutral-600 mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity" />
+          </div>
+          <p className="text-neutral-500 text-[10px] line-clamp-2 leading-relaxed font-light italic">
             {displayDesc}
           </p>
         </div>
 
-        <div className="flex items-center justify-between gap-2 pt-2 border-t border-neutral-700/50">
-          <span className="text-white font-bold text-[10px] whitespace-nowrap">
-            {Number(item.price).toFixed(2)} <span className="text-[7px] text-neutral-500 ml-0.5">{siteConfig.currency}</span>
+        <div className="flex items-center justify-between pt-4 border-t border-neutral-800/50">
+          <span className="text-white font-black text-sm italic">
+            {Number(item.price).toFixed(2)} <span className="text-[8px] not-italic text-neutral-500 ml-0.5">{siteConfig.currency}</span>
           </span>
 
-          <div className="flex items-center bg-neutral-900 rounded-full p-0.5 border border-neutral-700">
+          <div className="flex items-center bg-black/40 rounded-xl p-1 border border-neutral-800">
             <AnimatePresence mode="popLayout">
               {quantity > 0 && (
-                <m.div
-                  initial={{ width: 0, opacity: 0 }}
-                  animate={{ width: "auto", opacity: 1 }}
-                  exit={{ width: 0, opacity: 0 }}
-                  className="flex items-center overflow-hidden"
-                >
-                  <button onClick={handleRemove} aria-label="Moins" className="w-7 h-7 flex items-center justify-center text-neutral-400 hover:text-white transition-colors">
-                    <Minus size={12} strokeWidth={2.5} />
+                <m.div initial={{ width: 0, opacity: 0 }} animate={{ width: "auto", opacity: 1 }} exit={{ width: 0, opacity: 0 }} className="flex items-center overflow-hidden">
+                  <button onClick={handleRemove} className="w-8 h-8 flex items-center justify-center text-neutral-500 hover:text-white transition-colors">
+                    <Minus size={14} />
                   </button>
-                  <span className="text-[10px] font-bold text-white w-4 text-center">{quantity}</span>
+                  <span className="text-xs font-bold text-white w-5 text-center">{quantity}</span>
                 </m.div>
               )}
             </AnimatePresence>
 
             <button 
               onClick={handleAdd}
-              aria-label="Plus"
-              className={`w-7 h-7 rounded-full flex items-center justify-center transition-colors ${
-                quantity > 0 ? "text-brand-primary" : "bg-neutral-700 text-white hover:bg-brand-primary"
+              className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${
+                quantity > 0 ? "text-brand-primary" : "bg-neutral-800 text-white hover:bg-brand-primary"
               }`}
             >
-              <Plus size={12} strokeWidth={3} />
+              <Plus size={14} strokeWidth={3} />
             </button>
           </div>
         </div>
       </div>
-    </div>
+    </m.div>
   );
 });
 
@@ -173,23 +163,21 @@ MenuItemCard.displayName = "MenuItemCard";
 
 export default function MenuClient({ initialItems, restaurantSlug }: MenuClientProps) {
   const { t, lang } = useTranslation();
-  const items = initialItems;
-  
   const [activeCategory, setActiveCategory] = useState("Tous");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedProduct, setSelectedProduct] = useState<MenuItem | null>(null);
 
   const filteredItems = useMemo(() => {
     const searchLower = searchQuery.toLowerCase();
-    return items.filter((item) => {
+    return initialItems.filter((item) => {
       const matchesSearch = item.name_fr?.toLowerCase().includes(searchLower) || 
                           item.description_fr?.toLowerCase().includes(searchLower);
       const matchesCategory = activeCategory === "Tous" || item.category === activeCategory;
       return matchesSearch && matchesCategory;
     });
-  }, [items, searchQuery, activeCategory]);
+  }, [initialItems, searchQuery, activeCategory]);
 
-  const rawCategories = useMemo(() => Array.from(new Set(items.map(item => item.category))), [items]);
+  const rawCategories = useMemo(() => Array.from(new Set(initialItems.map(item => item.category))), [initialItems]);
   
   const filterCategories = useMemo(() => [
     { id: "Tous", label: t.menu.all },
@@ -199,47 +187,45 @@ export default function MenuClient({ initialItems, restaurantSlug }: MenuClientP
     }))
   ], [t.menu.all, t.menu.categories, rawCategories]);
 
-  const handleOpenModal = useCallback((item: MenuItem) => {
-    setSelectedProduct(item);
-  }, []);
-
   return (
     <LazyMotion features={domAnimation}>
-      <div className="bg-[#080808] min-h-screen pb-32 pt-24 relative">
-        <div className="bg-black text-white py-12 md:py-16 text-center relative overflow-hidden">
-          <div className="absolute inset-0 bg-neutral-900/30 z-0" aria-hidden="true"></div>
+      <div className="bg-[#080808] min-h-screen pb-40">
+        <div className="bg-black py-20 text-center relative overflow-hidden">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-brand-primary/10 via-transparent to-transparent opacity-50" />
           <Reveal>
-            <h1 className="text-4xl md:text-6xl font-display font-bold uppercase tracking-widest relative z-10">
+            <h1 className="text-5xl md:text-7xl font-display font-bold uppercase tracking-[0.2em] text-white relative z-10">
               {restaurantSlug.replace(/-/g, ' ')}
             </h1>
-            <div className="w-12 h-1 bg-brand-primary mx-auto mt-6 relative z-10"></div>
+            <div className="flex items-center justify-center gap-4 mt-6">
+               <div className="h-[1px] w-12 bg-neutral-800" />
+               <span className="text-[10px] font-black uppercase tracking-[0.5em] text-brand-primary">Planet Food Experience</span>
+               <div className="h-[1px] w-12 bg-neutral-800" />
+            </div>
           </Reveal>
         </div>
 
-        <div className="sticky top-[70px] z-30 bg-[#080808]/80 backdrop-blur-xl py-4 border-b border-neutral-900 mb-8">
-          <div className="container mx-auto px-4">
-            <div className="relative max-w-md mx-auto mb-6">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-neutral-600" size={16} aria-hidden="true" />
+        <div className="sticky top-[70px] z-30 bg-[#080808]/90 backdrop-blur-2xl py-6 border-b border-white/5 mb-12">
+          <div className="container mx-auto px-6">
+            <div className="relative max-w-lg mx-auto mb-8">
+              <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-neutral-500" size={18} />
               <input 
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder={lang === "fr" ? "Rechercher..." : "Search..."}
-                aria-label="Rechercher un plat"
-                className="w-full bg-black border border-neutral-800 rounded-2xl py-2 pl-12 pr-4 text-xs text-white focus:border-brand-primary outline-none shadow-xl transition-all"
+                placeholder={lang === "fr" ? "Explorer la carte..." : "Explore the menu..."}
+                className="w-full bg-neutral-900/50 border border-neutral-800 rounded-2xl py-4 pl-14 pr-6 text-sm text-white focus:border-brand-primary focus:ring-1 focus:ring-brand-primary/20 outline-none transition-all"
               />
             </div>
 
-            <nav className="flex flex-nowrap overflow-x-auto md:justify-center gap-2 pb-2 no-scrollbar" aria-label="Catégories">
+            <nav className="flex flex-nowrap overflow-x-auto md:justify-center gap-3 pb-2 no-scrollbar">
               {filterCategories.map((cat) => (
                 <button
                   key={cat.id}
                   onClick={() => setActiveCategory(cat.id)}
-                  aria-pressed={activeCategory === cat.id}
-                  className={`flex-shrink-0 px-5 py-2 rounded-full text-[10px] font-bold uppercase tracking-widest border transition-all ${
+                  className={`flex-shrink-0 px-8 py-3 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${
                     activeCategory === cat.id 
-                    ? "bg-brand-primary border-brand-primary text-white" 
-                    : "bg-neutral-900 border-neutral-800 text-neutral-500 hover:text-white"
+                    ? "bg-white text-black shadow-[0_0_25px_rgba(255,255,255,0.2)]" 
+                    : "bg-neutral-900 text-neutral-500 hover:text-white border border-neutral-800"
                   }`}
                 >
                   {cat.label}
@@ -249,25 +235,26 @@ export default function MenuClient({ initialItems, restaurantSlug }: MenuClientP
           </div>
         </div>
 
-        <div className="container mx-auto px-4">
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3 md:gap-6">
-            {filteredItems.map((item, index) => (
-              <MenuItemCard 
-                key={item.id} 
-                item={item} 
-                index={index}
-                onClick={handleOpenModal} 
-              />
-            ))}
-          </div>
+        <div className="container mx-auto px-6">
+          <AnimatePresence mode="popLayout">
+            <m.div layout className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6 md:gap-8">
+              {filteredItems.map((item, index) => (
+                <MenuItemCard key={item.id} item={item} index={index} onClick={setSelectedProduct} />
+              ))}
+            </m.div>
+          </AnimatePresence>
+
+          {filteredItems.length === 0 && (
+            <div className="text-center py-40">
+              <ShoppingBag size={48} className="mx-auto text-neutral-800 mb-4" />
+              <p className="text-neutral-500 font-display uppercase tracking-widest text-xs">Aucun résultat trouvé</p>
+            </div>
+          )}
         </div>
 
         <AnimatePresence>
           {selectedProduct && (
-            <ProductModal 
-              item={selectedProduct} 
-              onClose={() => setSelectedProduct(null)} 
-            />
+            <ProductModal item={selectedProduct} onClose={() => setSelectedProduct(null)} />
           )}
         </AnimatePresence>
       </div>

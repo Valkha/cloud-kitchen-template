@@ -23,7 +23,7 @@ export default function BrandsSection() {
   const [brands, setBrands] = useState<Brand[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // ✅ Récupération des données depuis l'API
+  // ✅ Récupération des données depuis l'API (Connectée à Supabase)
   useEffect(() => {
     async function fetchBrands() {
       try {
@@ -74,11 +74,11 @@ export default function BrandsSection() {
               <Reveal key={brand.id} delay={index * 0.1}>
                 <TransitionLink 
                   href={`/${lang}/menu/${brand.slug}`}
-                  className="group block relative"
+                  className="group block relative h-full"
                 >
                   <m.div 
                     whileHover={{ y: -10 }}
-                    className="glass-panel rounded-[2.5rem] p-8 h-full transition-all duration-500 hover:border-white/20 relative overflow-hidden"
+                    className="glass-panel rounded-[2.5rem] p-8 h-full transition-all duration-500 hover:border-white/20 relative overflow-hidden flex flex-col shadow-2xl"
                   >
                     {/* Effet de lueur dynamique au survol */}
                     <div 
@@ -86,7 +86,7 @@ export default function BrandsSection() {
                       style={{ background: `radial-gradient(circle at center, ${brand.color || '#A855F7'} 0%, transparent 70%)` }}
                     />
 
-                    <div className="relative z-10">
+                    <div className="relative z-10 flex flex-col h-full">
                       <div className="flex justify-between items-start mb-12">
                         <div 
                           className="w-16 h-16 rounded-2xl flex items-center justify-center border border-white/10 bg-black/40 shadow-inner"
@@ -104,11 +104,11 @@ export default function BrandsSection() {
                         {brand.name}
                       </h4>
                       
-                      <p className="text-neutral-500 text-xs leading-relaxed mb-8 font-medium line-clamp-2">
+                      <p className="text-neutral-500 text-xs leading-relaxed mb-8 font-medium line-clamp-2 flex-grow">
                         {brand.desc}
                       </p>
 
-                      <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-white">
+                      <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-white pt-4 mt-auto border-t border-white/5">
                         <span>{lang === 'fr' ? 'Accéder au menu' : 'Open Menu'}</span>
                         <ChevronRight size={14} className="group-hover:translate-x-1 transition-transform" />
                       </div>

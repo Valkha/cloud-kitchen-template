@@ -1,47 +1,41 @@
-import { createClient } from "@/utils/supabase/client"; // Ajuste l'import vers ton client Supabase
+import { createClient } from "@/utils/supabase/client";
 
-export const getRestaurantMenu = async (restaurantSlug: string) => {
+export async function getRestaurantMenu(slug: string) {
   const supabase = createClient();
-
+  
   try {
-    // 1. Récupérer l'ID du restaurant
+    // 1. On trouve d'abord l'ID exact du restaurant grâce à son slug
     const { data: restaurant, error: restoError } = await supabase
       .from('restaurants')
       .select('id')
-      .eq('slug', restaurantSlug)
+      .eq('slug', slug)
+      .eq('is_active', true) // Sécurité : on s'assure qu'il est actif
       .single();
 
     if (restoError || !restaurant) {
-      console.error("Erreur : Restaurant introuvable pour le slug :", restaurantSlug);
-      console.error("Détails :", restoError?.message);
-      return null;
+      console.error("Restaurant introuvable ou inactif :", slug);
+      return [];
     }
 
-    // 2. Récupérer les produits liés avec le nom de leur catégorie
-    const { data: products, error } = await supabase
+    // 2. On récupère UNIQUEMENT les produits liés à cet ID de restaurant
+    const { data: products, error: productsError } = await supabase
       .from('products')
       .select(`
         *,
-        categories (
-          name_fr
-        )
+        categories (name_fr)
       `)
-      .eq('restaurant_id', restaurant.id)
-      .eq('is_available', true); // Optionnel : ne charger que les produits dispos
+      .eq('restaurant_id', restaurant.id) // 👈 C'EST ICI LE FILTRE MAGIQUE
+      .eq('is_available', true)
+      .order('created_at', { ascending: false });
 
-    if (error) {
-      // ✅ On déstructure l'erreur pour forcer le terminal à l'afficher en texte clair
-      console.error("Erreur lors de la récupération du menu :");
-      console.error("- Message :", error.message);
-      console.error("- Détails :", error.details);
-      console.error("- Indice :", error.hint);
-      return null;
+    if (productsError) {
+      console.error("Erreur lors de la récupération des produits :", productsError);
+      return [];
     }
 
     return products;
-
-  } catch (err) {
-    console.error("Erreur inattendue dans getRestaurantMenu :", err);
-    return null;
+  } catch (error) {
+    console.error("Erreur inattendue dans getRestaurantMenu :", error);
+    return [];
   }
-};
+}

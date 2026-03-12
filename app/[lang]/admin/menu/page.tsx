@@ -5,45 +5,57 @@ import { createClient } from "@/utils/supabase/client";
 import { 
   Search, Edit2, Trash2, Plus, X, Upload, Loader2, 
   CheckCircle2, AlertCircle, Wand2, 
-  LogOut, Power, PowerOff, RefreshCw
+  LogOut, PowerOff, RefreshCw, Power
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
 import { useTranslation } from "@/context/LanguageContext";
+import { siteConfig } from "@/config/site";
 
 interface MenuItem {
-  id: number;
+  id: string; 
+  restaurant_id: string;
+  category_id: string | null;
   name_fr: string;
   name_en: string;
   name_es: string;
-  price: string | number;
-  category: string;
+  price: number; 
   description_fr: string;
   description_en: string;
   description_es: string;
   image_url: string;
   is_available: boolean; 
+  category_name?: string; 
+}
+
+interface Category {
+  id: string;
+  name_fr: string;
 }
 
 export default function AdminMenu() {
   const supabase = useMemo(() => createClient(), []);
   const { lang } = useTranslation(); 
+  
   const [items, setItems] = useState<MenuItem[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]); 
+  const [restaurantId, setRestaurantId] = useState<string | null>(null); 
+  
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const [isTranslating, setIsTranslating] = useState(false);
-  const [updatingId, setUpdatingId] = useState<number | null>(null); 
+  const [updatingId, setUpdatingId] = useState<string | null>(null); 
   
-  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [toast, setToast] = useState<{message: string, type: 'success' | 'error'} | null>(null);
 
-  const [form, setForm] = useState<Omit<MenuItem, 'id' | 'is_available'>>({
+  const [form, setForm] = useState<Omit<MenuItem, 'id' | 'is_available' | 'restaurant_id' | 'category_name'>>({
     name_fr: "", name_en: "", name_es: "",
-    price: "", 
-    category: "Makis",
+    price: 0, 
+    category_id: "", 
     description_fr: "", description_en: "", description_es: "",
     image_url: ""
   });
@@ -53,30 +65,62 @@ export default function AdminMenu() {
     setTimeout(() => setToast(null), 3000);
   }, []);
 
-  const fetchMenu = useCallback(async () => {
+  const fetchMenuData = useCallback(async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from("menu_items")
-      .select("*")
-      .order("id", { ascending: false });
-    
-    if (error) {
-      showToast(error.message, 'error');
-    } else if (data) {
-      setItems(data as MenuItem[]);
+    try {
+      const { data: resto, error: restoError } = await supabase
+        .from('restaurants')
+        .select('id')
+        .eq('slug', siteConfig.restaurantSlug)
+        .single();
+        
+      if (restoError || !resto) throw new Error("Restaurant introuvable");
+      setRestaurantId(resto.id);
+
+      const { data: cats, error: catsError } = await supabase
+        .from('categories')
+        .select('id, name_fr')
+        .eq('restaurant_id', resto.id)
+        .order('order', { ascending: true });
+        
+      if (!catsError && cats) {
+        setCategories(cats);
+      }
+
+      const { data: products, error: prodError } = await supabase
+        .from('products')
+        .select(`*, categories (name_fr)`)
+        .eq('restaurant_id', resto.id)
+        .order('created_at', { ascending: false });
+
+      if (prodError) throw prodError;
+      
+      if (products) {
+        // Remplacement du "any" par une intersection précise
+        const formattedProducts = products.map((p: MenuItem & { categories?: { name_fr: string } | null }) => ({
+          ...p,
+          category_name: p.categories?.name_fr || 'Sans catégorie'
+        }));
+        setItems(formattedProducts as MenuItem[]);
+      }
+
+    } catch (error: unknown) {
+      // Remplacement du "any" par "unknown" et casting en Error
+      const err = error as Error;
+      showToast(err.message, 'error');
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, [supabase, showToast]); 
 
   useEffect(() => {
-    const loadData = async () => { await fetchMenu(); };
-    loadData();
-  }, [fetchMenu]);
+    fetchMenuData();
+  }, [fetchMenuData]);
 
-  const toggleAvailability = async (id: number, currentStatus: boolean) => {
+  const toggleAvailability = async (id: string, currentStatus: boolean) => {
     setUpdatingId(id);
     const { error } = await supabase
-      .from("menu_items")
+      .from("products") 
       .update({ is_available: !currentStatus })
       .eq("id", id);
 
@@ -123,9 +167,11 @@ export default function AdminMenu() {
       if (!e.target.files || e.target.files.length === 0) return;
       const file = e.target.files[0];
       const fileName = `${Math.random()}.${file.name.split('.').pop()}`;
-      const { error: uploadError } = await supabase.storage.from('sushi-images').upload(fileName, file);
+      
+      const { error: uploadError } = await supabase.storage.from('restaurant-assets').upload(fileName, file);
       if (uploadError) throw uploadError;
-      const { data } = supabase.storage.from('sushi-images').getPublicUrl(fileName);
+      
+      const { data } = supabase.storage.from('restaurant-assets').getPublicUrl(fileName);
       setForm(prev => ({ ...prev, image_url: data.publicUrl }));
       showToast("Image mise à jour !");
     } catch (err) {
@@ -138,21 +184,29 @@ export default function AdminMenu() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!restaurantId) return showToast("Erreur critique: Restaurant non identifié", "error");
+    
     setActionLoading(true);
-    const productData = { ...form, price: parseFloat(form.price as string) };
+    const productData = { 
+      ...form, 
+      price: Number(form.price), 
+      restaurant_id: restaurantId,
+      category_id: form.category_id || null 
+    };
+    
     try {
       if (editingId) {
-        const { error } = await supabase.from("menu_items").update(productData).eq("id", editingId);
+        const { error } = await supabase.from("products").update(productData).eq("id", editingId);
         if (error) throw error;
-        showToast("Sushi modifié !");
+        showToast("Plat modifié !");
       } else {
-        const { error } = await supabase.from("menu_items").insert([{ ...productData, is_available: true }]);
+        const { error } = await supabase.from("products").insert([{ ...productData, is_available: true }]);
         if (error) throw error;
-        showToast("Nouveau sushi ajouté !");
+        showToast("Nouveau plat ajouté !");
       }
       setIsModalOpen(false);
       resetForm();
-      fetchMenu();
+      fetchMenuData(); 
     } catch (err) {
       const error = err as Error;
       showToast(error.message, 'error');
@@ -161,10 +215,10 @@ export default function AdminMenu() {
     }
   }
 
-  async function handleDelete(id: number, name: string) {
+  async function handleDelete(id: string, name: string) {
     if (confirm(`Supprimer définitivement "${name}" ?`)) {
       try {
-        const { error } = await supabase.from("menu_items").delete().eq("id", id);
+        const { error } = await supabase.from("products").delete().eq("id", id);
         if (error) throw error;
         setItems(prev => prev.filter(i => i.id !== id));
         showToast("Produit supprimé.");
@@ -177,8 +231,9 @@ export default function AdminMenu() {
 
   const resetForm = () => {
     setForm({ 
-      name_fr: "", name_en: "", name_es: "", price: "", 
-      category: "Makis", description_fr: "", description_en: "", description_es: "", image_url: "" 
+      name_fr: "", name_en: "", name_es: "", price: 0, 
+      category_id: categories.length > 0 ? categories[0].id : "", 
+      description_fr: "", description_en: "", description_es: "", image_url: "" 
     });
     setEditingId(null);
   };
@@ -186,11 +241,13 @@ export default function AdminMenu() {
   const openEditModal = (item: MenuItem) => {
     setForm({ 
       ...item, 
-      price: item.price.toString(), 
+      price: item.price, 
+      category_id: item.category_id || "",
       name_en: item.name_en || "", 
       name_es: item.name_es || "", 
       description_en: item.description_en || "", 
-      description_es: item.description_es || "" 
+      description_es: item.description_es || "",
+      image_url: item.image_url || ""
     });
     setEditingId(item.id);
     setIsModalOpen(true);
@@ -198,7 +255,7 @@ export default function AdminMenu() {
 
   const filteredItems = items.filter((item) =>
     item.name_fr.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.category.toLowerCase().includes(searchTerm.toLowerCase())
+    (item.category_name && item.category_name.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   return (
@@ -215,13 +272,13 @@ export default function AdminMenu() {
       <div className="max-w-6xl mx-auto">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-12">
           <div>
-            <h1 className="text-4xl font-display font-bold uppercase tracking-wider text-kabuki-red">Administration</h1>
+            <h1 className="text-4xl font-display font-bold uppercase tracking-wider text-kabuki-red">Menu</h1>
             <button onClick={handleLogout} className="flex items-center gap-2 px-4 py-2 mt-4 text-[11px] font-bold text-gray-400 hover:text-white bg-neutral-900/50 border border-neutral-800 rounded-xl transition-all hover:bg-red-600/10 hover:border-red-600/40 uppercase tracking-[0.2em] shadow-inner">
               <LogOut size={14} /> Se déconnecter
             </button>
           </div>
           <button onClick={() => { resetForm(); setIsModalOpen(true); }} className="flex items-center gap-2 bg-kabuki-red hover:bg-red-700 text-white px-6 py-3 rounded-xl font-bold transition shadow-lg shadow-red-900/20 uppercase text-xs tracking-widest">
-             <Plus size={20} /> Nouveau Produit
+             <Plus size={20} /> Nouveau Plat
           </button>
         </div>
 
@@ -260,7 +317,7 @@ export default function AdminMenu() {
                           <div className="text-[10px] text-gray-500 line-clamp-1 italic">{item.description_fr}</div>
                         </div>
                       </td>
-                      <td className="p-5 text-center text-[10px] text-gray-400 font-bold uppercase">{item.category}</td>
+                      <td className="p-5 text-center text-[10px] text-gray-400 font-bold uppercase">{item.category_name}</td>
                       <td className="p-5 text-center">
                         <button onClick={() => toggleAvailability(item.id, item.is_available)} disabled={updatingId === item.id} className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all border ${item.is_available ? "bg-green-500/10 border-green-500/20 text-green-500" : "bg-red-500/10 border-red-500/20 text-red-500 shadow-[0_0_10px_rgba(239,68,68,0.2)]"}`}>
                           {updatingId === item.id ? <RefreshCw size={12} className="animate-spin" /> : item.is_available ? <><Power size={12} /> Actif</> : <><PowerOff size={12} /> Épuisé</>}
@@ -304,14 +361,14 @@ export default function AdminMenu() {
                 </div>
 
                 <div className="grid grid-cols-2 gap-6">
-                  <div><label className="text-[10px] uppercase text-gray-500 font-bold mb-2 block">Prix (CHF)</label><input type="number" step="0.05" className="w-full bg-black border border-neutral-800 p-3 rounded-xl outline-none focus:border-kabuki-red transition text-white" value={form.price} onChange={e => setForm({...form, price: e.target.value})} required /></div>
+                  <div><label className="text-[10px] uppercase text-gray-500 font-bold mb-2 block">Prix (CHF)</label><input type="number" step="0.05" className="w-full bg-black border border-neutral-800 p-3 rounded-xl outline-none focus:border-kabuki-red transition text-white" value={form.price} onChange={e => setForm({...form, price: Number(e.target.value)})} required /></div>
                   <div>
                     <label className="text-[10px] uppercase text-gray-500 font-bold mb-2 block">Catégorie</label>
-                    <select className="w-full bg-black border border-neutral-800 p-3 rounded-xl outline-none focus:border-kabuki-red transition text-white" value={form.category} onChange={e => setForm({...form, category: e.target.value})}>
-                      <option value="Makis">Makis</option>
-                      <option value="Sushis">Sushis</option>
-                      <option value="Les Signatures (Créations Kabuki)">Signatures</option>
-                      <option value="Box à Partager">Box</option>
+                    <select className="w-full bg-black border border-neutral-800 p-3 rounded-xl outline-none focus:border-kabuki-red transition text-white" value={form.category_id || ""} onChange={e => setForm({...form, category_id: e.target.value})} required>
+                      <option value="" disabled>Choisir une catégorie...</option>
+                      {categories.map(cat => (
+                        <option key={cat.id} value={cat.id}>{cat.name_fr}</option>
+                      ))}
                     </select>
                   </div>
                 </div>

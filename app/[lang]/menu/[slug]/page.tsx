@@ -2,9 +2,10 @@ import { notFound } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
 import Image from "next/image";
 import Reveal from "@/components/Reveal";
-import { Plus, Star, Info } from "lucide-react";
+import { Star, Info } from "lucide-react";
+// ✅ Import depuis le dossier components global
+import AddToCartWrapper from "@/components/AddToCartWrapper";
 
-// ✅ Définition des types pour Supabase
 interface Product {
   id: string;
   name: string;
@@ -20,7 +21,7 @@ interface Brand {
   desc: string;
   color: string;
   image: string;
-  products: Product[]; // Jointure Supabase
+  products: Product[];
 }
 
 const supabase = createClient(
@@ -35,14 +36,12 @@ export default async function MenuPage({
 }) {
   const { slug, lang } = await params;
 
-  // 1. Récupérer l'enseigne et ses produits
   const { data: brand, error } = await supabase
     .from("brands")
     .select("*, products(*)")
     .eq("slug", slug)
     .single();
 
-  // Cast manuel pour aider TypeScript car le retour de Supabase est générique
   const typedBrand = brand as Brand | null;
 
   if (error || !typedBrand) {
@@ -98,7 +97,7 @@ export default async function MenuPage({
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {typedBrand.products?.map((product, index) => (
               <Reveal key={product.id} delay={index * 0.1}>
-                <div className="glass-panel rounded-[2rem] p-6 group hover:border-white/20 transition-all duration-500 flex flex-col h-full">
+                <div className="glass-panel rounded-[2.5rem] p-6 group hover:border-white/20 transition-all duration-500 flex flex-col h-full">
                   <div className="relative aspect-video mb-6 overflow-hidden rounded-2xl bg-white/5">
                     <Image
                       src={product.image_url || "/images/placeholder-food.png"}
@@ -121,10 +120,17 @@ export default async function MenuPage({
                     {product.description}
                   </p>
 
-                  <button className="w-full py-4 rounded-xl bg-white/5 border border-white/10 text-[10px] font-black uppercase tracking-[0.2em] hover:bg-brand-primary hover:text-white transition-all duration-300 flex items-center justify-center gap-2">
-                    <Plus size={14} />
-                    {lang === 'fr' ? 'Ajouter au Panier' : 'Add to Cart'}
-                  </button>
+                  <AddToCartWrapper 
+                    lang={lang}
+                    item={{
+                      id: product.id,
+                      name: product.name,
+                      price: product.price,
+                      image_url: product.image_url,
+                      restaurant_id: typedBrand.id,
+                      restaurant_name: typedBrand.name
+                    }}
+                  />
                 </div>
               </Reveal>
             ))}

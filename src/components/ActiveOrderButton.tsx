@@ -1,51 +1,55 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
-import { PackageSearch } from "lucide-react";
+import { m, AnimatePresence } from "framer-motion";
+import { ShoppingBag } from "lucide-react";
+import { useCart } from "@/context/CartContext";
 import { useTranslation } from "@/context/LanguageContext";
 
 export default function ActiveOrderButton() {
-  const [orderId, setOrderId] = useState<string | null>(null);
-  const pathname = usePathname();
+  const { totalItems, totalPrice } = useCart();
   const { lang } = useTranslation();
 
-  useEffect(() => {
-    // Vérifier la présence d'une commande dans le LocalStorage
-    const checkActiveOrder = () => {
-      const savedOrder = localStorage.getItem("kabuki_active_order");
-      setOrderId(savedOrder);
-    };
-
-    // On vérifie au chargement du composant et à chaque changement de page
-    checkActiveOrder();
-  }, [pathname]);
-
-  // 🔴 On cache le bouton si le client est déjà sur la page de suivi !
-  if (pathname.includes("/track") || pathname.includes("/admin")) {
-    return null;
-  }
-
+  // On ne l'affiche que si le panier n'est pas vide
   return (
     <AnimatePresence>
-      {orderId && (
-        <motion.div
-          initial={{ opacity: 0, y: 50, scale: 0.8 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          exit={{ opacity: 0, scale: 0.8 }}
-          // Placement : en bas à droite (au-dessus de la barre mobile si besoin)
-          className="fixed bottom-24 right-4 md:bottom-10 md:right-10 z-[60]"
+      {totalItems > 0 && (
+        <m.div
+          initial={{ y: 100, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          exit={{ y: 100, opacity: 0 }}
+          className="fixed bottom-8 left-0 right-0 z-[60] flex justify-center pointer-events-none"
         >
-          <Link 
-            href={`/${lang}/track`}
-            className="flex items-center gap-3 bg-kabuki-red text-white px-5 py-3 rounded-full font-bold text-xs uppercase tracking-widest shadow-[0_0_20px_rgba(220,38,38,0.5)] hover:scale-105 transition-transform border border-red-400"
+          <button
+            onClick={() => {
+              // Ici, on déclenchera l'ouverture du CartDrawer
+              window.dispatchEvent(new Event("open-cart"));
+            }}
+            className="pointer-events-auto group relative flex items-center gap-6 bg-white text-black px-8 py-4 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.3)] hover:scale-105 transition-transform duration-300"
           >
-            <PackageSearch size={18} className="animate-pulse" />
-            <span>Suivre ma commande</span>
-          </Link>
-        </motion.div>
+            {/* Badge Quantité */}
+            <div className="absolute -top-3 -right-3 w-8 h-8 bg-brand-primary text-white text-[10px] font-black rounded-full flex items-center justify-center border-4 border-[#080808] group-hover:rotate-12 transition-transform">
+              {totalItems}
+            </div>
+
+            <div className="flex items-center gap-3">
+              <ShoppingBag size={20} />
+              <div className="flex flex-col items-start">
+                <span className="text-[8px] font-black uppercase tracking-[0.2em] opacity-40">
+                  {lang === 'fr' ? 'Votre Commande' : 'Your Order'}
+                </span>
+                <span className="text-sm font-display font-black uppercase italic">
+                  {totalPrice.toFixed(2)} CHF
+                </span>
+              </div>
+            </div>
+
+            <div className="h-8 w-[1px] bg-black/10" />
+
+            <span className="text-[10px] font-black uppercase tracking-widest group-hover:text-brand-primary transition-colors">
+              {lang === 'fr' ? 'Voir le panier' : 'View Cart'}
+            </span>
+          </button>
+        </m.div>
       )}
     </AnimatePresence>
   );

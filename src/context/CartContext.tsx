@@ -2,19 +2,19 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 
-// 1. Définition de la structure d'un plat (✅ MISE À JOUR MULTI-RESTOS)
+// 1. Structure d'un plat (Multi-enseignes)
 export interface MenuItem {
-  id: string; // ✅ Remplacé par string car Supabase utilise des UUID
+  id: string; 
   name: string;
   description?: string;
   price: number;
   image_url?: string;
   category?: string;
-  restaurant_id: string; // ✅ Ajouté pour la Cloud Kitchen
-  restaurant_name?: string; // ✅ Ajouté pour l'affichage visuel
+  restaurant_id: string; 
+  restaurant_name?: string; 
 }
 
-// 2. Un article du panier = un plat + une quantité
+// 2. Article du panier
 export interface CartItem extends MenuItem {
   quantity: number;
 }
@@ -22,42 +22,36 @@ export interface CartItem extends MenuItem {
 interface CartContextType {
   items: CartItem[];
   addToCart: (item: MenuItem) => void;
-  removeFromCart: (id: string) => void; // ✅ id en string
-  updateQuantity: (id: string, quantity: number) => void; // ✅ id en string
+  removeFromCart: (id: string) => void;
+  updateQuantity: (id: string, quantity: number) => void;
   clearCart: () => void;
   totalItems: number;
   totalPrice: number;
 }
 
-// 3. Création du Contexte
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
-// 4. Le Provider
 export function CartProvider({ children }: { children: ReactNode }) {
-  const [items, setItems] = useState<CartItem[]>([]);
-  const [isLoaded, setIsLoaded] = useState(false);
-
-  // 🔄 Charger le panier depuis la mémoire du navigateur au démarrage
-  useEffect(() => {
-    const savedCart = localStorage.getItem("kabuki_cart");
-    if (savedCart) {
-      try {
-        const parsedCart = JSON.parse(savedCart);
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        setItems(parsedCart);
-      } catch (e) {
-        console.error("Erreur de lecture du panier", e);
+  // ✅ Correction ESLint : Initialisation paresseuse pour éviter le useEffect au montage
+  const [items, setItems] = useState<CartItem[]>(() => {
+    if (typeof window !== "undefined") {
+      const savedCart = localStorage.getItem("planet_food_cart");
+      if (savedCart) {
+        try {
+          return JSON.parse(savedCart);
+        } catch (e) {
+          console.error("Erreur de lecture du panier", e);
+          return [];
+        }
       }
     }
-    setIsLoaded(true);
-  }, []);
+    return [];
+  });
 
   // 💾 Sauvegarder le panier à chaque modification
   useEffect(() => {
-    if (isLoaded) {
-      localStorage.setItem("kabuki_cart", JSON.stringify(items));
-    }
-  }, [items, isLoaded]);
+    localStorage.setItem("planet_food_cart", JSON.stringify(items));
+  }, [items]);
 
   const addToCart = (item: MenuItem) => {
     setItems((prev) => {
@@ -71,11 +65,11 @@ export function CartProvider({ children }: { children: ReactNode }) {
     });
   };
 
-  const removeFromCart = (id: string) => { // ✅ id en string
+  const removeFromCart = (id: string) => {
     setItems((prev) => prev.filter((i) => i.id !== id));
   };
 
-  const updateQuantity = (id: string, quantity: number) => { // ✅ id en string
+  const updateQuantity = (id: string, quantity: number) => {
     if (quantity < 1) {
       removeFromCart(id);
       return;
@@ -88,7 +82,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const clearCart = () => {
     setItems([]);
     if (typeof window !== 'undefined') {
-      localStorage.removeItem("kabuki_cart");
+      localStorage.removeItem("planet_food_cart");
     }
   };
 
@@ -112,7 +106,6 @@ export function CartProvider({ children }: { children: ReactNode }) {
   );
 }
 
-// 5. Hook personnalisé
 export function useCart() {
   const context = useContext(CartContext);
   if (context === undefined) {

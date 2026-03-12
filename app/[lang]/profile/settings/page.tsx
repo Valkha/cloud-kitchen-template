@@ -5,7 +5,7 @@ import { useUser } from "@/context/UserContext";
 import { ArrowLeft, CheckCircle, AlertTriangle, Save, Loader2 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import TransitionLink from "@/components/TransitionLink";
-import { motion, AnimatePresence } from "framer-motion";
+import { m, AnimatePresence } from "framer-motion";
 
 export default function SettingsPage() {
   const { user, profile } = useUser();
@@ -160,7 +160,7 @@ export default function SettingsPage() {
 
       <AnimatePresence>
         {showSuccess && (
-          <motion.div 
+          <m.div 
             initial={{ opacity: 0, y: 50 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 50 }}
@@ -168,7 +168,7 @@ export default function SettingsPage() {
           >
             <CheckCircle size={20} /> 
             <span className="text-[10px] font-bold uppercase tracking-widest">Profil mis à jour</span>
-          </motion.div>
+          </m.div>
         )}
       </AnimatePresence>
     </div>

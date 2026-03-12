@@ -6,7 +6,7 @@ import {
   Store, Plus, Trash2, ExternalLink, 
   Loader2, Power, PowerOff, Globe, Search
 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { m, AnimatePresence } from "framer-motion";
 import TransitionLink from "@/components/TransitionLink";
 import { useParams } from "next/navigation";
 
@@ -129,7 +129,7 @@ export default function PlatformRestaurantsPage() {
               <Loader2 className="animate-spin mx-auto text-kabuki-red" size={40} />
             </div>
           ) : filtered.map((resto) => (
-            <motion.div 
+            <m.div 
               layout
               key={resto.id}
               className={`bg-neutral-900 border rounded-[2.5rem] p-8 transition-all ${resto.is_active ? 'border-neutral-800' : 'border-red-900/20 opacity-60'}`}
@@ -170,7 +170,7 @@ export default function PlatformRestaurantsPage() {
                   Vue Client <ExternalLink size={12} />
                 </a>
               </div>
-            </motion.div>
+            </m.div>
           ))}
         </div>
       </div>
@@ -178,7 +178,7 @@ export default function PlatformRestaurantsPage() {
       <AnimatePresence>
         {isModalOpen && (
           <div className="fixed inset-0 bg-black/95 backdrop-blur-md z-[110] flex items-center justify-center p-4">
-            <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} className="bg-neutral-900 border border-neutral-800 p-8 rounded-[3rem] max-w-lg w-full shadow-2xl">
+            <m.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} className="bg-neutral-900 border border-neutral-800 p-8 rounded-[3rem] max-w-lg w-full shadow-2xl">
               <h2 className="text-2xl font-bold uppercase tracking-tighter mb-8 text-center">Nouveau Restaurant</h2>
               <form onSubmit={handleCreate} className="space-y-6">
                 <div>
@@ -196,7 +196,7 @@ export default function PlatformRestaurantsPage() {
                   </button>
                 </div>
               </form>
-            </motion.div>
+            </m.div>
           </div>
         )}
       </AnimatePresence>

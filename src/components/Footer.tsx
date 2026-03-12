@@ -4,6 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useTranslation } from "@/context/LanguageContext";
 import { Instagram, Facebook, MapPin, Phone, Globe } from "lucide-react"; 
+import { siteConfig } from "../../config/site"; // ✅ Import de la configuration
 
 export default function Footer() {
   const { t, lang } = useTranslation();
@@ -14,14 +15,20 @@ export default function Footer() {
     es: { mon: "Lunes", tueFri: "Martes - Viernes", satSun: "Sábado - Domingo", closed: "Cerrado", midi: "Mediodía", soir: "Noche" }
   }[lang as "fr" | "en" | "es"] || { mon: "Lundi", tueFri: "Mardi - Vendredi", satSun: "Samedi - Dimanche", closed: "Fermé", midi: "Midi", soir: "Soir" };
 
+  // ✅ Réseaux sociaux dynamiques (On filtre ceux qui sont vides)
   const socialLinks = [
-    { icon: <Instagram size={18} />, href: "https://www.instagram.com/kabuki_geneve/", label: "Instagram" },
-    { icon: <Facebook size={18} />, href: "https://facebook.com/kabukisushigeneve", label: "Facebook" },
-    { icon: <Globe size={18} />, href: "https://www.tripadvisor.ch/", label: "TripAdvisor" }, 
-  ];
+    { icon: <Instagram size={18} />, href: siteConfig.links.instagram, label: "Instagram" },
+    { icon: <Facebook size={18} />, href: siteConfig.links.facebook, label: "Facebook" },
+    { icon: <Globe size={18} />, href: siteConfig.url, label: "Website" }, 
+  ].filter(link => link.href !== "");
+
+  // Création dynamique de l'URL Google Maps en fonction de l'adresse du site
+  const mapUrl = `https://maps.google.com/?q=${encodeURIComponent(
+    `${siteConfig.contact.address.street}, ${siteConfig.contact.address.city}, ${siteConfig.contact.address.country}`
+  )}`;
 
   return (
-    <footer className="bg-kabuki-black text-white border-t border-neutral-800 pt-16 pb-8">
+    <footer className="bg-brand-black text-white border-t border-neutral-800 pt-16 pb-8">
       <div className="container mx-auto px-6">
         
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 mb-16">
@@ -31,10 +38,10 @@ export default function Footer() {
             <Link href={`/${lang}`} className="inline-block w-32" aria-label="Retour à l'accueil">
               <Image 
                 src="/images/logo.png" 
-                alt="Kabuki Sushi Logo" 
+                alt={`${siteConfig.name} Logo`} // ✅ Alt dynamique
                 width={150} 
                 height={150} 
-                sizes="(max-width: 768px) 120px, 150px" // ✅ FIX LCP : Indique la taille réelle rendue
+                sizes="(max-width: 768px) 120px, 150px"
                 className="w-full h-auto"
               />
             </Link>
@@ -48,7 +55,7 @@ export default function Footer() {
                   href={social.href}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="w-10 h-10 rounded-full bg-neutral-800 flex items-center justify-center text-gray-400 hover:bg-kabuki-red hover:text-white transition-all duration-300"
+                  className="w-10 h-10 rounded-full bg-neutral-800 flex items-center justify-center text-gray-400 hover:bg-brand-primary hover:text-white transition-all duration-300"
                   aria-label={social.label}
                 >
                   {social.icon}
@@ -59,7 +66,7 @@ export default function Footer() {
 
           {/* COLONNE 2 : LIENS RAPIDES */}
           <div>
-            <h3 className="text-lg font-display font-bold uppercase tracking-widest mb-6 border-l-4 border-kabuki-red pl-3">
+            <h3 className="text-lg font-display font-bold uppercase tracking-widest mb-6 border-l-4 border-brand-primary pl-3">
               {t.footer.linksTitle}
             </h3>
             <ul className="space-y-3 text-gray-400">
@@ -72,33 +79,40 @@ export default function Footer() {
 
           {/* COLONNE 3 : CONTACT */}
           <div>
-            <h3 className="text-lg font-display font-bold uppercase tracking-widest mb-6 border-l-4 border-kabuki-red pl-3">
+            <h3 className="text-lg font-display font-bold uppercase tracking-widest mb-6 border-l-4 border-brand-primary pl-3">
               {t.footer.contactTitle}
             </h3>
             <ul className="space-y-4 text-gray-400">
               <li className="flex items-start group">
                 <MapPin size={18} className="text-red-400 mr-3 shrink-0" />
                 <a 
-                  href="https://maps.google.com/?q=Kabuki+Sushi+1+Boulevard+de+la+Tour+1205+Genève" 
+                  href={mapUrl} 
                   target="_blank" 
                   rel="noopener noreferrer"
                   className="hover:text-white transition leading-snug"
                 >
-                  1 Boulevard de la Tour,<br/>1205 Genève, Suisse
+                  {/* ✅ Adresse dynamique */}
+                  {siteConfig.contact.address.street},<br/>
+                  {siteConfig.contact.address.zipCode} {siteConfig.contact.address.city}, {siteConfig.contact.address.country}
                 </a>
               </li>
               <li className="flex items-center group">
                 <Phone size={18} className="text-red-400 mr-3 shrink-0" />
-                <a href="tel:+41786041542" className="hover:text-white transition font-bold tracking-tighter">
-                  +41 78 604 15 42
+                <a 
+                  href={`tel:${siteConfig.contact.phone.replace(/\s+/g, '')}`} 
+                  className="hover:text-white transition font-bold tracking-tighter"
+                >
+                  {/* ✅ Téléphone dynamique */}
+                  {siteConfig.contact.phone}
                 </a> 
               </li>
             </ul>
           </div>
 
           {/* COLONNE 4 : HORAIRES */}
+          {/* Note : Pour un template Cloud Kitchen complet, les horaires pourraient aussi aller dans siteConfig plus tard */}
           <div>
-            <h3 className="text-lg font-display font-bold uppercase tracking-widest mb-6 border-l-4 border-kabuki-red pl-3">
+            <h3 className="text-lg font-display font-bold uppercase tracking-widest mb-6 border-l-4 border-brand-primary pl-3">
               {t.contact.opening}
             </h3>
             <ul className="space-y-4 text-gray-400 text-[10px] uppercase tracking-widest">
@@ -133,7 +147,8 @@ export default function Footer() {
 
         {/* COPYRIGHT & LÉGAL */}
         <div className="border-t border-neutral-800 pt-8 flex flex-col md:flex-row justify-between items-center text-[10px] text-gray-400 uppercase tracking-widest">
-          <p>© {new Date().getFullYear()} Kabuki Sushi Genève. All rights reserved.</p>
+          {/* ✅ Copyright dynamique */}
+          <p>© {new Date().getFullYear()} {siteConfig.name}. All rights reserved.</p>
           <div className="flex space-x-6 mt-4 md:mt-0">
             <Link 
               href={`/${lang}/mentions-legales`} 

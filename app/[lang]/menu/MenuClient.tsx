@@ -76,7 +76,7 @@ const MenuItemCard = memo(({ item, index, onClick }: { item: MenuItem; index: nu
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.05 }}
       onClick={() => onClick(item)}
-      className="bg-neutral-900/50 backdrop-blur-sm rounded-[2rem] overflow-hidden hover:border-brand-primary/50 transition-all duration-500 group border border-neutral-800 flex flex-col h-full cursor-pointer relative"
+      className="bg-neutral-900/50 backdrop-blur-sm rounded-[2rem] overflow-hidden hover:border-[var(--brand-primary)]/50 transition-all duration-500 group border border-neutral-800 flex flex-col h-full cursor-pointer relative"
     >
       <div className="w-full bg-black/40 relative aspect-square overflow-hidden p-4">
         <AnimatePresence>
@@ -85,10 +85,12 @@ const MenuItemCard = memo(({ item, index, onClick }: { item: MenuItem; index: nu
               initial={{ scale: 0, rotate: -20 }}
               animate={{ scale: 1, rotate: 0 }}
               exit={{ scale: 0, rotate: 20 }}
-              // ✅ AJOUT : Glow rouge et bordure technique
-              className="absolute top-4 left-4 z-20 bg-brand-primary text-white text-[10px] font-black w-7 h-7 rounded-full flex items-center justify-center border border-white/20 shadow-[0_0_15px_rgba(220,38,38,0.6)]"
+              style={{ 
+                backgroundColor: 'var(--brand-primary)',
+                boxShadow: '0 0 15px var(--brand-glow)' 
+              }}
+              className="absolute top-4 left-4 z-20 text-white text-[10px] font-black w-7 h-7 rounded-full flex items-center justify-center border border-white/20"
             >
-              {/* Reflet interne pour le relief */}
               <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-black/20 to-white/20 pointer-events-none" />
               <span className="relative z-10">{quantity}</span>
             </m.div>
@@ -120,7 +122,7 @@ const MenuItemCard = memo(({ item, index, onClick }: { item: MenuItem; index: nu
       <div className="p-5 flex flex-col flex-grow">
         <div className="flex-1 mb-4">
           <div className="flex justify-between items-start gap-2 mb-1">
-            <h3 className="text-sm font-bold text-white uppercase leading-tight font-display tracking-wide group-hover:text-brand-primary transition-colors">
+            <h3 className="text-sm font-bold text-white uppercase leading-tight font-display tracking-wide group-hover:text-[var(--brand-primary)] transition-colors">
               {displayName.split('(')[0]}
             </h3>
             <Info size={14} className="text-neutral-600 mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -149,8 +151,9 @@ const MenuItemCard = memo(({ item, index, onClick }: { item: MenuItem; index: nu
 
             <button 
               onClick={handleAdd}
+              style={{ color: quantity > 0 ? 'var(--brand-primary)' : 'inherit' }}
               className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${
-                quantity > 0 ? "text-brand-primary" : "bg-neutral-800 text-white hover:bg-brand-primary"
+                quantity > 0 ? "" : "bg-neutral-800 text-white hover:bg-[var(--brand-primary)]"
               }`}
             >
               <Plus size={14} strokeWidth={3} />
@@ -169,6 +172,16 @@ export default function MenuClient({ initialItems, restaurantSlug }: MenuClientP
   const [activeCategory, setActiveCategory] = useState("Tous");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedProduct, setSelectedProduct] = useState<MenuItem | null>(null);
+
+  // ✅ Logique de thème dynamique
+  const theme = useMemo(() => {
+    const themes: Record<string, { primary: string; glow: string }> = {
+      "planet-food": { primary: "#A855F7", glow: "rgba(168,85,247,0.6)" },
+      "burger-station": { primary: "#FACC15", glow: "rgba(250,204,21,0.6)" }, // Exemple
+      // Ajoute d'autres enseignes ici
+    };
+    return themes[restaurantSlug] || { primary: "#A855F7", glow: "rgba(168,85,247,0.6)" };
+  }, [restaurantSlug]);
 
   const filteredItems = useMemo(() => {
     const searchLower = searchQuery.toLowerCase();
@@ -190,18 +203,30 @@ export default function MenuClient({ initialItems, restaurantSlug }: MenuClientP
     }))
   ], [t.menu.all, t.menu.categories, rawCategories]);
 
-  return (
+ return (
     <LazyMotion features={domAnimation}>
-      <div className="bg-[#080808] min-h-screen pb-40">
+      <div 
+        className="bg-[#080808] min-h-screen pb-40"
+        style={{ 
+          // ✅ Plus besoin de directive ici, le "as React.CSSProperties" fait le travail
+          "--brand-primary": theme.primary, 
+          "--brand-glow": theme.glow 
+        } as React.CSSProperties}
+      >
         <div className="bg-black py-20 text-center relative overflow-hidden">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-brand-primary/10 via-transparent to-transparent opacity-50" />
+          <div 
+            className="absolute inset-0 opacity-50"
+            style={{ background: `radial-gradient(circle at center, ${theme.primary}1A 0%, transparent 70%)` }}
+          />
           <Reveal>
             <h1 className="text-5xl md:text-7xl font-display font-bold uppercase tracking-[0.2em] text-white relative z-10">
               {restaurantSlug.replace(/-/g, ' ')}
             </h1>
             <div className="flex items-center justify-center gap-4 mt-6">
                <div className="h-[1px] w-12 bg-neutral-800" />
-               <span className="text-[10px] font-black uppercase tracking-[0.5em] text-brand-primary">Planet Food Experience</span>
+               <span className="text-[10px] font-black uppercase tracking-[0.5em] text-[var(--brand-primary)]">
+                 {restaurantSlug.replace(/-/g, ' ')} Experience
+               </span>
                <div className="h-[1px] w-12 bg-neutral-800" />
             </div>
           </Reveal>
@@ -216,7 +241,7 @@ export default function MenuClient({ initialItems, restaurantSlug }: MenuClientP
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder={lang === "fr" ? "Explorer la carte..." : "Explore the menu..."}
-                className="w-full bg-neutral-900/50 border border-neutral-800 rounded-2xl py-4 pl-14 pr-6 text-sm text-white focus:border-brand-primary focus:ring-1 focus:ring-brand-primary/20 outline-none transition-all"
+                className="w-full bg-neutral-900/50 border border-neutral-800 rounded-2xl py-4 pl-14 pr-6 text-sm text-white focus:border-[var(--brand-primary)] focus:ring-1 focus:ring-[var(--brand-primary)]/20 outline-none transition-all"
               />
             </div>
 
@@ -233,10 +258,11 @@ export default function MenuClient({ initialItems, restaurantSlug }: MenuClientP
                       flex-shrink-0 px-8 py-3 rounded-full text-[10px] font-black uppercase tracking-[0.2em] 
                       transition-all duration-500 relative overflow-hidden border
                       ${isActive 
-                        ? "bg-white text-black shadow-[0_0_30px_rgba(255,255,255,0.35)] border-white" 
+                        ? "bg-white text-black border-white" 
                         : "bg-neutral-900/50 text-neutral-500 hover:text-white border-neutral-800"
                       }
                     `}
+                    style={isActive ? { boxShadow: `0 0 30px ${theme.glow}` } : {}}
                   >
                     {isActive && (
                       <m.div 

@@ -24,7 +24,7 @@ interface OrderData {
   id: string;
   pickup_time: string;
   status: string;
-  order_type: string;
+  type: string; // ✅ CORRECTION : 'order_type' devient 'type'
   driver_lat: number | null;
   driver_lng: number | null;
   order_items: OrderItem[];
@@ -45,14 +45,14 @@ export default function OrderTracker({ orderId }: OrderTrackerProps) {
       const { data, error } = await supabase
         .from("orders")
         .select(`
-          id, pickup_time, status, order_type, driver_lat, driver_lng,
+          id, pickup_time, status, type, driver_lat, driver_lng,
           order_items (
             id,
             product_name,
             quantity,
             restaurant_name
           )
-        `)
+        `) // ✅ CORRECTION : 'order_type' devient 'type'
         .eq("id", orderId)
         .single();
 
@@ -72,7 +72,6 @@ export default function OrderTracker({ orderId }: OrderTrackerProps) {
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "orders", filter: `id=eq.${orderId}` },
         (payload) => {
-          // ✅ Correction du type : payload.new est maintenant traité comme OrderData
           const newData = payload.new as OrderData;
           setOrder(prev => prev ? { ...prev, ...newData } : newData);
         }
@@ -101,7 +100,8 @@ export default function OrderTracker({ orderId }: OrderTrackerProps) {
   if (loading) return <div className="flex justify-center p-10"><Loader2 className="animate-spin text-brand-primary" /></div>;
   if (!order) return <div className="text-center p-10 text-gray-500 font-bold uppercase tracking-widest text-sm">Commande introuvable</div>;
 
-  const isDelivery = order.order_type === "Livraison";
+  // ✅ CORRECTION : Utilisation de 'order.type'
+  const isDelivery = order.type === "Livraison";
 
   const steps = isDelivery ? [
     { id: "paid", label: "Validée", icon: Receipt },

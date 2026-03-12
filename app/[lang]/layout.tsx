@@ -6,6 +6,8 @@ import { CartProvider } from "@/context/CartContext";
 import { UserProvider } from "@/context/UserContext"; 
 import LayoutClient from "@/components/LayoutClient"; 
 import ActiveOrderButton from "@/components/ActiveOrderButton";
+// ✅ CORRECTION : Utilisation du chemin relatif pour éviter les erreurs d'alias TypeScript
+import { siteConfig } from "../../config/site"; 
 
 // Définition des polices
 const inter = Inter({ 
@@ -29,19 +31,19 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const resolvedParams = await params;
   const lang = resolvedParams.lang || 'fr';
-  const siteUrl = 'https://kabuki-sushi.ch';
+  const siteUrl = siteConfig.url;
 
   return {
     metadataBase: new URL(siteUrl),
     title: {
-      template: '%s | Kabuki Sushi Genève',
-      default: lang === 'en' ? 'Kabuki Sushi | Premium Japanese Restaurant in Geneva' : 'Kabuki Sushi | Restaurant Japonais de Prestige à Genève',
+      template: `%s | ${siteConfig.name}`,
+      default: lang === 'en' 
+        ? `${siteConfig.name} | Premium Restaurant` 
+        : `${siteConfig.name} | Votre Restaurant de Prestige`,
     },
-    description: lang === 'en' 
-      ? "Excellence in sushi in Geneva (Plainpalais). Enjoy our signature creations dining in, takeaway, or through our exceptional catering service."
-      : "L'excellence du sushi à Genève (Plainpalais). Savourez nos créations signatures sur place, à emporter ou via notre service traiteur d'exception.",
-    keywords: ["Sushi Genève", "Traiteur Japonais Genève", "Restaurant Japonais Plainpalais", "Livraison Sushi Genève", "Sushi Delivery Geneva"],
-    authors: [{ name: "Kabuki Sushi" }],
+    description: siteConfig.description,
+    keywords: [siteConfig.name, "Restaurant", "Livraison", "Cloud Kitchen", "Takeaway"],
+    authors: [{ name: siteConfig.name }],
     alternates: {
       canonical: `${siteUrl}/${lang}`,
       languages: {
@@ -54,7 +56,7 @@ export async function generateMetadata({
       type: "website",
       locale: lang === 'fr' ? 'fr_CH' : lang === 'en' ? 'en_CH' : 'es_CH',
       url: `${siteUrl}/${lang}`,
-      title: "Kabuki Sushi | L'Art du Sushi à Genève",
+      title: `${siteConfig.name} | L'Excellence`,
       images: [{ url: "/images/og-image.jpg", width: 1200, height: 630 }],
     },
     icons: { icon: "/images/logo.png" },
@@ -70,9 +72,6 @@ export default async function RootLayout({
 }) {
   const resolvedParams = await params;
   const lang = resolvedParams.lang || 'fr';
-
-  // ✅ SÉCURITÉ #7 : Récupération du numéro via variable d'environnement
-  const contactPhone = process.env.NEXT_PUBLIC_CONTACT_PHONE || "";
 
   return (
     <html lang={lang} className={`${inter.variable} ${oswald.variable}`} suppressHydrationWarning>
@@ -92,17 +91,17 @@ export default async function RootLayout({
                   __html: JSON.stringify({
                     "@context": "https://schema.org",
                     "@type": "Restaurant",
-                    "name": "Kabuki Sushi Genève",
+                    "name": siteConfig.name,
                     "address": {
                       "@type": "PostalAddress",
-                      "streetAddress": "1 Boulevard de la Tour",
-                      "addressLocality": "Genève",
-                      "postalCode": "1205",
-                      "addressCountry": "CH"
+                      "streetAddress": siteConfig.contact.address.street,
+                      "addressLocality": siteConfig.contact.address.city,
+                      "postalCode": siteConfig.contact.address.zipCode,
+                      "addressCountry": siteConfig.contact.address.country
                     },
-                    "telephone": contactPhone, // ✅ SÉCURITÉ #7 : Plus de numéro hardcodé
+                    "telephone": siteConfig.contact.phone,
                     "priceRange": "$$",
-                    "servesCuisine": "Japanese, Sushi"
+                    "servesCuisine": "Restaurant Cuisine"
                   })
                 }}
               />

@@ -20,7 +20,7 @@ export default function TransitionLink({ children, href, className, onClick, ...
 
     const hrefString = href.toString();
 
-    // ✅ NOUVEAU : GESTION INTELLIGENTE DES ANCRES (#)
+    // ✅ GESTION INTELLIGENTE DES ANCRES (#)
     if (hrefString.includes("#")) {
       const [path, hash] = hrefString.split("#");
       
@@ -38,11 +38,11 @@ export default function TransitionLink({ children, href, className, onClick, ...
     // Comportement standard pour un vrai changement de page
     e.preventDefault();
 
-    // 1. On lance le loader
+    // 1. On lance le loader via un CustomEvent
     const startEvent = new CustomEvent("start-loader");
     window.dispatchEvent(startEvent);
 
-    // 2. Sécurité Anti-Blocage
+    // 2. Sécurité Anti-Blocage (Force l'arrêt du loader après 2s max)
     const safetyTimeout = setTimeout(() => {
       window.dispatchEvent(new CustomEvent("stop-loader"));
     }, 2000);
@@ -53,6 +53,7 @@ export default function TransitionLink({ children, href, className, onClick, ...
     // 4. Changement de page
     router.push(hrefString);
 
+    // 5. On laisse un peu de temps à la nouvelle page pour charger avant d'arrêter le loader
     setTimeout(() => {
       window.dispatchEvent(new CustomEvent("stop-loader"));
       clearTimeout(safetyTimeout);

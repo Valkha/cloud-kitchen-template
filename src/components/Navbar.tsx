@@ -58,18 +58,17 @@ export default function Navbar({ onOpenCart }: NavbarProps) {
   ];
 
   return (
-    // ✅ Harmonisation : Utilisation de glass-panel et réduction de la bordure
     <nav className="glass-panel text-white fixed w-full z-50 border-b border-white/5 shadow-2xl">
       <div className="container mx-auto px-6 h-20 flex justify-between items-center">
         
-        {/* --- LOGO PLANET FOOD (Rocket + Text) --- */}
+        {/* --- LOGO PLANET FOOD (Violet Sweep) --- */}
         <TransitionLink 
           href={`/${lang}`} 
           className="flex items-center gap-3 group"
           onClick={() => setIsOpen(false)}
         >
           <div className="relative flex items-center justify-center">
-             {/* Lueur d'ambiance derrière l'icône */}
+            {/* Lueur d'ambiance violette */}
             <div className="absolute inset-0 bg-brand-primary/20 blur-lg rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
             
             <m.div
@@ -85,7 +84,7 @@ export default function Navbar({ onOpenCart }: NavbarProps) {
           </div>
 
           <span className="text-xl font-display font-black uppercase tracking-[0.2em] leading-none">
-            Planet <span className="text-brand-primary transition-all duration-300 group-hover:glow-red">Food</span>
+            Planet <span className="text-brand-primary transition-all duration-300 group-hover:glow-primary">Food</span>
           </span>
         </TransitionLink>
 
@@ -104,7 +103,7 @@ export default function Navbar({ onOpenCart }: NavbarProps) {
                 {isActive(link.path) && (
                   <m.div 
                     layoutId="activeNav"
-                    className="absolute -bottom-1 left-0 right-0 h-0.5 bg-brand-primary glow-red"
+                    className="absolute -bottom-1 left-0 right-0 h-0.5 bg-brand-primary glow-primary"
                     transition={{ type: "spring", stiffness: 380, damping: 30 }}
                   />
                 )}
@@ -142,14 +141,14 @@ export default function Navbar({ onOpenCart }: NavbarProps) {
               </button>
             )}
 
-            {/* Panier revisité avec Glow */}
+            {/* Panier avec Glow Violet */}
             <button onClick={onOpenCart} className="relative p-2 active:scale-90 transition-transform group">
               <ShoppingCart size={22} className="text-neutral-400 group-hover:text-white transition-colors" />
               <AnimatePresence>
                 {totalItems > 0 && (
                   <m.div 
                     initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}
-                    className="absolute -top-0.5 -right-0.5 bg-brand-primary text-white text-[9px] font-black w-5 h-5 flex items-center justify-center rounded-full border-2 border-brand-black shadow-[0_0_10px_rgba(230,0,18,0.5)]"
+                    className="absolute -top-0.5 -right-0.5 bg-brand-primary text-white text-[9px] font-black w-5 h-5 flex items-center justify-center rounded-full border-2 border-brand-black shadow-[0_0_12px_rgba(168,85,247,0.6)]"
                   >
                     {totalItems}
                   </m.div>
@@ -166,7 +165,7 @@ export default function Navbar({ onOpenCart }: NavbarProps) {
           <button onClick={onOpenCart} className="relative p-2 mr-2">
             <ShoppingCart size={22} />
             {totalItems > 0 && (
-               <span className="absolute top-0 right-0 bg-brand-primary text-white text-[8px] font-black w-4 h-4 rounded-full flex items-center justify-center border border-brand-black shadow-lg">
+               <span className="absolute top-0 right-0 bg-brand-primary text-white text-[8px] font-black w-4 h-4 rounded-full flex items-center justify-center border border-brand-black shadow-[0_0_10px_rgba(168,85,247,0.5)]">
                  {totalItems}
                </span>
             )}
@@ -180,7 +179,6 @@ export default function Navbar({ onOpenCart }: NavbarProps) {
         </div>
       </div>
 
-      {/* Menu Mobile revisité */}
       <AnimatePresence>
         {isOpen && (
           <m.div
@@ -192,7 +190,7 @@ export default function Navbar({ onOpenCart }: NavbarProps) {
                 <li key={link.path}>
                   <TransitionLink 
                     href={link.path} 
-                    className={`text-3xl font-display font-bold uppercase tracking-[0.2em] block transition-all ${isActive(link.path) ? "text-brand-primary glow-red" : "text-white"}`} 
+                    className={`text-3xl font-display font-bold uppercase tracking-[0.2em] block transition-all ${isActive(link.path) ? "text-brand-primary glow-primary" : "text-white"}`} 
                     onClick={() => setIsOpen(false)}
                   >
                     {link.name}
@@ -201,7 +199,7 @@ export default function Navbar({ onOpenCart }: NavbarProps) {
               ))}
               {!user && (
                  <li>
-                    <button onClick={() => { setIsAuthModalOpen(true); setIsOpen(false); }} className="text-xl font-display font-bold uppercase tracking-widest text-brand-primary border-b-2 border-brand-primary pb-1">
+                    <button onClick={() => { setIsAuthModalOpen(true); setIsOpen(false); }} className="text-xl font-display font-bold uppercase tracking-widest text-brand-primary border-b-2 border-brand-primary pb-1 glow-primary">
                       Connexion
                     </button>
                  </li>

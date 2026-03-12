@@ -1,33 +1,46 @@
 "use client";
+
 import { useEffect, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { m, AnimatePresence } from "framer-motion"; // ✅ Import de 'm' au lieu de 'motion'
+import { ChevronUp } from "lucide-react";
 
 export default function ScrollToTop() {
   const [isVisible, setIsVisible] = useState(false);
 
+  // Gère la visibilité au scroll
   useEffect(() => {
     const toggleVisibility = () => {
-      if (window.scrollY > 300) setIsVisible(true);
-      else setIsVisible(false);
+      if (window.scrollY > 300) {
+        setIsVisible(true);
+      } else {
+        setIsVisible(false);
+      }
     };
+
     window.addEventListener("scroll", toggleVisibility);
     return () => window.removeEventListener("scroll", toggleVisibility);
   }, []);
 
+  const scrollToTop = () => {
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth",
+    });
+  };
+
   return (
     <AnimatePresence>
       {isVisible && (
-        <motion.button
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-          className="fixed bottom-8 right-8 z-50 bg-[#E60012] text-white p-3 rounded-full shadow-lg"
+        <m.button // ✅ Utilisation de m.button pour la performance LazyMotion
+          initial={{ opacity: 0, scale: 0.5, y: 20 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.5, y: 20 }}
+          onClick={scrollToTop}
+          className="fixed bottom-24 right-6 z-[45] p-3 rounded-full bg-brand-primary text-white shadow-2xl hover:scale-110 transition-transform active:scale-95 border border-white/10"
+          aria-label="Retour en haut"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-6 h-6">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 15.75l7.5-7.5 7.5 7.5" />
-          </svg>
-        </motion.button>
+          <ChevronUp size={24} strokeWidth={3} />
+        </m.button>
       )}
     </AnimatePresence>
   );

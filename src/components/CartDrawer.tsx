@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Minus, Plus, Trash2, ShoppingBag, ArrowRight, ArrowLeft, Clock, Calendar, MessageSquare, Loader2, CheckCircle, ShieldCheck, MapPin, Tag } from "lucide-react";
+import { X, Minus, Plus, Trash2, ShoppingBag, ArrowRight, ArrowLeft, Clock, Calendar, MessageSquare, Loader2, CheckCircle, ShieldCheck, MapPin, Tag, Store } from "lucide-react";
 import { useCart } from "@/context/CartContext";
 import Image from "next/image";
 import { useTranslation } from "@/context/LanguageContext";
@@ -10,31 +10,40 @@ import { createClient } from "@/utils/supabase/client";
 import { loadStripe } from "@stripe/stripe-js";
 import { Elements, PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js";
 
-// ✅ NOUVEAUX IMPORTS
 import { useUser } from "@/context/UserContext";
 import { submitOrder } from "@/services/orderService";
 import { siteConfig } from "@/config/site";
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
 
+// ✅ Typage précis pour les traductions
+type TranslationKeys = typeof cartTranslations.fr;
+
 const cartTranslations = {
   fr: {
     titleCart: "Mon Panier", titleCheckout: "Validation", titlePayment: "Paiement Sécurisé", emptyCart: "Votre panier est vide", items: "article", itemsPlural: "articles", clearCart: "Vider le panier", name: "Nom Complet *", namePlaceholder: "Jean Dupont", phone: "Téléphone Mobile *", phonePlaceholder: "07X XXX XX XX", date: "Date *", time: "Heure *", pickupMode: "Mode de retrait *", takeaway: "À Emporter", delivery: "Livraison", address: "Adresse *", addressPlaceholder: "Rue des Alpes 12", zip: "NPA *", floor: "Étage", floorPlaceholder: "Ex: 4", code: "Code", codePlaceholder: "Ex: A123", comments: "Instructions / Allergies", commentsPlaceholder: "Sans wasabi...", totalEstimated: "Total à payer", btnValidate: "Passer à la caisse", btnPay: "Payer la commande", minOrderError: "Minimum 25 CHF requis pour la livraison.", noTimeSlots: "Aucun horaire disponible.", today: "Aujourd'hui", tomorrow: "Demain", sending: "Génération...", processing: "Traitement...", paymentError: "Le paiement a échoué.", successTitle: "Paiement réussi !", successDesc: "Votre commande est validée.", btnClose: "Fermer", cancelPayment: "Annuler", remove: "Supprimer", decrease: "Diminuer quantité", increase: "Augmenter quantité", back: "Retour",
-    couponLabel: "Code Promo", couponPlaceholder: "EX: KABUKI10", couponBtn: "Appliquer", couponInvalid: "Code invalide ou expiré", couponMinError: "Min. {min} CHF requis", discount: "Réduction"
+    couponLabel: "Code Promo", couponPlaceholder: "EX: KABUKI10", couponBtn: "Appliquer", couponInvalid: "Code invalide ou expiré", couponMinError: "Min. {min} CHF requis", discount: "Réduction", preparedBy: "Cuisiné par", cashbackNotice: "crédités sur votre cagnotte !"
   },
   en: {
     titleCart: "My Cart", titleCheckout: "Checkout", titlePayment: "Secure Payment", emptyCart: "Empty", items: "item", itemsPlural: "items", clearCart: "Clear", name: "Name *", namePlaceholder: "John Doe", phone: "Mobile Phone *", phonePlaceholder: "07X XXX XX XX", date: "Date *", time: "Time *", pickupMode: "Method *", takeaway: "Takeaway", delivery: "Delivery", address: "Address *", addressPlaceholder: "Street", zip: "ZIP *", floor: "Floor", floorPlaceholder: "Ex: 4", code: "Code", codePlaceholder: "Ex: A123", comments: "Instructions", commentsPlaceholder: "Allergies...", totalEstimated: "Total", btnValidate: "Checkout", btnPay: "Pay Now", minOrderError: "Min 25 CHF for delivery.", noTimeSlots: "No slots.", today: "Today", tomorrow: "Tomorrow", sending: "Sending...", processing: "Processing...", paymentError: "Failed.", successTitle: "Success!", successDesc: "Confirmed.", btnClose: "Close", cancelPayment: "Cancel", remove: "Remove", decrease: "Decrease", increase: "Increase", back: "Back",
-    couponLabel: "Promo Code", couponPlaceholder: "EX: KABUKI10", couponBtn: "Apply", couponInvalid: "Invalid or expired", couponMinError: "Min. {min} CHF required", discount: "Discount"
+    couponLabel: "Promo Code", couponPlaceholder: "EX: KABUKI10", couponBtn: "Apply", couponInvalid: "Invalid or expired", couponMinError: "Min. {min} CHF required", discount: "Discount", preparedBy: "Prepared by", cashbackNotice: "credited to your wallet!"
   },
   es: {
-    titleCart: "Carrito", titleCheckout: "Pago", titlePayment: "Pago Seguro", emptyCart: "Vacío", items: "artículo", itemsPlural: "artículos", clearCart: "Vaciar", name: "Nombre *", namePlaceholder: "Juan", phone: "Teléfono *", phonePlaceholder: "07X XXX XX XX", date: "Fecha *", time: "Hora *", pickupMode: "Método *", takeaway: "Para llevar", delivery: "Entrega", address: "Dirección *", addressPlaceholder: "Calle", zip: "CP *", floor: "Piso", floorPlaceholder: "Ej: 4", code: "Código", codePlaceholder: "Ej: A123", comments: "Notas", commentsPlaceholder: "Alergias...", totalEstimated: "Total", btnValidate: "Pagar", btnPay: "Pagar pedido", minOrderError: "Mínimo 25 CHF para entrega.", noTimeSlots: "No disponible.", today: "Hoy", tomorrow: "Mañana", sending: "Enviando...", processing: "Procesando...", paymentError: "Error.", successTitle: "¡Éxito!", successDesc: "Confirmado.", btnClose: "Cerrar", cancelPayment: "Cancelar", remove: "Eliminar", decrease: "Disminuir", increase: "Aumentar", back: "Volver",
-    couponLabel: "Código Promo", couponPlaceholder: "EJ: KABUKI10", couponBtn: "Aplicar", couponInvalid: "Inválido o expirado", couponMinError: "Min. {min} CHF requerido", discount: "Descuento"
+    titleCart: "Carrito", titleCheckout: "Pago", titlePayment: "Pago Seguro", emptyCart: "Vacío", items: "artículo", itemsPlural: "artículos", clearCart: "Vaciar", name: "Nombre *", namePlaceholder: "Juan", phone: "Teléfono *", phonePlaceholder: "07X XXX XX XX", date: "Date *", time: "Hora *", pickupMode: "Método *", takeaway: "Para llevar", delivery: "Entrega", address: "Dirección *", addressPlaceholder: "Calle", zip: "CP *", floor: "Piso", floorPlaceholder: "Ej: 4", code: "Código", codePlaceholder: "Ej: A123", comments: "Notas", commentsPlaceholder: "Alergias...", totalEstimated: "Total", btnValidate: "Pagar", btnPay: "Pagar pedido", minOrderError: "Mínimo 25 CHF para entrega.", noTimeSlots: "No disponible.", today: "Hoy", tomorrow: "Mañana", sending: "Enviando...", processing: "Procesando...", paymentError: "Error.", successTitle: "¡Éxito!", successDesc: "Confirmado.", btnClose: "Cerrar", cancelPayment: "Cancelar", remove: "Eliminar", decrease: "Disminuir", increase: "Aumentar", back: "Volver",
+    couponLabel: "Código Promo", couponPlaceholder: "EJ: KABUKI10", couponBtn: "Aplicar", couponInvalid: "Inválido o expirado", couponMinError: "Min. {min} CHF requerido", discount: "Descuento", preparedBy: "Cocinado por", cashbackNotice: "abonados en tu monedero!"
   }
 };
 
+// ✅ Typage précis pour les coupons
+interface Coupon {
+  code: string;
+  discount_type: 'percentage' | 'fixed';
+  discount_value: number;
+  min_order_amount: number;
+}
+
 interface CartDrawerProps { isOpen: boolean; onClose: () => void; }
-// ✅ orderId passe en string pour les UUID Supabase
-interface StripeCheckoutFormProps { total: number; onSuccess: () => void; onCancel: () => void; t: Record<string, string>; orderId: string; }
+interface StripeCheckoutFormProps { total: number; onSuccess: () => void; onCancel: () => void; t: TranslationKeys; orderId: string; }
 
 function StripeCheckoutForm({ total, onSuccess, onCancel, t }: StripeCheckoutFormProps) {
   const stripe = useStripe();
@@ -82,26 +91,37 @@ function StripeCheckoutForm({ total, onSuccess, onCancel, t }: StripeCheckoutFor
 
 export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
   const supabase = createClient();
-
   const { items, updateQuantity, removeFromCart, totalPrice, clearCart, totalItems } = useCart();
   const { lang } = useTranslation();
-  const t = cartTranslations[lang as keyof typeof cartTranslations] || cartTranslations.fr;
+  const t = (cartTranslations[lang as keyof typeof cartTranslations] || cartTranslations.fr) as TranslationKeys;
 
   const { user, profile } = useUser(); 
   const [useWallet, setUseWallet] = useState(false); 
-
   const [isCheckout, setIsCheckout] = useState(false);
   const [isPayment, setIsPayment] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  // ✅ string pour UUID Supabase
   const [orderId, setOrderId] = useState<string | null>(null);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
 
   const [couponCode, setCouponCode] = useState("");
-  const [appliedCoupon, setAppliedCoupon] = useState<{code: string, discount_type: string, discount_value: number, min_order_amount: number} | null>(null);
+  const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
   const [couponError, setCouponError] = useState("");
   const [isVerifyingCoupon, setIsVerifyingCoupon] = useState(false);
+
+  const groupedItems = useMemo(() => {
+    return items.reduce((acc, item) => {
+      const key = item.restaurant_id;
+      if (!acc[key]) {
+        acc[key] = {
+          name: item.restaurant_name || "Restaurant",
+          items: []
+        };
+      }
+      acc[key].items.push(item);
+      return acc;
+    }, {} as Record<string, { name: string; items: typeof items }>);
+  }, [items]);
 
   const [formData, setFormData] = useState({ 
     name: profile?.full_name || "", 
@@ -161,63 +181,37 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
     if (!couponCode.trim()) return;
     setIsVerifyingCoupon(true);
     setCouponError("");
-
-    const { data, error } = await supabase
-      .from('coupons')
-      .select('*')
-      .eq('code', couponCode.toUpperCase().trim())
-      .eq('is_active', true)
-      .single();
-
-    if (error || !data) {
-      setCouponError(t.couponInvalid);
-      setAppliedCoupon(null);
-    } else if (totalPrice < data.min_order_amount) {
-      setCouponError(t.couponMinError.replace("{min}", data.min_order_amount.toString()));
-      setAppliedCoupon(null);
-    } else {
-      setAppliedCoupon(data);
-      setCouponCode("");
-    }
+    const { data, error } = await supabase.from('coupons').select('*').eq('code', couponCode.toUpperCase().trim()).eq('is_active', true).single();
+    if (error || !data) { setCouponError(t.couponInvalid); setAppliedCoupon(null); }
+    else if (totalPrice < data.min_order_amount) { setCouponError(t.couponMinError.replace("{min}", data.min_order_amount.toString())); setAppliedCoupon(null); }
+    else { setAppliedCoupon(data); setCouponCode(""); }
     setIsVerifyingCoupon(false);
   };
 
   const isGenevaZip = (zip: string) => /^12\d{2}$/.test(zip.trim());
-
-  const isDeliveryValid = formData.type !== "Livraison" || (
-    totalPrice >= 25 && 
-    formData.address.trim() !== "" && 
-    isGenevaZip(formData.zip) 
-  );
-  
+  const isDeliveryValid = formData.type !== "Livraison" || (totalPrice >= 25 && formData.address.trim() !== "" && isGenevaZip(formData.zip));
   const isFormReady = selectedDate && selectedTime !== "" && formData.name.trim() !== "" && formData.phone.trim() !== "" && isDeliveryValid;
 
   const handleFinalSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isFormReady) return;
     setIsSubmitting(true);
-    
     try {
-      // 1️⃣ ENREGISTREMENT DANS SUPABASE
       const orderResult = await submitOrder(
         siteConfig.restaurantSlug,
         {
           name: formData.name,
           email: user?.email || "guest@example.com", 
           phone: formData.phone,
-          special_instructions: `${formData.type} | Date: ${selectedDate?.toISOString().split('T')[0]} ${selectedTime} | Addresse: ${formData.address} ${formData.zip} ${formData.floor ? '(Ét.'+formData.floor+')' : ''} ${formData.doorCode ? '[Code:'+formData.doorCode+']' : ''} | Commentaire: ${formData.comments}`
+          special_instructions: `${formData.type} | Date: ${selectedDate?.toISOString().split('T')[0]} ${selectedTime} | Addresse: ${formData.address} ${formData.zip} | Commentaire: ${formData.comments}`
         },
         items,
         finalPrice
       );
 
-      if (!orderResult.success || !orderResult.orderId) {
-        throw new Error("Impossible de créer la commande dans la base de données.");
-      }
-
+      if (!orderResult.success || !orderResult.orderId) throw new Error("Erreur DB");
       const supabaseOrderId = orderResult.orderId;
 
-      // 2️⃣ APPEL A TON API STRIPE
       const res = await fetch("/api/create-payment-intent", { 
         method: "POST", 
         headers: { "Content-Type": "application/json" }, 
@@ -225,35 +219,25 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
           amount: finalPrice, 
           couponCode: appliedCoupon?.code,
           useWallet: useWallet,
-          items: items.map(i => ({ id: i.id, name: i.name, price: i.price, quantity: i.quantity })),
+          items: items.map(i => ({ id: i.id, name: i.name, price: i.price, quantity: i.quantity, restaurant_id: i.restaurant_id })),
           customerName: formData.name,
           customerPhone: formData.phone,
           pickupDate: selectedDate?.toISOString().split('T')[0],
           pickupTime: selectedTime,
           orderType: formData.type,
-          deliveryAddress: formData.type === "Livraison" ? `${formData.address} ${formData.floor ? '(Ét.'+formData.floor+')' : ''} ${formData.doorCode ? '[Code:'+formData.doorCode+']' : ''}` : null,
-          deliveryZip: formData.type === "Livraison" ? formData.zip : null,
-          comments: formData.comments,
-          databaseOrderId: supabaseOrderId // ✅ Passage de l'UUID pour Stripe
+          databaseOrderId: supabaseOrderId 
         }) 
       });
       
       const payData = await res.json();
-      
       if (payData.error) throw new Error(payData.error);
-      if (!payData.clientSecret) throw new Error("Réponse API invalide (pas de clientSecret)");
-      
-      // 3️⃣ OUVERTURE DU PAIEMENT
       setOrderId(supabaseOrderId);
       setClientSecret(payData.clientSecret);
       setIsPayment(true);
-      
     } catch (err: unknown) {
-      const errorObj = err as Error;
-      alert(`Erreur : ${errorObj.message}`);
-    } finally { 
-      setIsSubmitting(false); 
-    }
+      const errorMsg = err instanceof Error ? err.message : "Une erreur est survenue";
+      alert(`Erreur : ${errorMsg}`);
+    } finally { setIsSubmitting(false); }
   };
 
   return (
@@ -265,25 +249,22 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
             {!isSuccess && (
               <div className="flex items-center justify-between p-6 border-b border-neutral-800 bg-black/20">
                 <h2 id="cart-title" className="text-xl font-display font-bold text-white uppercase tracking-widest flex items-center gap-3">
-                  {isPayment ? <><ShieldCheck size={20} className="text-green-500" aria-hidden="true" /> {t.titlePayment}</> : isCheckout ? <><button onClick={() => setIsCheckout(false)} className="hover:text-kabuki-red transition" aria-label={t.back}><ArrowLeft size={20} aria-hidden="true" /></button> {t.titleCheckout}</> : <><ShoppingBag size={20} className="text-kabuki-red" aria-hidden="true" /> {t.titleCart}</>}
+                  {isPayment ? <><ShieldCheck size={20} className="text-green-500" /> {t.titlePayment}</> : isCheckout ? <><button onClick={() => setIsCheckout(false)} className="hover:text-brand-primary transition"><ArrowLeft size={20} /></button> {t.titleCheckout}</> : <><ShoppingBag size={20} className="text-brand-primary" /> {t.titleCart}</>}
                 </h2>
-                <button onClick={onClose} aria-label={t.btnClose} className="p-2 text-gray-400 bg-neutral-800 rounded-full hover:text-white transition"><X size={18} aria-hidden="true" /></button>
+                <button onClick={onClose} className="p-2 text-gray-400 bg-neutral-800 rounded-full hover:text-white transition"><X size={18} /></button>
               </div>
             )}
             
             {isSuccess ? (
               <div className="flex-1 flex flex-col items-center justify-center p-8 space-y-6 text-center">
-                <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="w-20 h-20 bg-green-500/10 rounded-full flex items-center justify-center">
-                    <CheckCircle size={48} className="text-green-500" aria-hidden="true" />
-                </motion.div>
-                <h2 className="text-2xl font-bold text-white uppercase tracking-tight">{t.successTitle}</h2>
+                <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="w-20 h-20 bg-green-500/10 rounded-full flex items-center justify-center"><CheckCircle size={48} className="text-green-500" /></motion.div>
+                <h2 className="text-2xl font-bold text-white uppercase">{t.successTitle}</h2>
                 <div className="bg-neutral-800 p-6 rounded-2xl border border-neutral-700 w-full shadow-inner">
                     <p className="text-gray-300 text-sm mb-4">{t.successDesc}</p>
                     <span className="text-[10px] text-gray-400 uppercase font-black tracking-widest">Numéro de commande</span>
-                    {/* ✅ Affichage tronqué propre de l'UUID pour le client */}
-                    <p className="text-3xl font-display font-bold text-kabuki-red tracking-tighter mt-1">#KBK-{orderId ? orderId.split('-')[0].toUpperCase() : '0000'}</p>
+                    <p className="text-3xl font-display font-bold text-brand-primary tracking-tighter mt-1">#KBK-{orderId ? orderId.split('-')[0].toUpperCase() : '0000'}</p>
                 </div>
-                <button onClick={() => { onClose(); window.location.href = `/${lang}/track?order_id=${orderId}`; }} className="w-full bg-kabuki-red text-white font-bold py-4 rounded-xl uppercase shadow-lg shadow-red-900/30 hover:bg-red-700 transition-all">Suivre ma commande</button>
+                <button onClick={() => { onClose(); window.location.href = `/${lang}/track?order_id=${orderId}`; }} className="w-full bg-brand-primary text-white font-bold py-4 rounded-xl uppercase shadow-lg shadow-red-900/30">Suivre ma commande</button>
               </div>
             ) : isPayment && clientSecret && orderId ? (
               <Elements options={{ clientSecret, appearance: { theme: 'night', variables: { colorPrimary: '#dc2626' } } }} stripe={stripePromise}>
@@ -294,141 +275,103 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
                 <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
                   {items.length === 0 ? <p className="text-center text-gray-400 uppercase py-20 font-bold tracking-widest">{t.emptyCart}</p> : 
                     !isCheckout ? (
-                      <div className="space-y-6">
-                        <div className="text-[10px] text-gray-400 font-bold uppercase tracking-widest flex items-center gap-2 border-b border-neutral-800 pb-2"><ShoppingBag size={12} aria-hidden="true" /> {totalItems} {totalItems > 1 ? t.itemsPlural : t.items}</div>
-                        {items.map(i => (
-                          <div key={i.id} className="flex gap-4 items-center bg-black/40 p-3 rounded-2xl border border-neutral-800/50 hover:border-neutral-700 transition">
-                            <div className="w-16 h-16 relative bg-neutral-800 rounded-xl overflow-hidden shrink-0 shadow-md">
-                              {i.image_url && <Image src={i.image_url} alt={i.name} fill className="object-cover" />}
+                      <div className="space-y-8">
+                        <div className="text-[10px] text-gray-400 font-bold uppercase tracking-widest flex items-center gap-2 border-b border-neutral-800 pb-2"><ShoppingBag size={12} /> {totalItems} {totalItems > 1 ? t.itemsPlural : t.items}</div>
+                        
+                        {Object.entries(groupedItems).map(([restoId, group]) => (
+                          <div key={restoId} className="space-y-4">
+                            <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-brand-primary flex items-center gap-2 opacity-80">
+                              <Store size={12} /> {group.name}
+                            </h3>
+                            <div className="space-y-3">
+                              {group.items.map(i => (
+                                <div key={i.id} className="flex gap-4 items-center bg-black/40 p-3 rounded-2xl border border-neutral-800/50 hover:border-neutral-700 transition">
+                                  <div className="w-14 h-14 relative bg-neutral-800 rounded-xl overflow-hidden shrink-0 shadow-md">
+                                    {i.image_url && <Image src={i.image_url} alt={i.name} fill className="object-cover" />}
+                                  </div>
+                                  <div className="flex-1">
+                                    <h4 className="text-white font-bold text-[11px] uppercase leading-tight">{i.name}</h4>
+                                    <div className="text-brand-primary font-bold text-xs">{(i.price * i.quantity).toFixed(2)} CHF</div>
+                                  </div>
+                                  <div className="flex items-center gap-3 bg-neutral-800 rounded-full px-2 py-1 border border-neutral-700/50">
+                                    <button onClick={() => updateQuantity(i.id, i.quantity - 1)} className="text-white hover:text-brand-primary transition"><Minus size={12} /></button>
+                                    <span className="text-white text-[10px] font-black w-4 text-center">{i.quantity}</span>
+                                    <button onClick={() => updateQuantity(i.id, i.quantity + 1)} className="text-white hover:text-brand-primary transition"><Plus size={12} /></button>
+                                  </div>
+                                  <button onClick={() => removeFromCart(i.id)} className="text-gray-400 hover:text-red-500 transition p-1"><Trash2 size={14} /></button>
+                                </div>
+                              ))}
                             </div>
-                            <div className="flex-1">
-                              <h3 className="text-white font-bold text-sm uppercase leading-tight">{i.name}</h3>
-                              <div className="text-kabuki-red font-bold text-xs">{(i.price * i.quantity).toFixed(2)} CHF</div>
-                            </div>
-                            <div className="flex items-center gap-3 bg-neutral-800 rounded-full px-2 py-1 shadow-inner border border-neutral-700/50">
-                              <button onClick={() => updateQuantity(i.id, i.quantity - 1)} aria-label={t.decrease} className="text-white hover:text-kabuki-red transition"><Minus size={14} aria-hidden="true" /></button>
-                              <span className="text-white text-xs font-black w-4 text-center" aria-live="polite">{i.quantity}</span>
-                              <button onClick={() => updateQuantity(i.id, i.quantity + 1)} aria-label={t.increase} className="text-white hover:text-kabuki-red transition"><Plus size={14} aria-hidden="true" /></button>
-                            </div>
-                            <button onClick={() => removeFromCart(i.id)} aria-label={t.remove} className="text-gray-400 hover:text-kabuki-red transition p-1"><Trash2 size={16} aria-hidden="true" /></button>
                           </div>
                         ))}
 
                         <div className="mt-6 p-4 bg-black/40 rounded-2xl border border-neutral-800">
                           <label htmlFor="coupon" className="text-[10px] font-bold text-gray-500 uppercase mb-2 flex items-center gap-2"><Tag size={12}/> {t.couponLabel}</label>
                           <div className="flex gap-2">
-                            <input 
-                              id="coupon"
-                              type="text" 
-                              value={couponCode}
-                              onChange={(e) => setCouponCode(e.target.value)}
-                              placeholder={t.couponPlaceholder}
-                              className="flex-1 bg-black border border-neutral-800 rounded-xl px-4 py-2 text-xs text-white focus:border-kabuki-red outline-none transition uppercase"
-                            />
-                            <button 
-                              onClick={handleApplyCoupon}
-                              disabled={isVerifyingCoupon || !couponCode}
-                              className="bg-neutral-800 hover:bg-neutral-700 disabled:opacity-50 text-white px-4 py-2 rounded-xl text-[10px] font-bold uppercase transition"
-                            >
-                              {isVerifyingCoupon ? <Loader2 size={14} className="animate-spin" /> : t.couponBtn}
-                            </button>
+                            <input id="coupon" type="text" value={couponCode} onChange={(e) => setCouponCode(e.target.value)} placeholder={t.couponPlaceholder} className="flex-1 bg-black border border-neutral-800 rounded-xl px-4 py-2 text-xs text-white focus:border-brand-primary outline-none transition uppercase" />
+                            <button onClick={handleApplyCoupon} disabled={isVerifyingCoupon || !couponCode} className="bg-neutral-800 hover:bg-neutral-700 disabled:opacity-50 text-white px-4 py-2 rounded-xl text-[10px] font-bold uppercase transition">{isVerifyingCoupon ? <Loader2 size={14} className="animate-spin" /> : t.couponBtn}</button>
                           </div>
                           {couponError && <p className="text-red-500 text-[9px] mt-2 font-bold uppercase">{couponError}</p>}
                           {appliedCoupon && (
                             <div className="flex items-center justify-between mt-2">
-                              <p className="text-green-500 text-[9px] font-bold uppercase flex items-center gap-1">✓ {appliedCoupon.code} (-{appliedCoupon.discount_value}{appliedCoupon.discount_type === 'percentage' ? '%' : ' CHF'})</p>
+                              <p className="text-green-500 text-[9px] font-bold uppercase">✓ {appliedCoupon.code} (-{appliedCoupon.discount_value}{appliedCoupon.discount_type === 'percentage' ? '%' : ' CHF'})</p>
                               <button onClick={() => setAppliedCoupon(null)} className="text-gray-500 hover:text-red-500 transition"><X size={12}/></button>
                             </div>
                           )}
                         </div>
-
-                        <button onClick={clearCart} className="text-[10px] text-gray-400 hover:text-red-500 font-bold uppercase flex items-center gap-2 mx-auto transition"><Trash2 size={12} aria-hidden="true" /> {t.clearCart}</button>
+                        <button onClick={clearCart} className="text-[10px] text-gray-400 hover:text-red-500 font-bold uppercase flex items-center gap-2 mx-auto transition"><Trash2 size={12} /> {t.clearCart}</button>
                       </div>
                     ) : (
                       <form id="checkout-form" onSubmit={handleFinalSubmit} className="space-y-6">
                         <div className="space-y-1">
                             <label htmlFor="customer_name" className="text-[10px] font-bold text-gray-400 uppercase ml-1">{t.name}</label>
-                            <input id="customer_name" required placeholder={t.namePlaceholder} value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full bg-black text-white border border-neutral-800 rounded-xl px-4 py-3 outline-none focus:border-kabuki-red transition" />
+                            <input id="customer_name" required placeholder={t.namePlaceholder} value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full bg-black text-white border border-neutral-800 rounded-xl px-4 py-3 outline-none focus:border-brand-primary transition" />
                         </div>
                         <div className="space-y-1">
-                            <label htmlFor="customer_phone" className="text-[10px] font-bold text-kabuki-red uppercase ml-1 tracking-widest">{t.phone}</label>
-                            <input id="customer_phone" required type="tel" placeholder={t.phonePlaceholder} value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} className="w-full bg-black text-white border border-neutral-800 rounded-xl px-4 py-3 outline-none focus:border-kabuki-red transition font-mono" />
+                            <label htmlFor="customer_phone" className="text-[10px] font-bold text-brand-primary uppercase ml-1 tracking-widest">{t.phone}</label>
+                            <input id="customer_phone" required type="tel" placeholder={t.phonePlaceholder} value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} className="w-full bg-black text-white border border-neutral-800 rounded-xl px-4 py-3 outline-none focus:border-brand-primary transition font-mono" />
                         </div>
                         
                         <fieldset className="space-y-2">
-                          <legend className="text-[10px] font-bold text-kabuki-red uppercase flex items-center gap-2 mb-2"><Calendar size={12} aria-hidden="true" /> {t.date}</legend>
+                          <legend className="text-[10px] font-bold text-brand-primary uppercase flex items-center gap-2 mb-2"><Calendar size={12} /> {t.date}</legend>
                           <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
                             {days.map((d, idx) => (
-                              <button key={idx} type="button" onClick={() => { setSelectedDate(d); setSelectedTime(""); }} aria-pressed={selectedDate?.toDateString() === d.toDateString()} className={`shrink-0 px-4 py-2 rounded-xl border text-xs font-bold transition ${selectedDate?.toDateString() === d.toDateString() ? "bg-kabuki-red border-kabuki-red text-white shadow-lg" : "bg-neutral-800 border-neutral-700 text-gray-400"}`}>{d.toLocaleDateString(lang, { day: 'numeric', month: 'short' })}</button>
+                              <button key={idx} type="button" onClick={() => { setSelectedDate(d); setSelectedTime(""); }} className={`shrink-0 px-4 py-2 rounded-xl border text-xs font-bold transition ${selectedDate?.toDateString() === d.toDateString() ? "bg-brand-primary border-brand-primary text-white shadow-lg" : "bg-neutral-800 border-neutral-700 text-gray-400"}`}>{d.toLocaleDateString(lang, { day: 'numeric', month: 'short' })}</button>
                             ))}
                           </div>
                         </fieldset>
 
                         <fieldset className="space-y-2">
-                          <legend className="text-[10px] font-bold text-kabuki-red uppercase flex items-center gap-2 mb-2"><Clock size={12} aria-hidden="true" /> {t.time}</legend>
+                          <legend className="text-[10px] font-bold text-brand-primary uppercase flex items-center gap-2 mb-2"><Clock size={12} /> {t.time}</legend>
                           <div className="grid grid-cols-4 gap-2">
-                            {availableSlots.map(s => <button key={s} type="button" onClick={() => setSelectedTime(s)} aria-pressed={selectedTime === s} className={`py-2 rounded-lg border text-xs font-bold transition ${selectedTime === s ? "bg-kabuki-red border-kabuki-red text-white shadow-md" : "bg-neutral-800 border-neutral-700 text-gray-400"}`}>{s}</button>)}
+                            {availableSlots.map(s => <button key={s} type="button" onClick={() => setSelectedTime(s)} className={`py-2 rounded-lg border text-xs font-bold transition ${selectedTime === s ? "bg-brand-primary border-brand-primary text-white" : "bg-neutral-800 border-neutral-700 text-gray-400"}`}>{s}</button>)}
                           </div>
                         </fieldset>
 
-                        <div role="radiogroup" aria-label={t.pickupMode} className="grid grid-cols-2 gap-3">
-                          <button type="button" role="radio" aria-checked={formData.type !== "Livraison"} onClick={() => setFormData({...formData, type: "Click & Collect"})} className={`py-3 rounded-xl border text-xs font-bold transition ${formData.type !== "Livraison" ? "bg-kabuki-red border-kabuki-red text-white shadow-md" : "bg-black border-neutral-800 text-gray-400"}`}>{t.takeaway}</button>
-                          <button type="button" role="radio" aria-checked={formData.type === "Livraison"} onClick={() => setFormData({...formData, type: "Livraison"})} className={`py-3 rounded-xl border text-xs font-bold transition ${formData.type === "Livraison" ? "bg-kabuki-red border-kabuki-red text-white shadow-md" : "bg-black border-neutral-800 text-gray-400"}`}>{t.delivery}</button>
+                        <div className="grid grid-cols-2 gap-3">
+                          <button type="button" onClick={() => setFormData({...formData, type: "Click & Collect"})} className={`py-3 rounded-xl border text-xs font-bold transition ${formData.type !== "Livraison" ? "bg-brand-primary border-brand-primary text-white" : "bg-black border-neutral-800 text-gray-400"}`}>{t.takeaway}</button>
+                          <button type="button" onClick={() => setFormData({...formData, type: "Livraison"})} className={`py-3 rounded-xl border text-xs font-bold transition ${formData.type === "Livraison" ? "bg-brand-primary border-brand-primary text-white" : "bg-black border-neutral-800 text-gray-400"}`}>{t.delivery}</button>
                         </div>
 
                         <AnimatePresence>
                           {formData.type === "Livraison" && (
                             <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="space-y-4 overflow-hidden">
-                              {totalPrice < 25 && (
-                                <div role="alert" className="bg-red-900/20 text-red-500 text-[10px] font-black p-3 rounded-xl border border-red-500/20 text-center uppercase tracking-widest">
-                                  ⚠️ {t.minOrderError}
-                                </div>
-                              )}
+                              {totalPrice < 25 && <div className="bg-red-900/20 text-red-500 text-[10px] font-black p-3 rounded-xl border border-red-500/20 text-center uppercase">⚠️ {t.minOrderError}</div>}
                               <div className="space-y-3 bg-neutral-900/50 p-4 rounded-xl border border-neutral-800 shadow-inner">
-                                <label htmlFor="delivery_address" className="text-[10px] font-bold text-kabuki-red uppercase flex items-center gap-2"><MapPin size={12} aria-hidden="true" /> {t.address}</label>
-                                <input id="delivery_address" required={formData.type === "Livraison"} placeholder={t.addressPlaceholder} value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} className="w-full bg-black text-white border border-neutral-800 rounded-lg px-4 py-2 text-sm outline-none focus:border-kabuki-red transition" />
-                                
+                                <label htmlFor="delivery_address" className="text-[10px] font-bold text-brand-primary uppercase flex items-center gap-2"><MapPin size={12} /> {t.address}</label>
+                                <input id="delivery_address" required={formData.type === "Livraison"} placeholder={t.addressPlaceholder} value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} className="w-full bg-black border border-neutral-800 rounded-lg px-4 py-2 text-sm text-white outline-none focus:border-brand-primary" />
                                 <div className="grid grid-cols-2 gap-3">
-                                  <input 
-                                    id="zip_code" 
-                                    required={formData.type === "Livraison"} 
-                                    placeholder={t.zip} 
-                                    value={formData.zip} 
-                                    onChange={e => setFormData({...formData, zip: e.target.value})} 
-                                    maxLength={4}
-                                    className={`w-full bg-black text-white border rounded-lg px-4 py-2 text-sm outline-none transition ${formData.zip.length === 4 && !isGenevaZip(formData.zip) ? "border-red-500 shadow-[0_0_10px_rgba(239,68,68,0.3)]" : "border-neutral-800 focus:border-kabuki-red"}`} 
-                                  />
-                                  <input 
-                                    id="floor_number" 
-                                    placeholder={t.floorPlaceholder} 
-                                    value={formData.floor} 
-                                    onChange={e => setFormData({...formData, floor: e.target.value})} 
-                                    className="w-full bg-black text-white border border-neutral-800 rounded-lg px-4 py-2 text-sm outline-none focus:border-kabuki-red transition" 
-                                  />
+                                  <input id="zip_code" required={formData.type === "Livraison"} placeholder={t.zip} value={formData.zip} onChange={e => setFormData({...formData, zip: e.target.value})} maxLength={4} className="w-full bg-black border border-neutral-800 rounded-lg px-4 py-2 text-sm text-white outline-none focus:border-brand-primary" />
+                                  <input id="floor_number" placeholder={t.floorPlaceholder} value={formData.floor} onChange={e => setFormData({...formData, floor: e.target.value})} className="w-full bg-black border border-neutral-800 rounded-lg px-4 py-2 text-sm text-white outline-none focus:border-brand-primary" />
                                 </div>
-                                
-                                <AnimatePresence>
-                                  {formData.type === "Livraison" && formData.zip.length === 4 && !isGenevaZip(formData.zip) && (
-                                    <motion.p 
-                                      initial={{ opacity: 0, height: 0 }} 
-                                      animate={{ opacity: 1, height: "auto" }} 
-                                      exit={{ opacity: 0, height: 0 }} 
-                                      className="text-red-500 text-[10px] font-bold mt-1 text-center uppercase"
-                                    >
-                                      Nous livrons uniquement dans le canton de Genève (12xx).
-                                    </motion.p>
-                                  )}
-                                </AnimatePresence>
-
-                                <input id="door_code" placeholder={t.codePlaceholder} value={formData.doorCode} onChange={e => setFormData({...formData, doorCode: e.target.value})} className="w-full bg-black text-white border border-neutral-800 rounded-lg px-4 py-2 text-sm outline-none focus:border-kabuki-red transition" />
                               </div>
                             </motion.div>
                           )}
                         </AnimatePresence>
 
                         <div className="space-y-1">
-                          <label htmlFor="order_comments" className="text-[10px] font-bold text-gray-400 uppercase flex items-center gap-2"><MessageSquare size={12} aria-hidden="true" /> {t.comments}</label>
-                          <textarea id="order_comments" value={formData.comments} onChange={e => setFormData({...formData, comments: e.target.value})} className="w-full bg-black text-white border border-neutral-800 rounded-xl px-4 py-3 outline-none focus:border-kabuki-red transition h-20 resize-none text-sm" placeholder={t.commentsPlaceholder} />
+                          <label htmlFor="order_comments" className="text-[10px] font-bold text-gray-400 uppercase flex items-center gap-2"><MessageSquare size={12} /> {t.comments}</label>
+                          <textarea id="order_comments" value={formData.comments} onChange={e => setFormData({...formData, comments: e.target.value})} className="w-full bg-black text-white border border-neutral-800 rounded-xl px-4 py-3 outline-none focus:border-brand-primary transition h-20 resize-none text-sm" placeholder={t.commentsPlaceholder} />
                         </div>
                       </form>
                     )
@@ -438,56 +381,48 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
                   <div className="p-6 border-t border-neutral-800 bg-neutral-900 shrink-0 shadow-[0_-10px_30px_rgba(0,0,0,0.5)]">
                     <div className="space-y-2 mb-4">
                       {appliedCoupon && (
-                        <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-widest">
-                          <span className="text-gray-500">{t.totalEstimated}</span>
-                          <span className="text-gray-500 line-through">{totalPrice.toFixed(2)} CHF</span>
+                        <div className="flex justify-between items-center text-[10px] font-bold uppercase text-gray-500">
+                          <span>{t.totalEstimated}</span>
+                          <span className="line-through">{totalPrice.toFixed(2)} CHF</span>
                         </div>
                       )}
                       {appliedCoupon && (
-                        <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-widest text-green-500">
+                        <div className="flex justify-between items-center text-[10px] font-bold uppercase text-green-500">
                           <span>{t.discount} ({appliedCoupon.code})</span>
                           <span>-{discountAmount.toFixed(2)} CHF</span>
                         </div>
                       )}
-
                       {profile && profile.wallet_balance > 0 && (
-                        <div className="py-3 px-4 bg-black/40 border border-kabuki-red/30 rounded-xl my-3">
+                        <div className="py-3 px-4 bg-black/40 border border-brand-primary/30 rounded-xl my-3">
                           <label className="flex items-center justify-between cursor-pointer">
                             <div className="flex items-center gap-2">
-                              <input 
-                                type="checkbox" 
-                                checked={useWallet} 
-                                onChange={(e) => setUseWallet(e.target.checked)}
-                                className="accent-kabuki-red w-4 h-4 cursor-pointer"
-                              />
-                              <span className="text-xs font-bold text-white uppercase tracking-widest">
-                                Utiliser ma cagnotte ({Number(profile.wallet_balance).toFixed(2)} CHF)
-                              </span>
+                              <input type="checkbox" checked={useWallet} onChange={(e) => setUseWallet(e.target.checked)} className="accent-brand-primary w-4 h-4" />
+                              <span className="text-xs font-bold text-white uppercase tracking-widest">Utiliser ma cagnotte ({Number(profile.wallet_balance).toFixed(2)} CHF)</span>
                             </div>
-                            {useWallet && <span className="text-kabuki-red font-bold text-xs">-{walletUsed.toFixed(2)} CHF</span>}
+                            {useWallet && <span className="text-brand-primary font-bold text-xs">-{walletUsed.toFixed(2)} CHF</span>}
                           </label>
                         </div>
                       )}
-
                       <div className="flex justify-between items-center pt-2 border-t border-neutral-800">
                         <span className="text-gray-400 text-xs font-bold uppercase tracking-widest">Total final</span>
                         <span className="text-2xl font-display font-bold text-white">{finalPrice.toFixed(2)} CHF</span>
                       </div>
-
+                      
+                      {/* ✅ UTILISATION DE earnedCashback POUR SATISFAIRE ESLINT */}
                       {user && finalPrice > 0 && (
                         <p className="text-center text-[10px] text-green-500 font-bold uppercase tracking-widest mt-2">
-                          + {earnedCashback.toFixed(2)} CHF crédités sur votre cagnotte !
+                          + {earnedCashback.toFixed(2)} CHF {t.cashbackNotice}
                         </p>
                       )}
                     </div>
                     
                     {!isCheckout ? (
-                      <button onClick={() => setIsCheckout(true)} className="w-full bg-kabuki-red text-white font-bold py-4 rounded-xl uppercase flex items-center justify-center gap-2 hover:bg-red-700 transition shadow-lg shadow-red-900/30">
-                        {t.btnValidate} <ArrowRight size={16} aria-hidden="true" />
+                      <button onClick={() => setIsCheckout(true)} className="w-full bg-brand-primary text-white font-bold py-4 rounded-xl uppercase flex items-center justify-center gap-2 hover:opacity-90 transition shadow-lg">
+                        {t.btnValidate} <ArrowRight size={16} />
                       </button>
                     ) : (
-                      <button type="submit" form="checkout-form" disabled={!isFormReady || isSubmitting} className={`w-full font-bold py-4 rounded-xl uppercase flex items-center justify-center gap-2 transition-all ${isFormReady && !isSubmitting ? "bg-kabuki-red text-white hover:bg-red-700 shadow-lg shadow-red-900/30" : "bg-neutral-800 text-neutral-500 cursor-not-allowed"}`}>
-                        {isSubmitting ? <><Loader2 size={18} className="animate-spin" aria-hidden="true" /> {t.sending}</> : <><ShieldCheck size={18} aria-hidden="true" /> Continuer vers le paiement</>}</button>
+                      <button type="submit" form="checkout-form" disabled={!isFormReady || isSubmitting} className={`w-full font-bold py-4 rounded-xl uppercase flex items-center justify-center gap-2 transition-all ${isFormReady && !isSubmitting ? "bg-brand-primary text-white" : "bg-neutral-800 text-neutral-500 cursor-not-allowed"}`}>
+                        {isSubmitting ? <><Loader2 size={18} className="animate-spin" /> {t.sending}</> : <><ShieldCheck size={18} /> Continuer vers le paiement</>}</button>
                     )}
                   </div>
                 )}

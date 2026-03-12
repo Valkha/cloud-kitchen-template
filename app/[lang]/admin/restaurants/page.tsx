@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { 
-  Store, Plus, Trash2, ExternalLink, 
+  Store, Plus, Trash2, ExternalLink, Edit2, X,
   Loader2, Power, PowerOff, Globe, Search
 } from "lucide-react";
 import { m, AnimatePresence } from "framer-motion";
@@ -28,62 +28,92 @@ export default function PlatformRestaurantsPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-
+  
+  // État pour la modification
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState({ name: "", slug: "" });
 
   const fetchRestaurants = useCallback(async () => {
     setLoading(true);
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("restaurants")
       .select("*")
       .order("created_at", { ascending: false });
 
+    if (error) console.error("Erreur fetch:", error.message);
     if (data) setRestaurants(data);
     setLoading(false);
   }, [supabase]);
 
   useEffect(() => {
-    // ✅ Correction ESLint : on encapsule l'appel dans une fonction asynchrone
-    // pour éviter les déclenchements synchrones de setState
     const loadData = async () => {
       await fetchRestaurants();
     };
     loadData();
   }, [fetchRestaurants]);
 
-  const handleCreate = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
     
     const finalSlug = form.slug || form.name.toLowerCase().replace(/ /g, "-").replace(/[^\w-]+/g, "");
 
-    const { error: insertError } = await supabase
-      .from("restaurants")
-      .insert([{ name: form.name, slug: finalSlug, is_active: true }]);
+    if (editingId) {
+      // ✅ LOGIQUE DE MISE À JOUR
+      const { error } = await supabase
+        .from("restaurants")
+        .update({ name: form.name, slug: finalSlug })
+        .eq("id", editingId);
 
-    if (!insertError) {
-      setIsModalOpen(false);
-      setForm({ name: "", slug: "" });
-      fetchRestaurants();
+      if (error) {
+        alert("Erreur modification: " + error.message);
+      }
+    } else {
+      // ✅ LOGIQUE DE CRÉATION
+      const { error } = await supabase
+        .from("restaurants")
+        .insert([{ name: form.name, slug: finalSlug, is_active: true }]);
+
+      if (error) {
+        alert("Erreur création: " + error.message);
+      }
     }
+
+    setIsModalOpen(false);
+    setEditingId(null);
+    setForm({ name: "", slug: "" });
+    await fetchRestaurants(); 
     setIsSubmitting(false);
   };
 
+  const openEditModal = (resto: Restaurant) => {
+    setEditingId(resto.id);
+    setForm({ name: resto.name, slug: resto.slug });
+    setIsModalOpen(true);
+  };
+
   const toggleStatus = async (id: string, currentStatus: boolean) => {
-    const { error: updateError } = await supabase
+    const { error } = await supabase
       .from("restaurants")
       .update({ is_active: !currentStatus })
       .eq("id", id);
     
-    if (!updateError) {
+    if (!error) {
       setRestaurants(prev => prev.map(r => r.id === id ? { ...r, is_active: !currentStatus } : r));
     }
   };
 
   const deleteRestaurant = async (id: string, name: string) => {
-    if (!confirm(`Supprimer définitivement "${name}" et TOUS ses produits/commandes ?`)) return;
-    const { error: deleteError } = await supabase.from("restaurants").delete().eq("id", id);
-    if (!deleteError) setRestaurants(prev => prev.filter(r => r.id !== id));
+    if (!confirm(`Supprimer définitivement "${name}" et TOUS ses produits ?`)) return;
+    
+    const { error } = await supabase.from("restaurants").delete().eq("id", id);
+    
+    if (error) {
+      alert("Erreur suppression: " + error.message);
+    } else {
+      // ✅ Mise à jour de l'état local immédiate
+      setRestaurants(prev => prev.filter(r => r.id !== id));
+    }
   };
 
   const filtered = restaurants.filter(r => 
@@ -105,7 +135,7 @@ export default function PlatformRestaurantsPage() {
             </p>
           </div>
           <button 
-            onClick={() => setIsModalOpen(true)}
+            onClick={() => { setEditingId(null); setForm({name:"", slug:""}); setIsModalOpen(true); }}
             className="flex items-center gap-2 bg-white text-black hover:bg-kabuki-red hover:text-white px-6 py-3 rounded-xl font-black transition-all shadow-xl uppercase text-xs tracking-widest"
           >
             <Plus size={20} /> Ajouter une enseigne
@@ -132,6 +162,8 @@ export default function PlatformRestaurantsPage() {
             <m.div 
               layout
               key={resto.id}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
               className={`bg-neutral-900 border rounded-[2.5rem] p-8 transition-all ${resto.is_active ? 'border-neutral-800' : 'border-red-900/20 opacity-60'}`}
             >
               <div className="flex justify-between items-start mb-6">
@@ -139,6 +171,9 @@ export default function PlatformRestaurantsPage() {
                   <Store size={28} />
                 </div>
                 <div className="flex gap-2">
+                  <button onClick={() => openEditModal(resto)} className="p-2 text-blue-400 bg-blue-400/10 rounded-lg hover:bg-blue-400/20 transition-colors">
+                    <Edit2 size={18} />
+                  </button>
                   <button onClick={() => toggleStatus(resto.id, resto.is_active)} className={`p-2 rounded-lg transition-colors ${resto.is_active ? 'text-green-500 bg-green-500/10' : 'text-gray-500 bg-neutral-800'}`}>
                     {resto.is_active ? <Power size={18} /> : <PowerOff size={18} />}
                   </button>
@@ -156,14 +191,15 @@ export default function PlatformRestaurantsPage() {
               </div>
 
               <div className="grid grid-cols-2 gap-3">
+                {/* ✅ LIEN CORRIGÉ : On passe restaurantId en paramètre */}
                 <TransitionLink 
-                  href={`/${lang}/admin/menu?restaurant=${resto.slug}`}
+                  href={`/${lang}/admin/menu?restaurantId=${resto.id}`}
                   className="bg-neutral-800 hover:bg-neutral-700 text-white text-[10px] font-black uppercase py-3 rounded-xl text-center transition-colors"
                 >
                   Gérer Menu
                 </TransitionLink>
                 <a 
-                  href={`/${lang}/menu`} 
+                  href={`/${lang}/menu?restaurant=${resto.slug}`} 
                   target="_blank"
                   className="bg-kabuki-red/10 hover:bg-kabuki-red text-kabuki-red hover:text-white text-[10px] font-black uppercase py-3 rounded-xl text-center transition-all flex items-center justify-center gap-2"
                 >
@@ -178,9 +214,16 @@ export default function PlatformRestaurantsPage() {
       <AnimatePresence>
         {isModalOpen && (
           <div className="fixed inset-0 bg-black/95 backdrop-blur-md z-[110] flex items-center justify-center p-4">
-            <m.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} className="bg-neutral-900 border border-neutral-800 p-8 rounded-[3rem] max-w-lg w-full shadow-2xl">
-              <h2 className="text-2xl font-bold uppercase tracking-tighter mb-8 text-center">Nouveau Restaurant</h2>
-              <form onSubmit={handleCreate} className="space-y-6">
+            <m.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} className="bg-neutral-900 border border-neutral-800 p-8 rounded-[3rem] max-w-lg w-full shadow-2xl relative">
+              <button onClick={() => setIsModalOpen(false)} className="absolute top-8 right-8 text-gray-500 hover:text-white">
+                <X size={20} />
+              </button>
+
+              <h2 className="text-2xl font-bold uppercase tracking-tighter mb-8 text-center italic">
+                {editingId ? "Modifier l'enseigne" : "Nouveau Restaurant"}
+              </h2>
+
+              <form onSubmit={handleSubmit} className="space-y-6">
                 <div>
                   <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-2 ml-1">Nom de l&apos;enseigne</label>
                   <input required className="w-full bg-black border border-neutral-800 p-4 rounded-2xl outline-none focus:border-kabuki-red transition text-white font-bold" value={form.name} onChange={e => setForm({...form, name: e.target.value})} placeholder="Ex: Burger Factory" />
@@ -192,7 +235,7 @@ export default function PlatformRestaurantsPage() {
                 <div className="flex gap-4 pt-4">
                   <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 py-4 text-xs font-bold uppercase tracking-widest text-gray-500">Annuler</button>
                   <button type="submit" disabled={isSubmitting} className="flex-[2] bg-white text-black py-4 rounded-2xl font-black uppercase tracking-widest hover:bg-kabuki-red hover:text-white transition-all">
-                    {isSubmitting ? <Loader2 className="animate-spin mx-auto" size={20} /> : "Créer l'enseigne"}
+                    {isSubmitting ? <Loader2 className="animate-spin mx-auto" size={20} /> : (editingId ? "Enregistrer" : "Créer l'enseigne")}
                   </button>
                 </div>
               </form>

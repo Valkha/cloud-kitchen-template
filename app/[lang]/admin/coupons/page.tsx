@@ -7,7 +7,8 @@ import {
   CheckCircle2, AlertCircle, Power, PowerOff, 
   Calendar
 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+// ✅ Import de 'm' au lieu de 'motion' pour la compatibilité LazyMotion
+import { m, AnimatePresence } from "framer-motion";
 import { siteConfig } from "@/config/site";
 
 interface Coupon {
@@ -101,7 +102,6 @@ export default function AdminCouponsPage() {
       setForm({ code: "", discount_type: "percentage", discount_value: "", min_order_amount: "0", expiration_date: "" });
       fetchCoupons();
     } catch {
-      // ✅ Correction ESLint : suppression de la variable error inutilisée
       showToast("Ce code existe déjà ou est invalide", "error");
     } finally {
       setIsSubmitting(false);
@@ -115,7 +115,6 @@ export default function AdminCouponsPage() {
       setCoupons(prev => prev.map(c => c.id === id ? { ...c, is_active: !currentStatus } : c));
       showToast(currentStatus ? "Coupon désactivé" : "Coupon activé");
     } catch {
-      // ✅ Correction ESLint : suppression de la variable error inutilisée
       showToast("Erreur lors de la mise à jour", "error");
     }
   };
@@ -128,7 +127,6 @@ export default function AdminCouponsPage() {
       setCoupons(prev => prev.filter(c => c.id !== id));
       showToast("Coupon supprimé");
     } catch {
-      // ✅ Correction ESLint : suppression de la variable error inutilisée
       showToast("Erreur lors de la suppression", "error");
     }
   };
@@ -137,7 +135,7 @@ export default function AdminCouponsPage() {
     <div className="p-4 md:p-10 space-y-8 pb-24 text-white">
       <AnimatePresence>
         {toast && (
-          <motion.div 
+          <m.div 
             initial={{ opacity: 0, y: 50 }} 
             animate={{ opacity: 1, y: 0 }} 
             exit={{ opacity: 0 }} 
@@ -145,7 +143,7 @@ export default function AdminCouponsPage() {
           >
             {toast.type === 'success' ? <CheckCircle2 size={20} /> : <AlertCircle size={20} />}
             <span className="font-bold text-sm uppercase tracking-widest">{toast.message}</span>
-          </motion.div>
+          </m.div>
         )}
       </AnimatePresence>
 
@@ -168,7 +166,7 @@ export default function AdminCouponsPage() {
           <div className="col-span-full p-20 text-center border-2 border-dashed border-neutral-800 rounded-3xl text-neutral-600 font-bold uppercase tracking-widest">Aucun coupon actif</div>
         ) : (
           coupons.map((coupon) => (
-            <motion.div layout key={coupon.id} className={`relative bg-neutral-900 border rounded-[32px] p-6 transition-all ${coupon.is_active ? 'border-neutral-800' : 'border-red-900/20 opacity-60'}`}>
+            <m.div layout key={coupon.id} className={`relative bg-neutral-900 border rounded-[32px] p-6 transition-all ${coupon.is_active ? 'border-neutral-800' : 'border-red-900/20 opacity-60'}`}>
               <div className="flex justify-between items-start mb-6">
                 <div className="bg-black/40 px-4 py-2 rounded-xl border border-white/5 flex items-center gap-2">
                   <Ticket size={16} className="text-kabuki-red" />
@@ -202,7 +200,7 @@ export default function AdminCouponsPage() {
                   </div>
                 )}
               </div>
-            </motion.div>
+            </m.div>
           ))
         )}
       </div>
@@ -210,7 +208,8 @@ export default function AdminCouponsPage() {
       <AnimatePresence>
         {isModalOpen && (
           <div className="fixed inset-0 bg-black/95 backdrop-blur-md z-[110] flex items-center justify-center p-4">
-            <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} className="bg-neutral-900 border border-neutral-800 p-8 rounded-[40px] max-w-lg w-full shadow-2xl text-white">
+            {/* ✅ Changement de motion.div en m.div */}
+            <m.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} className="bg-neutral-900 border border-neutral-800 p-8 rounded-[40px] max-w-lg w-full shadow-2xl text-white">
               <div className="flex justify-between items-center mb-8">
                 <h2 className="text-2xl font-bold uppercase tracking-tighter">Nouveau Code Promo</h2>
                 <button onClick={() => setIsModalOpen(false)} className="bg-neutral-800 p-2 rounded-full hover:bg-neutral-700 transition"><X size={20}/></button>
@@ -246,7 +245,6 @@ export default function AdminCouponsPage() {
                     <input type="number" className="w-full bg-black border border-neutral-800 p-4 rounded-2xl outline-none focus:border-kabuki-red transition text-white" value={form.min_order_amount} onChange={e => setForm({...form, min_order_amount: e.target.value})} />
                   </div>
                   <div>
-                    {/* ✅ Correction ESLint : échappement de l'apostrophe pour le linter */}
                     <label className="text-[10px] uppercase text-gray-500 font-bold mb-2 block tracking-widest">Date d&apos;expiration</label>
                     <input type="date" className="w-full bg-black border border-neutral-800 p-4 rounded-2xl outline-none focus:border-kabuki-red transition text-white" value={form.expiration_date} onChange={e => setForm({...form, expiration_date: e.target.value})} />
                   </div>
@@ -256,7 +254,7 @@ export default function AdminCouponsPage() {
                   {isSubmitting ? <Loader2 className="animate-spin" size={20} /> : "Créer le coupon"}
                 </button>
               </form>
-            </motion.div>
+            </m.div>
           </div>
         )}
       </AnimatePresence>

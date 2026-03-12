@@ -49,10 +49,10 @@ export default function Navbar({ onOpenCart }: NavbarProps) {
     }
   };
 
-  // ✅ LIENS NETTOYÉS (Traiteur supprimé)
+  // ✅ LIENS ADAPTÉS POUR LA CLOUD KITCHEN
   const navLinks = [
     { name: t?.nav?.home || "Accueil", path: `/${lang}` },
-    { name: t?.nav?.menu || "Menu", path: `/${lang}/menu` },
+    { name: t?.nav?.brands || "Enseignes", path: `/${lang}#restaurants` }, // 👈 C'est ici que la magie opère
     { name: t?.nav?.contact || "Contact", path: `/${lang}/contact` },
   ];
 
@@ -163,7 +163,7 @@ export default function Navbar({ onOpenCart }: NavbarProps) {
             <ul className="space-y-8 text-center mt-12">
               {navLinks.map((link) => (
                 <li key={link.path}>
-                  <TransitionLink href={link.path} className={`text-3xl font-display font-bold uppercase tracking-widest block transition-colors ${isActive(link.path) ? "text-brand-primary" : "text-white hover:text-gray-300"}`}>
+                  <TransitionLink href={link.path} className={`text-3xl font-display font-bold uppercase tracking-widest block transition-colors ${isActive(link.path) ? "text-brand-primary" : "text-white hover:text-gray-300"}`} onClick={() => setIsOpen(false)}>
                     {link.name}
                   </TransitionLink>
                 </li>

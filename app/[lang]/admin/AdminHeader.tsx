@@ -10,15 +10,13 @@ import {
   ShoppingBag,
   Truck,
   BarChart3,
-  Ticket 
+  Ticket,
+  Store // ✅ Ajouté pour la gestion des restaurants
 } from "lucide-react";
-// ✅ CORRECTION IMPORT
 import { createClient } from "@/utils/supabase/client";
 
 export default function AdminHeader({ lang }: { lang: string }) {
-  // ✅ CORRECTION CLIENT : Initialisation du client
   const supabase = createClient();
-  
   const pathname = usePathname();
   const { t } = useTranslation();
 
@@ -41,6 +39,12 @@ export default function AdminHeader({ lang }: { lang: string }) {
       name: "Commandes", 
       path: `/${lang}/admin`, 
       icon: <ShoppingBag size={16} /> 
+    },
+    // ✅ NOUVEAU : Lien vers la gestion de la plateforme
+    { 
+      name: "Restaurants", 
+      path: `/${lang}/admin/restaurants`, 
+      icon: <Store size={16} /> 
     },
     { 
       name: t.nav.menu || "Carte", 
@@ -81,12 +85,12 @@ export default function AdminHeader({ lang }: { lang: string }) {
             </Link>
           </div>
 
-          <nav className="flex items-center gap-1 md:gap-2">
+          <nav className="flex items-center gap-1 md:gap-2 overflow-x-auto no-scrollbar">
             {adminLinks.map((link) => (
               <Link
                 key={link.path}
                 href={link.path}
-                className={`flex items-center gap-2 px-3 md:px-4 py-2.5 rounded-xl text-[10px] md:text-[11px] font-bold transition-all duration-300 ${
+                className={`flex items-center gap-2 px-3 md:px-4 py-2.5 rounded-xl text-[10px] md:text-[11px] font-bold transition-all duration-300 whitespace-nowrap ${
                   isActive(link.path)
                     ? "bg-kabuki-red text-white shadow-xl shadow-red-900/30"
                     : "text-gray-400 hover:text-white hover:bg-neutral-800/50"

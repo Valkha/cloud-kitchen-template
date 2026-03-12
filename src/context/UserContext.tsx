@@ -5,14 +5,22 @@ import { User } from "@supabase/supabase-js";
 import { createClient } from "@/utils/supabase/client";
 
 export type UserProfile = {
-  id: string; full_name: string | null; phone: string | null;
-  wallet_balance: number; is_admin: boolean; address: string | null;
-  zip_code: string | null; city: string | null;
+  id: string;
+  full_name: string | null;
+  phone: string | null;
+  wallet_balance: number;
+  is_admin: boolean; // ✅ C'est cette valeur qu'on veut !
+  address: string | null;
+  zip_code: string | null;
+  city: string | null;
 };
 
 type UserContextType = {
-  user: User | null; profile: UserProfile | null; loading: boolean;
-  refreshProfile: () => Promise<void>; signOut: () => Promise<void>;
+  user: User | null;
+  profile: UserProfile | null;
+  loading: boolean;
+  refreshProfile: () => Promise<void>;
+  signOut: () => Promise<void>;
 };
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
@@ -23,29 +31,36 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [supabase] = useState(() => createClient());
 
-  const fetchProfile = useCallback(async (silent = false) => {
+  const fetchProfile = useCallback(async (userId: string, silent = false) => {
     if (!silent) setLoading(true);
 
     try {
-      // ⚡ BYPASS CLIENT : On utilise l'API serveur pour lire le profil
-      const response = await fetch("/api/get-profile");
-      const data = await response.json();
+      console.log("[UserContext] Fetching direct profile for:", userId);
+      
+      // ✅ ON QUERY DIRECTEMENT SUPABASE AU LIEU DE L'API
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", userId)
+        .single();
 
-      if (response.ok) {
-        setProfile(data.profile);
-      } else {
+      if (error) {
+        console.error("[UserContext] Error fetching profile:", error.message);
         setProfile(null);
+      } else {
+        console.log("[UserContext] Profile loaded:", data.full_name, "| Admin:", data.is_admin);
+        setProfile(data as UserProfile);
       }
     } catch (err) {
-      console.error("[UserContext Fetch Error]:", err);
+      console.error("[UserContext] Catch Error:", err);
       setProfile(null);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [supabase]);
 
   const refreshProfile = async () => {
-    await fetchProfile(true);
+    if (user) await fetchProfile(user.id, true);
   };
 
   const signOut = async () => {
@@ -63,9 +78,11 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       async (event, session) => {
         if (session?.user) {
           setUser(session.user);
-          await fetchProfile();
+          await fetchProfile(session.user.id);
         } else {
-          setUser(null); setProfile(null); setLoading(false);
+          setUser(null);
+          setProfile(null);
+          setLoading(false);
         }
       }
     );

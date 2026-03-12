@@ -5,12 +5,13 @@ import { createClient } from "@/utils/supabase/client";
 import { 
   Search, Edit2, Trash2, Plus, X, Upload, Loader2, 
   CheckCircle2, AlertCircle, Wand2, 
-  LogOut, PowerOff, RefreshCw, Power
+  PowerOff, RefreshCw, Power, ArrowLeft
 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { m, AnimatePresence } from "framer-motion";
 import Image from "next/image";
 import { useTranslation } from "@/context/LanguageContext";
-import { siteConfig } from "@/config/site";
+import { useSearchParams, useRouter } from "next/navigation";
+import TransitionLink from "@/components/TransitionLink";
 
 interface MenuItem {
   id: string; 
@@ -36,10 +37,14 @@ interface Category {
 export default function AdminMenu() {
   const supabase = useMemo(() => createClient(), []);
   const { lang } = useTranslation(); 
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  
+  const targetRestaurantId = searchParams.get('restaurantId');
   
   const [items, setItems] = useState<MenuItem[]>([]);
   const [categories, setCategories] = useState<Category[]>([]); 
-  const [restaurantId, setRestaurantId] = useState<string | null>(null); 
+  const [restaurantName, setRestaurantName] = useState<string>(""); 
   
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
@@ -66,21 +71,26 @@ export default function AdminMenu() {
   }, []);
 
   const fetchMenuData = useCallback(async () => {
+    if (!targetRestaurantId) {
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     try {
       const { data: resto, error: restoError } = await supabase
         .from('restaurants')
-        .select('id')
-        .eq('slug', siteConfig.restaurantSlug)
+        .select('name')
+        .eq('id', targetRestaurantId)
         .single();
         
       if (restoError || !resto) throw new Error("Restaurant introuvable");
-      setRestaurantId(resto.id);
+      setRestaurantName(resto.name);
 
       const { data: cats, error: catsError } = await supabase
         .from('categories')
         .select('id, name_fr')
-        .eq('restaurant_id', resto.id)
+        .eq('restaurant_id', targetRestaurantId) 
         .order('order', { ascending: true });
         
       if (!catsError && cats) {
@@ -90,13 +100,12 @@ export default function AdminMenu() {
       const { data: products, error: prodError } = await supabase
         .from('products')
         .select(`*, categories (name_fr)`)
-        .eq('restaurant_id', resto.id)
+        .eq('restaurant_id', targetRestaurantId)
         .order('created_at', { ascending: false });
 
       if (prodError) throw prodError;
       
       if (products) {
-        // Remplacement du "any" par une intersection précise
         const formattedProducts = products.map((p: MenuItem & { categories?: { name_fr: string } | null }) => ({
           ...p,
           category_name: p.categories?.name_fr || 'Sans catégorie'
@@ -105,17 +114,30 @@ export default function AdminMenu() {
       }
 
     } catch (error: unknown) {
-      // Remplacement du "any" par "unknown" et casting en Error
       const err = error as Error;
       showToast(err.message, 'error');
     } finally {
       setLoading(false);
     }
-  }, [supabase, showToast]); 
+  }, [supabase, showToast, targetRestaurantId]); 
 
   useEffect(() => {
     fetchMenuData();
   }, [fetchMenuData]);
+
+  if (!targetRestaurantId) {
+    return (
+      <div className="p-4 md:p-10 bg-black min-h-screen text-white pt-24 md:pt-32 flex flex-col items-center justify-center text-center">
+        <AlertCircle size={48} className="text-kabuki-red mb-4" />
+        <h1 className="text-2xl font-bold uppercase tracking-widest mb-2">Aucun restaurant sélectionné</h1>
+        {/* ✅ LINTER FIX : Échappement des apostrophes et guillemets */}
+        <p className="text-gray-500 mb-8 max-w-md text-sm">Veuillez d&apos;abord choisir un restaurant dans l&apos;onglet &quot;Plateforme&quot; pour gérer son menu.</p>
+        <TransitionLink href={`/${lang}/admin/restaurants`} className="bg-white text-black px-6 py-3 rounded-xl font-black uppercase text-xs tracking-widest hover:bg-kabuki-red hover:text-white transition">
+          Retour aux enseignes
+        </TransitionLink>
+      </div>
+    );
+  }
 
   const toggleAvailability = async (id: string, currentStatus: boolean) => {
     setUpdatingId(id);
@@ -156,11 +178,6 @@ export default function AdminMenu() {
     }
   };
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    window.location.href = `/${lang}/login?logout=true`;
-  };
-
   async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
     try {
       setUploading(true);
@@ -184,13 +201,13 @@ export default function AdminMenu() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!restaurantId) return showToast("Erreur critique: Restaurant non identifié", "error");
+    if (!targetRestaurantId) return showToast("Erreur critique: Restaurant non identifié", "error");
     
     setActionLoading(true);
     const productData = { 
       ...form, 
       price: Number(form.price), 
-      restaurant_id: restaurantId,
+      restaurant_id: targetRestaurantId, 
       category_id: form.category_id || null 
     };
     
@@ -262,22 +279,27 @@ export default function AdminMenu() {
     <div className="p-4 md:p-10 bg-black min-h-screen text-white pt-24 md:pt-32">
       <AnimatePresence>
         {toast && (
-          <motion.div initial={{ opacity: 0, y: 50 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className={`fixed bottom-10 right-10 z-[100] flex items-center gap-3 px-6 py-4 rounded-2xl shadow-2xl border backdrop-blur-md ${toast.type === 'success' ? 'bg-neutral-900/90 border-green-500/50 text-green-400' : 'bg-neutral-900/90 border-red-500/50 text-red-400'}`}>
+          <m.div initial={{ opacity: 0, y: 50 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className={`fixed bottom-10 right-10 z-[100] flex items-center gap-3 px-6 py-4 rounded-2xl shadow-2xl border backdrop-blur-md ${toast.type === 'success' ? 'bg-neutral-900/90 border-green-500/50 text-green-400' : 'bg-neutral-900/90 border-red-500/50 text-red-400'}`}>
             {toast.type === 'success' ? <CheckCircle2 size={20} /> : <AlertCircle size={20} />}
             <span className="font-bold text-sm uppercase tracking-widest">{toast.message}</span>
-          </motion.div>
+          </m.div>
         )}
       </AnimatePresence>
 
       <div className="max-w-6xl mx-auto">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-12">
+        
+        <div className="mb-6 flex items-center gap-4 border-b border-neutral-800 pb-6">
+          <button onClick={() => router.push(`/${lang}/admin/restaurants`)} className="p-2 bg-neutral-900 rounded-full hover:bg-neutral-800 transition text-gray-400 hover:text-white">
+            <ArrowLeft size={20} />
+          </button>
           <div>
-            <h1 className="text-4xl font-display font-bold uppercase tracking-wider text-kabuki-red">Menu</h1>
-            <button onClick={handleLogout} className="flex items-center gap-2 px-4 py-2 mt-4 text-[11px] font-bold text-gray-400 hover:text-white bg-neutral-900/50 border border-neutral-800 rounded-xl transition-all hover:bg-red-600/10 hover:border-red-600/40 uppercase tracking-[0.2em] shadow-inner">
-              <LogOut size={14} /> Se déconnecter
-            </button>
+            <h2 className="text-gray-500 text-[10px] font-black uppercase tracking-[0.2em]">Gestion du Menu</h2>
+            <h1 className="text-2xl font-bold uppercase tracking-tight text-white">{restaurantName}</h1>
           </div>
-          <button onClick={() => { resetForm(); setIsModalOpen(true); }} className="flex items-center gap-2 bg-kabuki-red hover:bg-red-700 text-white px-6 py-3 rounded-xl font-bold transition shadow-lg shadow-red-900/20 uppercase text-xs tracking-widest">
+        </div>
+
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
+          <button onClick={() => { resetForm(); setIsModalOpen(true); }} className="flex items-center gap-2 bg-kabuki-red hover:bg-red-700 text-white px-6 py-3 rounded-xl font-bold transition shadow-lg shadow-red-900/20 uppercase text-xs tracking-widest ml-auto">
              <Plus size={20} /> Nouveau Plat
           </button>
         </div>
@@ -293,6 +315,11 @@ export default function AdminMenu() {
               <Loader2 className="animate-spin text-kabuki-red" size={40} />
               <p className="italic uppercase text-[10px] tracking-widest">Chargement...</p>
             </div>
+          ) : items.length === 0 ? (
+             <div className="p-20 text-center flex flex-col items-center gap-4 text-gray-500">
+               <AlertCircle size={40} className="text-neutral-700" />
+               <p className="uppercase text-xs font-bold tracking-widest">Aucun plat dans ce restaurant.</p>
+             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">
@@ -341,8 +368,8 @@ export default function AdminMenu() {
 
       <AnimatePresence>
         {isModalOpen && (
-          <div className="fixed inset-0 bg-black/95 backdrop-blur-md z-50 flex items-center justify-center p-4">
-            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="bg-neutral-900 border border-neutral-800 p-6 md:p-8 rounded-3xl max-w-4xl w-full shadow-2xl overflow-y-auto max-h-[90vh]">
+          <div className="fixed inset-0 bg-black/95 backdrop-blur-md z-[110] flex items-center justify-center p-4">
+            <m.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="bg-neutral-900 border border-neutral-800 p-6 md:p-8 rounded-3xl max-w-4xl w-full shadow-2xl overflow-y-auto max-h-[90vh]">
               <div className="flex justify-between items-center mb-8 border-b border-neutral-800 pb-4">
                 <h2 className="text-2xl font-bold uppercase tracking-tighter">{editingId ? "Modifier" : "Ajouter"}</h2>
                 <div className="flex items-center gap-3">
@@ -400,7 +427,7 @@ export default function AdminMenu() {
                   {actionLoading ? <Loader2 className="animate-spin" size={20} /> : (editingId ? "Sauvegarder" : "Ajouter")}
                 </button>
               </form>
-            </motion.div>
+            </m.div>
           </div>
         )}
       </AnimatePresence>

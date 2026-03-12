@@ -58,32 +58,52 @@ export default function PlatformRestaurantsPage() {
     
     const finalSlug = form.slug || form.name.toLowerCase().replace(/ /g, "-").replace(/[^\w-]+/g, "");
 
-    if (editingId) {
-      // ✅ LOGIQUE DE MISE À JOUR
-      const { error } = await supabase
-        .from("restaurants")
-        .update({ name: form.name, slug: finalSlug })
-        .eq("id", editingId);
+    try {
+      if (editingId) {
+        // ✅ On ajoute .select() pour obliger Supabase à nous renvoyer la ligne modifiée
+        const { data, error } = await supabase
+          .from("restaurants")
+          .update({ name: form.name, slug: finalSlug })
+          .eq("id", editingId)
+          .select();
 
-      if (error) {
-        alert("Erreur modification: " + error.message);
-      }
-    } else {
-      // ✅ LOGIQUE DE CRÉATION
-      const { error } = await supabase
-        .from("restaurants")
-        .insert([{ name: form.name, slug: finalSlug, is_active: true }]);
+        if (error) throw error;
+        
+        // Si data est vide, c'est que le RLS a bloqué la modification silencieusement
+        if (!data || data.length === 0) {
+          alert("Modification bloquée (RLS). Assurez-vous d'être bien reconnu comme Admin en base de données.");
+          setIsSubmitting(false);
+          return;
+        }
+      } else {
+        // ✅ Même chose pour la création
+        const { data, error } = await supabase
+          .from("restaurants")
+          .insert([{ name: form.name, slug: finalSlug, is_active: true }])
+          .select();
 
-      if (error) {
-        alert("Erreur création: " + error.message);
+        if (error) throw error;
+        
+        if (!data || data.length === 0) {
+          alert("Création bloquée (RLS). Vérifiez vos droits d'administrateur.");
+          setIsSubmitting(false);
+          return;
+        }
       }
+
+      // Si tout s'est bien passé, on ferme et on rafraîchit
+      setIsModalOpen(false);
+      setEditingId(null);
+      setForm({ name: "", slug: "" });
+      await fetchRestaurants(); 
+      
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : "Erreur inconnue";
+      console.error("Erreur de transaction:", err);
+      alert("Une erreur technique est survenue : " + errorMessage);
+    } finally {
+      setIsSubmitting(false);
     }
-
-    setIsModalOpen(false);
-    setEditingId(null);
-    setForm({ name: "", slug: "" });
-    await fetchRestaurants(); 
-    setIsSubmitting(false);
   };
 
   const openEditModal = (resto: Restaurant) => {

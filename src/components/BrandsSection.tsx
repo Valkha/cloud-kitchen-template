@@ -27,7 +27,7 @@ export default function BrandsSection() {
   useEffect(() => {
     async function fetchBrands() {
       try {
-        const response = await fetch('/api/brands');
+        const response = await fetch('/api/brands', { cache: 'no-store' });
         if (!response.ok) throw new Error("Erreur réseau");
         const data = await response.json();
         setBrands(data);

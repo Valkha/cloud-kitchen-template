@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, memo } from "react"; // ✅ useCallback retiré
+import { useState, useMemo, memo } from "react";
 import Image from "next/image";
 import { m, AnimatePresence, LazyMotion, domAnimation } from "framer-motion"; 
 import { Search, Info, Plus, Minus, ShoppingBag } from "lucide-react";
@@ -29,7 +29,7 @@ interface MenuClientProps {
 const MenuItemCard = memo(({ item, index, onClick }: { item: MenuItem; index: number; onClick: (item: MenuItem) => void }) => {
   const { lang } = useTranslation();
   const { items, addToCart, updateQuantity, removeFromCart } = useCart();
-  const [imgError, setImgError] = useState(false); // ✅ Utilisé maintenant
+  const [imgError, setImgError] = useState(false);
   const [isImageLoaded, setIsImageLoaded] = useState(false);
 
   const cartItem = items.find((i) => i.id === item.id);
@@ -82,12 +82,15 @@ const MenuItemCard = memo(({ item, index, onClick }: { item: MenuItem; index: nu
         <AnimatePresence>
           {quantity > 0 && (
             <m.div
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              exit={{ scale: 0 }}
-              className="absolute top-4 left-4 z-20 bg-brand-primary text-white text-[10px] font-black w-7 h-7 rounded-full flex items-center justify-center shadow-lg border border-white/10"
+              initial={{ scale: 0, rotate: -20 }}
+              animate={{ scale: 1, rotate: 0 }}
+              exit={{ scale: 0, rotate: 20 }}
+              // ✅ AJOUT : Glow rouge et bordure technique
+              className="absolute top-4 left-4 z-20 bg-brand-primary text-white text-[10px] font-black w-7 h-7 rounded-full flex items-center justify-center border border-white/20 shadow-[0_0_15px_rgba(220,38,38,0.6)]"
             >
-              {quantity}
+              {/* Reflet interne pour le relief */}
+              <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-black/20 to-white/20 pointer-events-none" />
+              <span className="relative z-10">{quantity}</span>
             </m.div>
           )}
         </AnimatePresence>
@@ -103,7 +106,7 @@ const MenuItemCard = memo(({ item, index, onClick }: { item: MenuItem; index: nu
                 isImageLoaded ? "opacity-100" : "opacity-0"
               }`}
               onLoad={() => setIsImageLoaded(true)}
-              onError={() => setImgError(true)} // ✅ setImgError est appelé ici
+              onError={() => setImgError(true)}
               priority={index < 6}
             />
           </div>
@@ -217,20 +220,36 @@ export default function MenuClient({ initialItems, restaurantSlug }: MenuClientP
               />
             </div>
 
-            <nav className="flex flex-nowrap overflow-x-auto md:justify-center gap-3 pb-2 no-scrollbar">
-              {filterCategories.map((cat) => (
-                <button
-                  key={cat.id}
-                  onClick={() => setActiveCategory(cat.id)}
-                  className={`flex-shrink-0 px-8 py-3 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${
-                    activeCategory === cat.id 
-                    ? "bg-white text-black shadow-[0_0_25px_rgba(255,255,255,0.2)]" 
-                    : "bg-neutral-900 text-neutral-500 hover:text-white border border-neutral-800"
-                  }`}
-                >
-                  {cat.label}
-                </button>
-              ))}
+            <nav className="flex flex-nowrap overflow-x-auto md:justify-center gap-4 pb-4 no-scrollbar">
+              {filterCategories.map((cat) => {
+                const isActive = activeCategory === cat.id;
+                return (
+                  <m.button
+                    key={cat.id}
+                    onClick={() => setActiveCategory(cat.id)}
+                    animate={isActive ? { scale: [1, 1.02, 1] } : { scale: 1 }}
+                    transition={{ repeat: Infinity, duration: 2.5, ease: "easeInOut" }}
+                    className={`
+                      flex-shrink-0 px-8 py-3 rounded-full text-[10px] font-black uppercase tracking-[0.2em] 
+                      transition-all duration-500 relative overflow-hidden border
+                      ${isActive 
+                        ? "bg-white text-black shadow-[0_0_30px_rgba(255,255,255,0.35)] border-white" 
+                        : "bg-neutral-900/50 text-neutral-500 hover:text-white border-neutral-800"
+                      }
+                    `}
+                  >
+                    {isActive && (
+                      <m.div 
+                        layoutId="active-glow-sweep"
+                        className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -skew-x-12"
+                        animate={{ x: ['-100%', '200%'] }}
+                        transition={{ repeat: Infinity, duration: 2, ease: "linear" }}
+                      />
+                    )}
+                    <span className="relative z-10">{cat.label}</span>
+                  </m.button>
+                );
+              })}
             </nav>
           </div>
         </div>

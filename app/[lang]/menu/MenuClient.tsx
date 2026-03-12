@@ -8,6 +8,7 @@ import Reveal from "@/components/Reveal";
 import { useTranslation } from "@/context/LanguageContext";
 import ProductModal from "@/components/ProductModal";
 import { useCart, MenuItem as ContextMenuItem } from "@/context/CartContext";
+import { siteConfig } from "../../../config/site"; // ✅ Import de la configuration
 
 export interface MenuItem extends ContextMenuItem {
   name_fr: string;
@@ -62,10 +63,9 @@ const MenuItemCard = memo(({ item, index, onClick }: { item: MenuItem; index: nu
   };
 
   return (
-    // ✅ RETRAIT DE m.div : On utilise une balise HTML standard div pour libérer 100% du CPU
     <div 
       onClick={() => onClick(item)}
-      className="bg-neutral-800 rounded-xl shadow-lg overflow-hidden hover:border-kabuki-red transition-colors duration-300 group border border-neutral-700 flex flex-col h-full cursor-pointer relative"
+      className="bg-neutral-800 rounded-xl shadow-lg overflow-hidden hover:border-brand-primary transition-colors duration-300 group border border-neutral-700 flex flex-col h-full cursor-pointer relative"
     >
       <div className="w-full bg-neutral-900 relative aspect-square overflow-hidden">
         <AnimatePresence>
@@ -74,7 +74,7 @@ const MenuItemCard = memo(({ item, index, onClick }: { item: MenuItem; index: nu
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
               exit={{ scale: 0 }}
-              className="absolute top-2 left-2 z-20 bg-kabuki-red text-white text-[10px] font-black w-6 h-6 rounded-full flex items-center justify-center shadow-lg border border-white/10"
+              className="absolute top-2 left-2 z-20 bg-brand-primary text-white text-[10px] font-black w-6 h-6 rounded-full flex items-center justify-center shadow-lg border border-white/10"
             >
               {quantity}
             </m.div>
@@ -103,8 +103,9 @@ const MenuItemCard = memo(({ item, index, onClick }: { item: MenuItem; index: nu
             )}
           </>
         ) : (
-          <div className="w-full h-full flex items-center justify-center bg-neutral-800 italic text-neutral-500 text-[10px] uppercase tracking-tighter">
-            KABUKI SUSHI
+          <div className="w-full h-full flex items-center justify-center bg-neutral-800 italic text-neutral-500 text-[10px] uppercase tracking-tighter px-4 text-center">
+            {/* ✅ Texte de secours dynamique */}
+            {siteConfig.name}
           </div>
         )}
         <div className="absolute top-2 right-2 bg-black/50 backdrop-blur-md p-1.5 rounded-full text-white opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
@@ -124,7 +125,8 @@ const MenuItemCard = memo(({ item, index, onClick }: { item: MenuItem; index: nu
 
         <div className="flex items-center justify-between gap-2 pt-2 border-t border-neutral-700/50">
           <span className="text-white font-bold text-[10px] whitespace-nowrap">
-            {Number(item.price).toFixed(2)} <span className="text-[7px] text-neutral-500 ml-0.5">CHF</span>
+            {/* ✅ Devise dynamique */}
+            {Number(item.price).toFixed(2)} <span className="text-[7px] text-neutral-500 ml-0.5">{siteConfig.currency}</span>
           </span>
 
           <div className="flex items-center bg-neutral-900 rounded-full p-0.5 border border-neutral-700">
@@ -148,7 +150,7 @@ const MenuItemCard = memo(({ item, index, onClick }: { item: MenuItem; index: nu
               onClick={handleAdd}
               aria-label="Plus"
               className={`w-7 h-7 rounded-full flex items-center justify-center transition-colors ${
-                quantity > 0 ? "text-kabuki-red" : "bg-neutral-700 text-white hover:bg-kabuki-red"
+                quantity > 0 ? "text-brand-primary" : "bg-neutral-700 text-white hover:bg-brand-primary"
               }`}
             >
               <Plus size={12} strokeWidth={3} />
@@ -198,12 +200,13 @@ export default function MenuClient({ initialItems }: MenuClientProps) {
     <LazyMotion features={domAnimation}>
       <div className="bg-[#080808] min-h-screen pb-32 pt-24 relative">
         <div className="bg-black text-white py-12 md:py-16 text-center relative overflow-hidden">
+          {/* Note: pattern-kimono.png pourrait être remplacé ou géré via la configuration à l'avenir */}
           <div className="absolute inset-0 bg-[url('/pattern-kimono.png')] opacity-5 z-0" aria-hidden="true"></div>
           <Reveal>
             <h1 className="text-4xl md:text-6xl font-display font-bold uppercase tracking-widest relative z-10">
               {t.menu.title}
             </h1>
-            <div className="w-12 h-1 bg-kabuki-red mx-auto mt-6 relative z-10"></div>
+            <div className="w-12 h-1 bg-brand-primary mx-auto mt-6 relative z-10"></div>
           </Reveal>
         </div>
 
@@ -217,7 +220,7 @@ export default function MenuClient({ initialItems }: MenuClientProps) {
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder={lang === "fr" ? "Rechercher..." : "Search..."}
                 aria-label="Rechercher un plat"
-                className="w-full bg-black border border-neutral-800 rounded-2xl py-2 pl-12 pr-4 text-xs text-white focus:border-kabuki-red outline-none shadow-xl transition-all"
+                className="w-full bg-black border border-neutral-800 rounded-2xl py-2 pl-12 pr-4 text-xs text-white focus:border-brand-primary outline-none shadow-xl transition-all"
               />
             </div>
 
@@ -229,7 +232,7 @@ export default function MenuClient({ initialItems }: MenuClientProps) {
                   aria-pressed={activeCategory === cat.id}
                   className={`flex-shrink-0 px-5 py-2 rounded-full text-[10px] font-bold uppercase tracking-widest border transition-all ${
                     activeCategory === cat.id 
-                    ? "bg-kabuki-red border-kabuki-red text-white" 
+                    ? "bg-brand-primary border-brand-primary text-white" 
                     : "bg-neutral-900 border-neutral-800 text-neutral-500 hover:text-white"
                   }`}
                 >

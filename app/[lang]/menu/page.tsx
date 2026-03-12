@@ -1,7 +1,7 @@
 import { Metadata } from "next";
 import MenuClient from "./MenuClient";
-// ✅ CORRECTION : Utilisation du client SERVEUR
 import { createClient } from "@/utils/supabase/server";
+import { siteConfig } from "../../../config/site"; // ✅ Import de la configuration globale
 
 // ✅ OPTIMISATION PERF : Mise en cache du menu côté serveur
 export const revalidate = 3600;
@@ -14,16 +14,17 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const resolvedParams = await params;
   const lang = resolvedParams.lang || "fr";
 
+  // ✅ SEO Dynamique et Vanillé
   const titles: Record<string, string> = {
-    fr: "Notre Carte | 97 Créations Originales",
-    en: "Our Menu | 97 Original Sushi Creations",
-    es: "Nuestra Carta | 97 Creaciones de Sushi",
+    fr: `Notre Carte | ${siteConfig.name}`,
+    en: `Our Menu | ${siteConfig.name}`,
+    es: `Nuestra Carta | ${siteConfig.name}`,
   };
 
   const descriptions: Record<string, string> = {
-    fr: "Découvrez nos 97 produits : Nigiris, Makis, Signatures et Box à partager. À emporter ou en livraison.",
-    en: "Explore our 97 products: Nigiris, Makis, Signatures, and Boxes to share. Takeaway or delivery.",
-    es: "Descubre nuestros 97 produits: Nigiris, Makis, Signatures y Boxes para compartir. Para llevar o a domicilio.",
+    fr: `Découvrez la carte de ${siteConfig.name}. Profitez de nos plats à emporter ou en livraison directe.`,
+    en: `Discover the menu at ${siteConfig.name}. Enjoy our dishes for takeaway or direct delivery.`,
+    es: `Descubre la carta de ${siteConfig.name}. Disfruta de nuestros platos para llevar o con entrega a domicilio.`,
   };
 
   return {

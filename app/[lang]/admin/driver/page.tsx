@@ -2,11 +2,12 @@
 
 import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { createClient } from "@/utils/supabase/client";
-import { Truck, MapPin, CheckCircle2, Navigation, Loader2, AlertTriangle } from "lucide-react";
+import { Truck, MapPin, CheckCircle2, Navigation, Loader2, AlertTriangle, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { siteConfig } from "@/config/site";
 
 interface Order {
-  id: number;
+  id: string; 
   customer_name: string;
   delivery_address: string;
   delivery_zip: string;
@@ -20,13 +21,13 @@ export default function DriverDashboard() {
 
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeDeliveryId, setActiveDeliveryId] = useState<number | null>(null);
+  const [activeDeliveryId, setActiveDeliveryId] = useState<string | null>(null);
   const [geoError, setGeoError] = useState<string | null>(null);
   
   const watchIdRef = useRef<number | null>(null);
 
-  // 🛡️ NOUVEAU : Fonction utilitaire pour communiquer avec l'API sécurisée
-  const updateOrderSecurely = async (payload: { orderId: number; status?: string; lat?: number; lng?: number }) => {
+  // Communication avec l'API sécurisée
+  const updateOrderSecurely = async (payload: { orderId: string; status?: string; lat?: number; lng?: number }) => {
     try {
       const res = await fetch('/api/driver/update-order', {
         method: 'PATCH',
@@ -43,21 +44,38 @@ export default function DriverDashboard() {
 
   const fetchDriverOrders = useCallback(async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from("orders")
-      .select("*")
-      .eq("order_type", "Livraison")
-      .in("status", ["Prête", "En livraison"])
-      .order("id", { ascending: true });
+    try {
+      // 1. Résolution de l'ID du restaurant (localement pour la requête)
+      const { data: resto, error: restoError } = await supabase
+        .from('restaurants')
+        .select('id')
+        .eq('slug', siteConfig.restaurantSlug)
+        .single();
+        
+      if (restoError || !resto) throw new Error("Restaurant introuvable");
 
-    if (error) {
-      console.error("[DIAG] Erreur chargement livraisons:", error);
-    } else if (data) {
-      setOrders(data as Order[]);
-      const active = data.find(o => o.status === "En livraison");
-      if (active) setActiveDeliveryId(active.id);
+      // 2. Récupération des livraisons pour ce restaurant
+      const { data, error } = await supabase
+        .from("orders")
+        .select("*")
+        .eq("restaurant_id", resto.id)
+        .eq("order_type", "Livraison")
+        .in("status", ["ready", "preparing", "shipped"]) 
+        .order("created_at", { ascending: true });
+
+      if (error) throw error;
+      
+      if (data) {
+        setOrders(data as Order[]);
+        const active = data.find(o => o.status === "shipped");
+        if (active) setActiveDeliveryId(active.id);
+      }
+    } catch (error: unknown) {
+      const err = error as Error;
+      console.error("[DIAG] Erreur livraisons :", err.message);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, [supabase]);
 
   useEffect(() => {
@@ -73,7 +91,7 @@ export default function DriverDashboard() {
     return () => { supabase.removeChannel(subscription); };
   }, [fetchDriverOrders, supabase]);
 
-  const startDelivery = async (orderId: number) => {
+  const startDelivery = async (orderId: string) => {
     if (!navigator.geolocation) {
       setGeoError("Le GPS n'est pas supporté par ce navigateur.");
       return;
@@ -81,22 +99,19 @@ export default function DriverDashboard() {
 
     setGeoError(null);
 
-    // ✅ SÉCURITÉ #4 : On passe par l'API au lieu de l'écriture directe client
-    const success = await updateOrderSecurely({ orderId, status: "En livraison" });
+    const success = await updateOrderSecurely({ orderId, status: "shipped" });
     
     if (success) {
       setActiveDeliveryId(orderId);
-      fetchDriverOrders();
-
+      
       watchIdRef.current = navigator.geolocation.watchPosition(
         async (position) => {
           const { latitude, longitude } = position.coords;
-          // ✅ SÉCURITÉ #4 : Mise à jour GPS via API
           await updateOrderSecurely({ orderId, lat: latitude, lng: longitude });
         },
         (error) => {
           setGeoError("Veuillez autoriser l'accès au GPS pour le suivi.");
-          console.error("[DIAG] Erreur GPS:", error);
+          console.error("[DIAG] Erreur GPS :", error);
         },
         {
           enableHighAccuracy: true,
@@ -107,14 +122,13 @@ export default function DriverDashboard() {
     }
   };
 
-  const endDelivery = async (orderId: number) => {
+  const endDelivery = async (orderId: string) => {
     if (watchIdRef.current !== null) {
       navigator.geolocation.clearWatch(watchIdRef.current);
       watchIdRef.current = null;
     }
 
-    // ✅ SÉCURITÉ #4 : Clôture via API (nettoyage lat/lng automatique côté serveur)
-    const success = await updateOrderSecurely({ orderId, status: "Livrée" });
+    const success = await updateOrderSecurely({ orderId, status: "delivered" });
 
     if (success) {
       setActiveDeliveryId(null);
@@ -122,12 +136,16 @@ export default function DriverDashboard() {
     }
   };
 
-  if (loading) return <div className="min-h-screen bg-black flex items-center justify-center"><Loader2 className="animate-spin text-kabuki-red" size={40} /></div>;
+  if (loading) return (
+    <div className="min-h-screen bg-black flex items-center justify-center">
+      <Loader2 className="animate-spin text-kabuki-red" size={40} />
+    </div>
+  );
 
   return (
-    <div className="min-h-screen bg-black text-white p-4 pb-24">
-      <div className="mb-6 pt-4">
-        <h1 className="text-2xl font-display font-bold uppercase flex items-center gap-3 tracking-widest text-white">
+    <div className="min-h-screen bg-black text-white p-4 pb-24 pt-20">
+      <div className="mb-6">
+        <h1 className="text-2xl font-display font-bold uppercase flex items-center gap-3 tracking-widest">
           <Truck className="text-kabuki-red" size={28} /> Espace Livreur
         </h1>
         <p className="text-gray-500 text-xs mt-1 uppercase font-bold tracking-widest">
@@ -138,7 +156,8 @@ export default function DriverDashboard() {
       {geoError && (
         <div className="bg-red-900/20 border border-red-500/30 p-4 rounded-2xl mb-6 flex items-start gap-3 text-red-400 text-sm">
           <AlertTriangle size={20} className="shrink-0" />
-          <p>{geoError}</p>
+          <div className="flex-1">{geoError}</div>
+          <button onClick={() => setGeoError(null)}><X size={16}/></button>
         </div>
       )}
 
@@ -162,14 +181,14 @@ export default function DriverDashboard() {
                 <div className="flex justify-between items-start mb-4">
                   <div>
                     <span className="bg-white text-black text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest">
-                      #KBK-{order.id}
+                      #ORD-{order.id.split('-')[0].toUpperCase()}
                     </span>
                     <h2 className="text-xl font-bold uppercase mt-2">{order.customer_name}</h2>
                     <a href={`tel:${order.customer_phone}`} className="text-blue-400 text-sm font-mono mt-1 block hover:underline">
                       📞 {order.customer_phone}
                     </a>
                   </div>
-                  <span className="font-display font-bold text-xl">{order.total_amount.toFixed(2)} CHF</span>
+                  <span className="font-display font-bold text-xl">{Number(order.total_amount).toFixed(2)} CHF</span>
                 </div>
 
                 <div className="bg-black/50 p-4 rounded-2xl border border-white/5 mb-6">
@@ -181,9 +200,8 @@ export default function DriverDashboard() {
                     </div>
                   </div>
                   
-                  {/* ✅ CORRECTION : Lien Google Maps valide */}
                   <a 
-                    href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(`${order.delivery_address}, ${order.delivery_zip}, Suisse`)}`}
+                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${order.delivery_address}, ${order.delivery_zip}, Suisse`)}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="mt-4 flex items-center justify-center gap-2 w-full bg-neutral-800 hover:bg-neutral-700 py-3 rounded-xl text-xs font-bold uppercase transition"

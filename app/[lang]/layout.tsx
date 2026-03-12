@@ -18,15 +18,15 @@ const oswald = Oswald({
   subsets: ["latin"], 
   variable: "--font-oswald",
   display: 'swap',
+  // ✅ Correction : On reste sur 400 et 700 (le max autorisé par le type)
   weight: ['400', '700'], 
 });
 
-// ✅ Ajout du Viewport pour le support PWA et mobile
 export const viewport: Viewport = {
-  themeColor: "#dc2626",
+  themeColor: "#A855F7",
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1, // Évite le zoom automatique sur les inputs iOS
+  maximumScale: 1, 
 };
 
 export async function generateMetadata({ 
@@ -40,8 +40,8 @@ export async function generateMetadata({
 
   return {
     metadataBase: new URL(siteUrl),
-    manifest: "/manifest.json", // ✅ Lien vers ton manifest PWA
-    appleWebApp: { // ✅ Optimisation pour Safari/iOS
+    manifest: "/manifest.json",
+    appleWebApp: { 
       capable: true,
       statusBarStyle: "default",
       title: siteConfig.name,
@@ -49,11 +49,11 @@ export async function generateMetadata({
     title: {
       template: `%s | ${siteConfig.name}`,
       default: lang === 'en' 
-        ? `${siteConfig.name} | Premium Restaurant` 
-        : `${siteConfig.name} | Votre Restaurant de Prestige`,
+        ? `${siteConfig.name} | Galactic Food Experience` 
+        : `${siteConfig.name} | Expérience Culinaire Galactique`,
     },
     description: siteConfig.description,
-    keywords: [siteConfig.name, "Restaurant", "Livraison", "Cloud Kitchen", "Takeaway"],
+    keywords: ["Planet Food", "Cloud Kitchen", "Gastronomie Galactique", "Livraison Premium"],
     authors: [{ name: siteConfig.name }],
     alternates: {
       canonical: `${siteUrl}/${lang}`,
@@ -67,12 +67,12 @@ export async function generateMetadata({
       type: "website",
       locale: lang === 'fr' ? 'fr_CH' : lang === 'en' ? 'en_CH' : 'es_CH',
       url: `${siteUrl}/${lang}`,
-      title: `${siteConfig.name} | L'Excellence`,
+      title: `${siteConfig.name} | Mission Control`,
       images: [{ url: "/images/og-image.jpg", width: 1200, height: 630 }],
     },
     icons: { 
       icon: "/images/logo.png",
-      apple: "/icons/icon-192x192.png", // ✅ Icône spécifique pour iPhone/iPad
+      apple: "/icons/icon-192x192.png",
     },
   };
 }
@@ -89,7 +89,7 @@ export default async function RootLayout({
 
   return (
     <html lang={lang} className={`${inter.variable} ${oswald.variable}`} suppressHydrationWarning>
-      <body className="antialiased flex flex-col min-h-screen bg-[#080808] text-white">
+      <body className="antialiased flex flex-col min-h-screen bg-[#080808] text-white overflow-x-hidden">
         <UserProvider>
           <LanguageProvider>
             <CartProvider>
@@ -99,7 +99,6 @@ export default async function RootLayout({
               
               <ActiveOrderButton />
 
-              {/* Schéma JSON-LD pour le SEO */}
               <script
                 type="application/ld+json"
                 dangerouslySetInnerHTML={{
@@ -115,8 +114,8 @@ export default async function RootLayout({
                       "addressCountry": siteConfig.contact.address.country
                     },
                     "telephone": siteConfig.contact.phone,
-                    "priceRange": "$$",
-                    "servesCuisine": "Premium Cuisine"
+                    "priceRange": "$$$",
+                    "servesCuisine": "Galactic Fusion"
                   })
                 }}
               />

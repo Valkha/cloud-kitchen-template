@@ -35,30 +35,57 @@ export default function OrderHistory() {
   const [loading, setLoading] = useState(true);
 
   const fetchOrders = useCallback(async () => {
-    if (!user) return;
+    if (!user) {
+      console.warn("[HISTORY_DEBUG] Aucun utilisateur détecté dans le contexte.");
+      return;
+    }
     
     try {
-      // 1. On récupère l'ID du restaurant actuel
-      const { data: resto } = await supabase
+      console.log("[HISTORY_DEBUG] Recherche du restaurant pour le slug:", siteConfig.restaurantSlug);
+      
+      const { data: resto, error: restoError } = await supabase
         .from('restaurants')
         .select('id')
         .eq('slug', siteConfig.restaurantSlug)
         .single();
 
-      if (!resto) return;
+      if (restoError) {
+        console.error("[HISTORY_DEBUG] Erreur table 'restaurants':", restoError.message, restoError.details);
+        return;
+      }
 
-      // 2. On récupère les commandes de l'utilisateur pour ce restaurant
-      const { data, error } = await supabase
+      if (!resto) {
+        console.warn("[HISTORY_DEBUG] Aucun restaurant trouvé avec ce slug.");
+        return;
+      }
+
+      console.log("[HISTORY_DEBUG] ID Restaurant trouvé:", resto.id, "| Recherche des commandes pour User:", user.id);
+
+      const { data, error: ordersError } = await supabase
         .from("orders")
         .select("id, created_at, total_amount, status")
         .eq("user_id", user.id)
         .eq("restaurant_id", resto.id)
         .order("created_at", { ascending: false });
 
-      if (error) throw error;
-      if (data) setOrders(data as Order[]);
-    } catch (err) {
-      console.error("[HISTORY_ERROR]:", err);
+      if (ordersError) {
+        console.error("[HISTORY_DEBUG] Erreur table 'orders' DETAILED:", {
+          message: ordersError.message,
+          code: ordersError.code,
+          details: ordersError.details,
+          hint: ordersError.hint
+        });
+        throw ordersError;
+      }
+
+      if (data) {
+        console.log(`[HISTORY_DEBUG] ${data.length} commande(s) récupérée(s).`);
+        setOrders(data as Order[]);
+      }
+    } catch (err: unknown) {
+      // ✅ Type 'unknown' utilisé avec une vérification d'instance pour satisfaire ESLint
+      const errorMessage = err instanceof Error ? err.message : "Erreur inconnue";
+      console.error("[HISTORY_ERROR_FINAL]:", errorMessage, err);
     } finally {
       setLoading(false);
     }

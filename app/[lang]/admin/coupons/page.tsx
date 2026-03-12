@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState, useCallback, useMemo } from "react";
-// ✅ CORRECTION IMPORT : On utilise la nouvelle méthode
 import { createClient } from "@/utils/supabase/client";
 import { 
   Ticket, Plus, Trash2, X, Loader2, 
@@ -9,9 +8,10 @@ import {
   Calendar
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { siteConfig } from "@/config/site";
 
 interface Coupon {
-  id: number;
+  id: string; 
   code: string;
   discount_type: 'percentage' | 'fixed';
   discount_value: number;
@@ -21,10 +21,10 @@ interface Coupon {
 }
 
 export default function AdminCouponsPage() {
-  // ✅ CORRECTION CLIENT : On initialise le client Supabase
   const supabase = useMemo(() => createClient(), []);
 
   const [coupons, setCoupons] = useState<Coupon[]>([]);
+  const [restaurantId, setRestaurantId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -32,87 +32,117 @@ export default function AdminCouponsPage() {
 
   const [form, setForm] = useState({
     code: "",
-    discount_type: "percentage",
+    discount_type: "percentage" as 'percentage' | 'fixed',
     discount_value: "",
     min_order_amount: "0",
     expiration_date: ""
   });
 
-  const showToast = (message: string, type: 'success' | 'error' = 'success') => {
+  const showToast = useCallback((message: string, type: 'success' | 'error' = 'success') => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 3000);
-  };
+  }, []);
 
   const fetchCoupons = useCallback(async () => {
-    // On ne met loading à true que si on n'a pas déjà de données (optionnel)
-    const { data, error } = await supabase
-      .from("coupons")
-      .select("*")
-      .order("created_at", { ascending: false });
-    
-    if (data) setCoupons(data as Coupon[]);
-    if (error) showToast(error.message, 'error');
-    setLoading(false);
-  }, [supabase]); // Ajout de supabase aux dépendances
+    setLoading(true);
+    try {
+      const { data: resto, error: restoError } = await supabase
+        .from('restaurants')
+        .select('id')
+        .eq('slug', siteConfig.restaurantSlug)
+        .single();
+        
+      if (restoError || !resto) throw new Error("Restaurant introuvable");
+      setRestaurantId(resto.id);
+
+      const { data, error } = await supabase
+        .from("coupons")
+        .select("*")
+        .eq('restaurant_id', resto.id)
+        .order("created_at", { ascending: false });
+      
+      if (error) throw error;
+      if (data) setCoupons(data as Coupon[]);
+
+    } catch (error: unknown) {
+      const err = error as Error;
+      showToast(err.message, 'error');
+    } finally {
+      setLoading(false);
+    }
+  }, [supabase, showToast]);
 
   useEffect(() => {
-    // Utilisation d'une fonction auto-invoquée pour éviter l'appel direct synchrone
-    // que le linter interdit dans certains contextes
-    const loadData = async () => {
-      await fetchCoupons();
-    };
-    loadData();
+    fetchCoupons();
   }, [fetchCoupons]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!restaurantId) return;
     setIsSubmitting(true);
 
-    const couponData = {
-      code: form.code.toUpperCase().trim(),
-      discount_type: form.discount_type,
-      discount_value: parseFloat(form.discount_value),
-      min_order_amount: parseFloat(form.min_order_amount),
-      expiration_date: form.expiration_date || null,
-      is_active: true
-    };
+    try {
+      const couponData = {
+        restaurant_id: restaurantId,
+        code: form.code.toUpperCase().trim(),
+        discount_type: form.discount_type,
+        discount_value: parseFloat(form.discount_value),
+        min_order_amount: parseFloat(form.min_order_amount),
+        expiration_date: form.expiration_date || null,
+        is_active: true
+      };
 
-    const { error } = await supabase.from("coupons").insert([couponData]);
+      const { error } = await supabase.from("coupons").insert([couponData]);
 
-    if (error) {
-      showToast("Ce code existe déjà ou est invalide", "error");
-    } else {
+      if (error) throw error;
+
       showToast("Coupon créé avec succès !");
       setIsModalOpen(false);
       setForm({ code: "", discount_type: "percentage", discount_value: "", min_order_amount: "0", expiration_date: "" });
       fetchCoupons();
+    } catch {
+      // ✅ Correction ESLint : suppression de la variable error inutilisée
+      showToast("Ce code existe déjà ou est invalide", "error");
+    } finally {
+      setIsSubmitting(false);
     }
-    setIsSubmitting(false);
   };
 
-  const toggleStatus = async (id: number, currentStatus: boolean) => {
-    const { error } = await supabase.from("coupons").update({ is_active: !currentStatus }).eq("id", id);
-    if (!error) {
+  const toggleStatus = async (id: string, currentStatus: boolean) => {
+    try {
+      const { error } = await supabase.from("coupons").update({ is_active: !currentStatus }).eq("id", id);
+      if (error) throw error;
       setCoupons(prev => prev.map(c => c.id === id ? { ...c, is_active: !currentStatus } : c));
       showToast(currentStatus ? "Coupon désactivé" : "Coupon activé");
+    } catch {
+      // ✅ Correction ESLint : suppression de la variable error inutilisée
+      showToast("Erreur lors de la mise à jour", "error");
     }
   };
 
-  const deleteCoupon = async (id: number) => {
+  const deleteCoupon = async (id: string) => {
     if (!confirm("Supprimer ce coupon définitivement ?")) return;
-    const { error } = await supabase.from("coupons").delete().eq("id", id);
-    if (!error) {
+    try {
+      const { error } = await supabase.from("coupons").delete().eq("id", id);
+      if (error) throw error;
       setCoupons(prev => prev.filter(c => c.id !== id));
       showToast("Coupon supprimé");
+    } catch {
+      // ✅ Correction ESLint : suppression de la variable error inutilisée
+      showToast("Erreur lors de la suppression", "error");
     }
   };
 
   return (
     <div className="p-4 md:p-10 space-y-8 pb-24 text-white">
-      
       <AnimatePresence>
         {toast && (
-          <motion.div initial={{ opacity: 0, y: 50 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className={`fixed bottom-10 right-10 z-[100] flex items-center gap-3 px-6 py-4 rounded-2xl shadow-2xl border backdrop-blur-md ${toast.type === 'success' ? 'bg-neutral-900/90 border-green-500/50 text-green-400' : 'bg-neutral-900/90 border-red-500/50 text-red-400'}`}>
+          <motion.div 
+            initial={{ opacity: 0, y: 50 }} 
+            animate={{ opacity: 1, y: 0 }} 
+            exit={{ opacity: 0 }} 
+            className={`fixed bottom-10 right-10 z-[100] flex items-center gap-3 px-6 py-4 rounded-2xl shadow-2xl border backdrop-blur-md ${toast.type === 'success' ? 'bg-neutral-900/90 border-green-500/50 text-green-400' : 'bg-neutral-900/90 border-red-500/50 text-red-400'}`}
+          >
             {toast.type === 'success' ? <CheckCircle2 size={20} /> : <AlertCircle size={20} />}
             <span className="font-bold text-sm uppercase tracking-widest">{toast.message}</span>
           </motion.div>
@@ -189,13 +219,17 @@ export default function AdminCouponsPage() {
               <form onSubmit={handleSubmit} className="space-y-6">
                 <div>
                   <label className="text-[10px] uppercase text-gray-500 font-bold mb-2 block tracking-widest">Code (Ex: KABUKI20)</label>
-                  <input required className="w-full bg-black border border-neutral-800 p-4 rounded-2xl outline-none focus:border-kabuki-red transition text-white font-black" value={form.code} onChange={e => setForm({...form, code: e.target.value.toUpperCase()})} placeholder="BIENVENUE5" />
+                  <input required className="w-full bg-black border border-neutral-800 p-4 rounded-2xl outline-none focus:border-kabuki-red transition text-white font-black" value={form.code} onChange={e => setForm({...form, code: e.target.value})} placeholder="BIENVENUE5" />
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="text-[10px] uppercase text-gray-500 font-bold mb-2 block tracking-widest">Type</label>
-                    <select className="w-full bg-black border border-neutral-800 p-4 rounded-2xl outline-none focus:border-kabuki-red transition text-white" value={form.discount_type} onChange={e => setForm({...form, discount_type: e.target.value as 'percentage' | 'fixed'})}>
+                    <select 
+                      className="w-full bg-black border border-neutral-800 p-4 rounded-2xl outline-none focus:border-kabuki-red transition text-white" 
+                      value={form.discount_type} 
+                      onChange={e => setForm({...form, discount_type: e.target.value as 'percentage' | 'fixed'})}
+                    >
                       <option value="percentage">Pourcentage (%)</option>
                       <option value="fixed">Montant fixe (CHF)</option>
                     </select>
@@ -212,7 +246,8 @@ export default function AdminCouponsPage() {
                     <input type="number" className="w-full bg-black border border-neutral-800 p-4 rounded-2xl outline-none focus:border-kabuki-red transition text-white" value={form.min_order_amount} onChange={e => setForm({...form, min_order_amount: e.target.value})} />
                   </div>
                   <div>
-                    <label className="text-[10px] uppercase text-gray-500 font-bold mb-2 block tracking-widest">{"Date d'expiration"}</label>
+                    {/* ✅ Correction ESLint : échappement de l'apostrophe pour le linter */}
+                    <label className="text-[10px] uppercase text-gray-500 font-bold mb-2 block tracking-widest">Date d&apos;expiration</label>
                     <input type="date" className="w-full bg-black border border-neutral-800 p-4 rounded-2xl outline-none focus:border-kabuki-red transition text-white" value={form.expiration_date} onChange={e => setForm({...form, expiration_date: e.target.value})} />
                   </div>
                 </div>

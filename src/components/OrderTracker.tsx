@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
-// ✅ CORRECTION IMPORT : On utilise la nouvelle méthode d'export
+import { useEffect, useState, useMemo } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { motion, AnimatePresence } from "framer-motion";
 import { Receipt, ChefHat, Package, CheckCircle2, Loader2, ArrowRight, XCircle, Truck } from "lucide-react"; 
@@ -9,13 +8,14 @@ import Link from "next/link";
 import { useTranslation } from "@/context/LanguageContext";
 import dynamic from "next/dynamic";
 
+// Chargement dynamique de la carte pour éviter les erreurs SSR de Leaflet/Mapbox
 const DeliveryMap = dynamic(() => import("@/components/DeliveryMap"), { 
   ssr: false,
   loading: () => <div className="h-64 bg-neutral-900 animate-pulse rounded-2xl flex items-center justify-center text-gray-500 text-xs border border-neutral-800">Chargement du GPS...</div>
 });
 
 interface OrderData {
-  id: number;
+  id: string; // ✅ UUID
   pickup_time: string;
   status: string;
   order_type: string;
@@ -24,12 +24,12 @@ interface OrderData {
 }
 
 interface OrderTrackerProps {
-  orderId: number;
+  orderId: string; // ✅ UUID
 }
 
 export default function OrderTracker({ orderId }: OrderTrackerProps) {
-  // ✅ CORRECTION CLIENT : Initialisation du client Supabase à l'intérieur du composant
-  const supabase = createClient();
+  // ✅ Utilisation de useMemo pour stabiliser l'instance du client
+  const supabase = useMemo(() => createClient(), []);
   
   const [order, setOrder] = useState<OrderData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -54,11 +54,10 @@ export default function OrderTracker({ orderId }: OrderTrackerProps) {
     fetchOrder();
 
     const subscription = supabase
-      .channel(`public:orders:id=eq.${orderId}`)
+      .channel(`order-tracking-${orderId}`)
       .on(
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "orders", filter: `id=eq.${orderId}` },
-        // ✅ CORRECTION TYPAGE : Utilisation de unknown au lieu de any pour satisfaire ESLint
         (payload: { new: unknown }) => {
           setOrder(payload.new as OrderData);
         }
@@ -68,36 +67,38 @@ export default function OrderTracker({ orderId }: OrderTrackerProps) {
     return () => {
       supabase.removeChannel(subscription);
     };
-  }, [orderId, supabase]); // Ajout de supabase dans le tableau des dépendances
+  }, [orderId, supabase]);
 
   const handleFinish = () => {
-    localStorage.removeItem("kabuki_active_order");
+    localStorage.removeItem("template_restaurant_active_order");
   };
 
   if (loading) return <div className="flex justify-center p-10"><Loader2 className="animate-spin text-kabuki-red" /></div>;
   if (!order) return <div className="text-center p-10 text-gray-500 font-bold uppercase tracking-widest text-sm">Commande introuvable</div>;
 
   const isDelivery = order.order_type === "Livraison";
+
+  // ✅ Mapping des statuts aligné sur la base de données
   const steps = isDelivery ? [
-    { id: "Payé", label: "Validée", icon: Receipt },
-    { id: "En préparation", label: "En cuisine", icon: ChefHat },
-    { id: "Prête", label: "Attente livreur", icon: Package },
-    { id: "En livraison", label: "En route", icon: Truck },
-    { id: "Livrée", label: "Livrée", icon: CheckCircle2 }
+    { id: "paid", label: "Validée", icon: Receipt },
+    { id: "preparing", label: "En cuisine", icon: ChefHat },
+    { id: "ready", label: "Attente livreur", icon: Package },
+    { id: "shipped", label: "En route", icon: Truck },
+    { id: "delivered", label: "Livrée", icon: CheckCircle2 }
   ] : [
-    { id: "Payé", label: "Validée", icon: Receipt },
-    { id: "En préparation", label: "En cuisine", icon: ChefHat },
-    { id: "Prête", label: "Prête pour retrait", icon: Package },
-    { id: "Livrée", label: "Terminée", icon: CheckCircle2 }
+    { id: "paid", label: "Validée", icon: Receipt },
+    { id: "preparing", label: "En cuisine", icon: ChefHat },
+    { id: "ready", label: "Prête pour retrait", icon: Package },
+    { id: "delivered", label: "Terminée", icon: CheckCircle2 }
   ];
 
   const currentStepIndex = steps.findIndex(s => s.id === order.status);
   const activeIndex = currentStepIndex === -1 ? 0 : currentStepIndex;
   
-  const isDelivered = order.status === "Livrée";
-  const isCancelled = order.status === "Annulée"; 
+  const isDelivered = order.status === "delivered";
+  const isCancelled = order.status === "cancelled"; 
   
-  const showMap = isDelivery && (order.status === "En livraison" || (order.driver_lat && order.driver_lng));
+  const showMap = isDelivery && (order.status === "shipped" || (order.driver_lat && order.driver_lng));
 
   return (
     <div className="space-y-6 max-w-lg mx-auto px-2">
@@ -108,7 +109,7 @@ export default function OrderTracker({ orderId }: OrderTrackerProps) {
             {isDelivery ? "Suivi de Livraison" : "Suivi en direct"}
           </span>
           <h2 className="text-white font-display font-bold uppercase text-3xl tracking-tighter italic mt-1">
-            #KBK-{order.id}
+            #ORD-{order.id.split('-')[0].toUpperCase()}
           </h2>
           <p className="text-gray-400 text-sm mt-2 font-medium">
             {isDelivered ? "Livraison effectuée" : isCancelled ? "Commande annulée" : `Prévu à ${order.pickup_time}`}
@@ -175,12 +176,12 @@ export default function OrderTracker({ orderId }: OrderTrackerProps) {
                           animate={{ opacity: 1, height: "auto" }}
                           className="text-xs text-kabuki-red font-bold mt-1 overflow-hidden"
                         >
-                          {step.id === "Payé" ? "En attente de prise en charge." :
-                           step.id === "En préparation" ? "Nos chefs préparent vos sushis..." : 
-                           step.id === "Prête" && !isDelivery ? "Votre commande est prête !" : 
-                           step.id === "Prête" && isDelivery ? "Le livreur est en route vers le restaurant." : 
-                           step.id === "En livraison" ? "Regardez la carte, il arrive !" : 
-                           step.id === "Livrée" ? "Bon appétit ! Merci de votre confiance." : ""}
+                          {step.id === "paid" ? "En attente de prise en charge." :
+                           step.id === "preparing" ? "Nos chefs préparent votre commande..." : 
+                           step.id === "ready" && !isDelivery ? "Votre commande est prête !" : 
+                           step.id === "ready" && isDelivery ? "Le livreur récupère votre commande." : 
+                           step.id === "shipped" ? "Regardez la carte, il arrive !" : 
+                           step.id === "delivered" ? "Bon appétit ! Merci de votre confiance." : ""}
                         </motion.p>
                       )}
                     </div>

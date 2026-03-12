@@ -6,10 +6,8 @@ import { CartProvider } from "@/context/CartContext";
 import { UserProvider } from "@/context/UserContext"; 
 import LayoutClient from "@/components/LayoutClient"; 
 import ActiveOrderButton from "@/components/ActiveOrderButton";
-// ✅ CORRECTION : Utilisation du chemin relatif pour éviter les erreurs d'alias TypeScript
 import { siteConfig } from "../../config/site"; 
 
-// Définition des polices
 const inter = Inter({ 
   subsets: ["latin"], 
   variable: "--font-inter",
@@ -23,7 +21,6 @@ const oswald = Oswald({
   weight: ['400', '700'], 
 });
 
-// Utilisation correcte de Metadata pour le SEO
 export async function generateMetadata({ 
   params 
 }: { 
@@ -77,11 +74,13 @@ export default async function RootLayout({
     <html lang={lang} className={`${inter.variable} ${oswald.variable}`} suppressHydrationWarning>
       <body className="antialiased flex flex-col min-h-screen bg-[#080808] text-white">
         <UserProvider>
+          {/* ✅ CORRECTION : Suppression de la prop 'lang' non supportée */}
           <LanguageProvider>
             <CartProvider>
               <LayoutClient>
                 {children}
               </LayoutClient>
+              
               <ActiveOrderButton />
 
               {/* Schéma JSON-LD pour le SEO */}
@@ -101,7 +100,7 @@ export default async function RootLayout({
                     },
                     "telephone": siteConfig.contact.phone,
                     "priceRange": "$$",
-                    "servesCuisine": "Restaurant Cuisine"
+                    "servesCuisine": "Premium Cuisine"
                   })
                 }}
               />

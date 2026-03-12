@@ -10,8 +10,10 @@ import { createClient } from "@/utils/supabase/client";
 import { loadStripe } from "@stripe/stripe-js";
 import { Elements, PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js";
 
-// ✅ IMPORT DU CONTEXTE UTILISATEUR
+// ✅ NOUVEAUX IMPORTS
 import { useUser } from "@/context/UserContext";
+import { submitOrder } from "@/services/orderService";
+import { siteConfig } from "@/config/site";
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
 
@@ -31,7 +33,8 @@ const cartTranslations = {
 };
 
 interface CartDrawerProps { isOpen: boolean; onClose: () => void; }
-interface StripeCheckoutFormProps { total: number; onSuccess: () => void; onCancel: () => void; t: Record<string, string>; orderId: number; }
+// ✅ orderId passe en string pour les UUID Supabase
+interface StripeCheckoutFormProps { total: number; onSuccess: () => void; onCancel: () => void; t: Record<string, string>; orderId: string; }
 
 function StripeCheckoutForm({ total, onSuccess, onCancel, t }: StripeCheckoutFormProps) {
   const stripe = useStripe();
@@ -84,7 +87,6 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
   const { lang } = useTranslation();
   const t = cartTranslations[lang as keyof typeof cartTranslations] || cartTranslations.fr;
 
-  // ✅ RECUPERATION DU CONTEXTE UTILISATEUR ET ETAT DU CASHBACK
   const { user, profile } = useUser(); 
   const [useWallet, setUseWallet] = useState(false); 
 
@@ -92,18 +94,18 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
   const [isPayment, setIsPayment] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [orderId, setOrderId] = useState<number | null>(null);
+  // ✅ string pour UUID Supabase
+  const [orderId, setOrderId] = useState<string | null>(null);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
 
-  // ✅ ÉTATS COUPONS
   const [couponCode, setCouponCode] = useState("");
   const [appliedCoupon, setAppliedCoupon] = useState<{code: string, discount_type: string, discount_value: number, min_order_amount: number} | null>(null);
   const [couponError, setCouponError] = useState("");
   const [isVerifyingCoupon, setIsVerifyingCoupon] = useState(false);
 
   const [formData, setFormData] = useState({ 
-    name: profile?.full_name || "", // ✅ Pré-remplissage avec le profil
-    phone: profile?.phone || "",     // ✅ Pré-remplissage avec le profil
+    name: profile?.full_name || "", 
+    phone: profile?.phone || "",     
     type: "Click & Collect", 
     address: "", 
     zip: "", 
@@ -134,7 +136,6 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
     return slots;
   })() : [];
 
-  // ✅ LOGIQUE DE CALCUL DU PRIX FINAL AVEC CASHBACK
   const discountAmount = appliedCoupon 
     ? (appliedCoupon.discount_type === 'percentage' ? (totalPrice * appliedCoupon.discount_value / 100) : appliedCoupon.discount_value)
     : 0;
@@ -143,12 +144,11 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
   
   let walletUsed = 0;
   if (useWallet && profile?.wallet_balance && profile.wallet_balance > 0) {
-    // On ne déduit pas plus que le prix de la commande
     walletUsed = Math.min(priceAfterCoupon, profile.wallet_balance);
   }
 
   const finalPrice = priceAfterCoupon - walletUsed;
-  const earnedCashback = finalPrice * 0.05; // 5% de la somme réellement payée
+  const earnedCashback = finalPrice * 0.05;
 
   useEffect(() => {
     if (appliedCoupon && totalPrice < appliedCoupon.min_order_amount) {
@@ -196,14 +196,35 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
     e.preventDefault();
     if (!isFormReady) return;
     setIsSubmitting(true);
+    
     try {
+      // 1️⃣ ENREGISTREMENT DANS SUPABASE
+      const orderResult = await submitOrder(
+        siteConfig.restaurantSlug,
+        {
+          name: formData.name,
+          email: user?.email || "guest@example.com", 
+          phone: formData.phone,
+          special_instructions: `${formData.type} | Date: ${selectedDate?.toISOString().split('T')[0]} ${selectedTime} | Addresse: ${formData.address} ${formData.zip} ${formData.floor ? '(Ét.'+formData.floor+')' : ''} ${formData.doorCode ? '[Code:'+formData.doorCode+']' : ''} | Commentaire: ${formData.comments}`
+        },
+        items,
+        finalPrice
+      );
+
+      if (!orderResult.success || !orderResult.orderId) {
+        throw new Error("Impossible de créer la commande dans la base de données.");
+      }
+
+      const supabaseOrderId = orderResult.orderId;
+
+      // 2️⃣ APPEL A TON API STRIPE
       const res = await fetch("/api/create-payment-intent", { 
         method: "POST", 
         headers: { "Content-Type": "application/json" }, 
         body: JSON.stringify({ 
-          amount: totalPrice, 
+          amount: finalPrice, 
           couponCode: appliedCoupon?.code,
-          useWallet: useWallet, // ✅ ENVOI DU CHOIX AU BACKEND
+          useWallet: useWallet,
           items: items.map(i => ({ id: i.id, name: i.name, price: i.price, quantity: i.quantity })),
           customerName: formData.name,
           customerPhone: formData.phone,
@@ -212,16 +233,18 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
           orderType: formData.type,
           deliveryAddress: formData.type === "Livraison" ? `${formData.address} ${formData.floor ? '(Ét.'+formData.floor+')' : ''} ${formData.doorCode ? '[Code:'+formData.doorCode+']' : ''}` : null,
           deliveryZip: formData.type === "Livraison" ? formData.zip : null,
-          comments: formData.comments
+          comments: formData.comments,
+          databaseOrderId: supabaseOrderId // ✅ Passage de l'UUID pour Stripe
         }) 
       });
       
       const payData = await res.json();
       
       if (payData.error) throw new Error(payData.error);
-      if (!payData.clientSecret || !payData.orderId) throw new Error("Réponse API invalide");
+      if (!payData.clientSecret) throw new Error("Réponse API invalide (pas de clientSecret)");
       
-      setOrderId(payData.orderId);
+      // 3️⃣ OUVERTURE DU PAIEMENT
+      setOrderId(supabaseOrderId);
       setClientSecret(payData.clientSecret);
       setIsPayment(true);
       
@@ -257,7 +280,8 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
                 <div className="bg-neutral-800 p-6 rounded-2xl border border-neutral-700 w-full shadow-inner">
                     <p className="text-gray-300 text-sm mb-4">{t.successDesc}</p>
                     <span className="text-[10px] text-gray-400 uppercase font-black tracking-widest">Numéro de commande</span>
-                    <p className="text-3xl font-display font-bold text-kabuki-red tracking-tighter mt-1">#KBK-{orderId}</p>
+                    {/* ✅ Affichage tronqué propre de l'UUID pour le client */}
+                    <p className="text-3xl font-display font-bold text-kabuki-red tracking-tighter mt-1">#KBK-{orderId ? orderId.split('-')[0].toUpperCase() : '0000'}</p>
                 </div>
                 <button onClick={() => { onClose(); window.location.href = `/${lang}/track?order_id=${orderId}`; }} className="w-full bg-kabuki-red text-white font-bold py-4 rounded-xl uppercase shadow-lg shadow-red-900/30 hover:bg-red-700 transition-all">Suivre ma commande</button>
               </div>
@@ -426,7 +450,6 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
                         </div>
                       )}
 
-                      {/* ✅ NOUVEAU : AFFICHAGE DE LA CAGNOTTE */}
                       {profile && profile.wallet_balance > 0 && (
                         <div className="py-3 px-4 bg-black/40 border border-kabuki-red/30 rounded-xl my-3">
                           <label className="flex items-center justify-between cursor-pointer">
@@ -451,7 +474,6 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
                         <span className="text-2xl font-display font-bold text-white">{finalPrice.toFixed(2)} CHF</span>
                       </div>
 
-                      {/* ✅ NOUVEAU : APERÇU DU GAIN DE CASHBACK */}
                       {user && finalPrice > 0 && (
                         <p className="text-center text-[10px] text-green-500 font-bold uppercase tracking-widest mt-2">
                           + {earnedCashback.toFixed(2)} CHF crédités sur votre cagnotte !

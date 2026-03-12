@@ -3,12 +3,15 @@
 import { useState, useEffect, useRef } from "react";
 import { useUser } from "@/context/UserContext";
 import { ArrowLeft, CheckCircle, AlertTriangle, Save, Loader2 } from "lucide-react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import TransitionLink from "@/components/TransitionLink";
+import { motion, AnimatePresence } from "framer-motion";
 
 export default function SettingsPage() {
   const { user, profile } = useUser();
   const params = useParams();
+  const router = useRouter();
+  
   const lang = typeof params?.lang === 'string' ? params.lang : 'fr';
 
   const isProcessing = useRef(false);
@@ -37,7 +40,7 @@ export default function SettingsPage() {
     
     if (isProcessing.current || isUpdating) return;
     if (!user) {
-      setErrorMsg("Session introuvable. Veuillez recharger la page.");
+      setErrorMsg("Session introuvable. Veuillez vous reconnecter.");
       return;
     }
     
@@ -49,30 +52,21 @@ export default function SettingsPage() {
       const response = await fetch("/api/update-profile", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        // ✅ On envoie la langue (lang) pour que l'API puisse vider le bon cache
         body: JSON.stringify({ fullName, phone, address, zipCode, city, lang }),
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || "Échec de la sauvegarde réseau.");
-      }
-
-      // On met à jour les champs visuels IMMÉDIATEMENT
-      if (data.profile) {
-        setFullName(data.profile.full_name || "");
-        setPhone(data.profile.phone || "");
-        setAddress(data.profile.address || "");
-        setZipCode(data.profile.zip_code || "");
-        setCity(data.profile.city || "");
+        throw new Error(data.error || "Échec de la sauvegarde.");
       }
 
       setShowSuccess(true);
       
-      // ✅ SOLUTION RADICALE : On attend 1.5s pour que l'utilisateur voie le message vert,
-      // puis on redirige brutalement vers le profil. Cela force le navigateur à télécharger
-      // les données fraîches validées par l'API.
+      // Rafraîchissement des données du layout/contexte
+      router.refresh();
+
+      // Petit délai pour laisser l'utilisateur voir le badge de succès
       setTimeout(() => {
         window.location.href = `/${lang}/profile`;
       }, 1500);
@@ -89,57 +83,94 @@ export default function SettingsPage() {
   return (
     <div className="min-h-screen bg-black pt-32 pb-20 px-6 text-white">
       <div className="max-w-2xl mx-auto">
-        <TransitionLink href={`/${lang}/profile`} className="mb-8 inline-flex items-center gap-2 text-neutral-500 hover:text-white transition-colors">
-          <ArrowLeft size={20} /> <span className="text-xs font-bold uppercase tracking-widest">Retour au profil</span>
+        <TransitionLink href={`/${lang}/profile`} className="mb-8 inline-flex items-center gap-2 text-neutral-500 hover:text-white transition-colors group">
+          <ArrowLeft size={20} className="group-hover:-translate-x-1 transition-transform" /> 
+          <span className="text-xs font-bold uppercase tracking-widest">Retour au profil</span>
         </TransitionLink>
 
-        <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-8 shadow-2xl space-y-8">
-          <h1 className="text-2xl font-display font-bold uppercase tracking-widest">Mon Profil</h1>
+        <div className="bg-neutral-900 border border-neutral-800 rounded-[2.5rem] p-8 md:p-12 shadow-2xl space-y-10">
+          <div className="space-y-2">
+            <h1 className="text-3xl font-display font-bold uppercase tracking-widest italic text-white">Paramètres</h1>
+            <p className="text-gray-500 text-xs uppercase tracking-widest font-bold">Gérez vos informations personnelles</p>
+          </div>
           
-          <form onSubmit={handleUpdate} className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <label className="text-[10px] font-bold text-neutral-500 uppercase ml-1">Nom complet</label>
-                <input type="text" value={fullName} onChange={(e) => setFullName(e.target.value)} className="w-full bg-black border border-neutral-800 p-4 rounded-xl focus:border-brand-primary outline-none transition-all text-sm text-white" />
+          <form onSubmit={handleUpdate} className="space-y-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div className="space-y-3">
+                <label className="text-[10px] font-black text-neutral-500 uppercase ml-1 tracking-widest">Nom complet</label>
+                <input 
+                  type="text" 
+                  value={fullName} 
+                  onChange={(e) => setFullName(e.target.value)} 
+                  className="w-full bg-black border border-neutral-800 p-4 rounded-2xl focus:border-kabuki-red outline-none transition-all text-sm text-white" 
+                  placeholder="Ex: Jean Dupont"
+                />
               </div>
-              <div className="space-y-2">
-                <label className="text-[10px] font-bold text-neutral-500 uppercase ml-1">Téléphone</label>
-                <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} className="w-full bg-black border border-neutral-800 p-4 rounded-xl focus:border-brand-primary outline-none transition-all text-sm text-white" />
+              <div className="space-y-3">
+                <label className="text-[10px] font-black text-neutral-500 uppercase ml-1 tracking-widest">Téléphone</label>
+                <input 
+                  type="tel" 
+                  value={phone} 
+                  onChange={(e) => setPhone(e.target.value)} 
+                  className="w-full bg-black border border-neutral-800 p-4 rounded-2xl focus:border-kabuki-red outline-none transition-all text-sm text-white" 
+                  placeholder="+41 79 000 00 00"
+                />
               </div>
             </div>
 
-            <div className="space-y-2">
-              <label className="text-[10px] font-bold text-neutral-500 uppercase ml-1">Adresse</label>
-              <input type="text" value={address} onChange={(e) => setAddress(e.target.value)} className="w-full bg-black border border-neutral-800 p-4 rounded-xl focus:border-brand-primary outline-none transition-all text-sm text-white" />
+            <div className="space-y-3">
+              <label className="text-[10px] font-black text-neutral-500 uppercase ml-1 tracking-widest">Adresse de livraison</label>
+              <input 
+                type="text" 
+                value={address} 
+                onChange={(e) => setAddress(e.target.value)} 
+                className="w-full bg-black border border-neutral-800 p-4 rounded-2xl focus:border-kabuki-red outline-none transition-all text-sm text-white" 
+                placeholder="Rue de la Tour 1"
+              />
             </div>
             
-            <div className="grid grid-cols-2 gap-6">
-               <input type="text" value={zipCode} onChange={(e) => setZipCode(e.target.value)} placeholder="Code Postal" className="w-full bg-black border border-neutral-800 p-4 rounded-xl focus:border-brand-primary outline-none transition-all text-sm text-white" />
-               <input type="text" value={city} onChange={(e) => setCity(e.target.value)} placeholder="Ville" className="w-full bg-black border border-neutral-800 p-4 rounded-xl focus:border-brand-primary outline-none transition-all text-sm text-white" />
+            <div className="grid grid-cols-2 gap-8">
+               <div className="space-y-3">
+                <label className="text-[10px] font-black text-neutral-500 uppercase ml-1 tracking-widest">Code Postal</label>
+                <input type="text" value={zipCode} onChange={(e) => setZipCode(e.target.value)} placeholder="1200" className="w-full bg-black border border-neutral-800 p-4 rounded-2xl focus:border-kabuki-red outline-none transition-all text-sm text-white" />
+               </div>
+               <div className="space-y-3">
+                <label className="text-[10px] font-black text-neutral-500 uppercase ml-1 tracking-widest">Ville</label>
+                <input type="text" value={city} onChange={(e) => setCity(e.target.value)} placeholder="Genève" className="w-full bg-black border border-neutral-800 p-4 rounded-2xl focus:border-kabuki-red outline-none transition-all text-sm text-white" />
+               </div>
             </div>
 
             {errorMsg && (
-              <div className="bg-red-900/20 border border-red-500/50 text-red-500 p-4 rounded-xl flex items-center gap-2 text-xs font-bold uppercase animate-pulse">
-                <AlertTriangle size={16} className="shrink-0" /> <span className="flex-1 break-words">{errorMsg}</span>
+              <div className="bg-red-900/10 border border-red-500/30 text-red-500 p-4 rounded-2xl flex items-center gap-3 text-[10px] font-black uppercase animate-pulse">
+                <AlertTriangle size={18} className="shrink-0" /> 
+                <span className="flex-1">{errorMsg}</span>
               </div>
             )}
 
             <button 
               type="submit"
               disabled={isUpdating} 
-              className="w-full bg-brand-primary text-white py-4 rounded-xl font-bold uppercase tracking-[0.2em] hover:opacity-90 transition-all flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full bg-kabuki-red text-white py-5 rounded-2xl font-bold uppercase tracking-[0.2em] hover:bg-red-700 transition-all flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed shadow-xl shadow-red-900/20"
             >
-              {isUpdating ? <><Loader2 size={18} className="animate-spin" /> Traitement...</> : <><Save size={18} /> Sauvegarder</>}
+              {isUpdating ? <><Loader2 size={20} className="animate-spin" /> Mise à jour...</> : <><Save size={20} /> Enregistrer</>}
             </button>
           </form>
         </div>
       </div>
 
-      {showSuccess && (
-        <div className="fixed bottom-10 left-1/2 -translate-x-1/2 bg-green-600 text-white px-8 py-4 rounded-full flex items-center gap-3 shadow-2xl z-50 animate-in fade-in slide-in-from-bottom-5">
-          <CheckCircle size={20} /> <span className="text-xs font-bold uppercase tracking-widest">Profil mis à jour</span>
-        </div>
-      )}
+      <AnimatePresence>
+        {showSuccess && (
+          <motion.div 
+            initial={{ opacity: 0, y: 50 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 50 }}
+            className="fixed bottom-10 left-1/2 -translate-x-1/2 bg-green-600 text-white px-8 py-4 rounded-full flex items-center gap-3 shadow-2xl z-50 border border-white/20"
+          >
+            <CheckCircle size={20} /> 
+            <span className="text-[10px] font-bold uppercase tracking-widest">Profil mis à jour</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

@@ -1,50 +1,88 @@
 @import "tailwindcss";
 
 @theme {
-  /* Couleurs de la marque (Template générique) */
-  --color-brand-primary: #E60012; /* Couleur d'accent (ex: Boutons, lignes actives) */
-  --color-brand-black: #111111;   /* Fond des barres de navigation et modales */
-  --color-brand-dark: #333333;    /* Bordures et éléments secondaires */
+  /* --- Couleurs Planet Food --- */
+  --color-brand-primary: #E60012; 
+  --color-brand-black: #111111;   
+  --color-brand-dark: #333333;    
+  
+  /* --- Typographie --- */
   --font-display: var(--font-oswald);
 
-  /* Configuration Next.js standard */
+  /* --- Variables Système --- */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  
+  /* --- Radius Custom --- */
+  --radius-xl: 1.5rem;
+  --radius-2xl: 2rem;
+  --radius-3xl: 3rem;
 }
 
 :root {
-  /* Fond sombre global (Noir profond) */
   --background: #080808; 
   --foreground: #ededed;
-
   scroll-behavior: smooth;
 }
 
-/* On force l'esthétique sombre même si l'utilisateur est en mode clair */
-@media (prefers-color-scheme: light) {
-  :root {
-    --background: #080808;
-    --foreground: #ededed;
+/* --- BASE STYLES --- */
+@layer base {
+  html {
+    @apply scroll-smooth;
+  }
+
+  body {
+    @apply antialiased text-foreground bg-background;
+    font-family: var(--font-inter), sans-serif;
+    
+    /* Fond multicouche pour la profondeur sans images lourdes */
+    background-image: 
+      radial-gradient(circle at 80% 0%, #141414 0%, transparent 50%),
+      radial-gradient(circle at 50% 30%, #111111 0%, #080808 100%);
+    background-attachment: fixed;
   }
 }
 
-html {
-  scroll-behavior: smooth;
+/* --- DESIGN SYSTEM : PLANET FOOD --- */
+@layer components {
+  /* Effet de verre haut de gamme */
+  .glass-panel {
+    @apply bg-neutral-900/40 backdrop-blur-xl border border-white/5;
+  }
+
+  /* Lueur Néon pour les badges et boutons actifs */
+  .glow-red {
+    @apply shadow-[0_0_20px_rgba(230,0,18,0.4)] border-brand-primary/50;
+  }
+
+  /* Lueur Cockpit pour les éléments neutres */
+  .glow-white {
+    @apply shadow-[0_0_25px_rgba(255,255,255,0.15)] border-white/10;
+  }
+
+  /* Animation de balayage lumineux (Sweep) */
+  .sweep-effect {
+    @apply relative overflow-hidden;
+  }
+  
+  .sweep-effect::after {
+    content: "";
+    @apply absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -skew-x-12 translate-x-[-200%];
+    animation: sweep 3.5s infinite linear;
+  }
 }
 
-body {
-  color: var(--foreground);
-  font-family: var(--font-inter), sans-serif;
-  @apply antialiased;
+@keyframes sweep {
+  100% { transform: translateX(200%); }
+}
 
-  /* --- FOND PREMIUM SOMBRE --- */
-  background-color: var(--background);
-  background-image: 
-    /* Spot 1 : Lueur subtile en haut à droite pour casser l'aplat */
-    radial-gradient(circle at 80% 0%, #141414 0%, transparent 50%),
-    /* Spot 2 : Éclairage central pour mettre en valeur les plats */
-    radial-gradient(circle at 50% 30%, #111111 0%, #080808 100%);
-  
-  /* Attachment fixed pour que la lumière reste en place quand on scrolle */
-  background-attachment: fixed;
+/* Custom Scrollbar pour le look HUD */
+::-webkit-scrollbar {
+  width: 5px;
+}
+::-webkit-scrollbar-track {
+  @apply bg-transparent;
+}
+::-webkit-scrollbar-thumb {
+  @apply bg-neutral-800 rounded-full hover:bg-brand-primary transition-colors;
 }

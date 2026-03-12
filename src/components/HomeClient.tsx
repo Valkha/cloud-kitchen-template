@@ -3,8 +3,8 @@
 import { m } from "framer-motion";
 import { useTranslation } from "@/context/LanguageContext";
 import TransitionLink from "./TransitionLink";
-import { siteConfig } from "../../config/site"; // ✅ Import de siteConfig utilisé plus bas
-import { ChevronRight, Utensils, Star, ShieldCheck } from "lucide-react";
+import { siteConfig } from "../../config/site"; 
+import { ChevronRight, Utensils, Star, ShieldCheck, Store } from "lucide-react"; // ✅ Ajout de l'icône Store
 
 export default function HomeClient() {
   const { t, lang } = useTranslation();
@@ -19,7 +19,6 @@ export default function HomeClient() {
             animate={{ opacity: 1, y: 0 }} 
             transition={{ duration: 0.8 }}
           >
-            {/* ✅ Utilisation de siteConfig.name pour satisfaire ESLint */}
             <span className="text-brand-primary font-bold uppercase tracking-[0.3em] text-sm mb-4 block">
               Bienvenue chez {siteConfig.name}
             </span>
@@ -30,8 +29,9 @@ export default function HomeClient() {
             <p className="text-gray-400 max-w-xl mx-auto mb-10 text-lg leading-relaxed">
               {t.hero.desc}
             </p>
+            {/* ✅ CORRECTION : Le bouton pointe maintenant vers l'ancre #restaurants */}
             <TransitionLink 
-              href={`/${lang}/menu`} 
+              href={`/${lang}#restaurants`} 
               className="inline-flex items-center gap-3 bg-brand-primary text-white px-10 py-5 rounded-2xl font-bold uppercase tracking-widest hover:scale-105 transition-transform shadow-2xl"
             >
               {t.hero.btnMenu}
@@ -69,6 +69,24 @@ export default function HomeClient() {
           </div>
         </div>
       </section>
+
+      {/* ✅ NOUVELLE SECTION CIBLE : C'est ici que la page va "scroller" */}
+      <section id="restaurants" className="py-32 border-t border-neutral-900 relative">
+        <div className="container mx-auto px-6 text-center">
+          <div className="inline-flex items-center justify-center w-20 h-20 bg-brand-primary/10 text-brand-primary rounded-3xl mb-8">
+            <Store size={40} />
+          </div>
+          <h2 className="text-4xl md:text-5xl font-display font-bold uppercase mb-6">Nos Enseignes</h2>
+          <p className="text-gray-500 max-w-2xl mx-auto mb-16 text-lg">
+            Découvrez nos différents univers culinaires et choisissez le restaurant de vos envies.
+          </p>
+          
+          <div className="p-20 border-2 border-dashed border-neutral-800 rounded-[3rem] text-gray-600 uppercase tracking-widest text-sm font-bold bg-neutral-900/20">
+            [ Espace pour afficher les cartes de vos restaurants ]
+          </div>
+        </div>
+      </section>
+
     </div>
   );
 }

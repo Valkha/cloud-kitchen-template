@@ -1,22 +1,23 @@
 import { Metadata } from "next";
 import HomeClient from "src/components/HomeClient";
-import { siteConfig } from "../../config/site"; // ✅ Import de la configuration
+import { siteConfig } from "../../config/site";
 
-// ✅ Génération dynamique des métadonnées SEO pour le template
+// ✅ Métadonnées SEO épurées pour le template Cloud Kitchen
 export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }): Promise<Metadata> {
   const resolvedParams = await params;
   const lang = resolvedParams.lang || 'fr';
   
-  if (lang === 'en') {
-    return { title: `Home - Premium Restaurant | ${siteConfig.name}` };
-  } else if (lang === 'es') {
-    return { title: `Inicio - Restaurante Premium | ${siteConfig.name}` };
-  }
+  const titles = {
+    en: `Home - Premium Marketplace | ${siteConfig.name}`,
+    es: `Inicio - Marketplace Premium | ${siteConfig.name}`,
+    fr: `Accueil - Votre Marketplace Cuisine | ${siteConfig.name}`
+  };
   
-  return { title: `Accueil - Restaurant & Traiteur | ${siteConfig.name}` };
+  return { 
+    title: titles[lang as keyof typeof titles] || titles.fr 
+  };
 }
 
-// ✅ Ici on retire 'params' car le composant n'en a pas besoin pour s'afficher
 export default function HomePage() {
   return <HomeClient />;
 }

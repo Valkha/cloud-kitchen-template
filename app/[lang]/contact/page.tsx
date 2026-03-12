@@ -4,32 +4,30 @@ import { useState } from "react";
 import { m, AnimatePresence } from "framer-motion";
 import { 
   Phone, MapPin, Send, Loader2, CheckCircle, 
-  Users, Calendar, Clock, ArrowRight 
+  Clock, ArrowRight 
 } from "lucide-react";
 import Reveal from "@/components/Reveal";
 import { useTranslation } from "@/context/LanguageContext";
 import { z } from "zod";
-import { siteConfig } from "../../../config/site"; // ✅ Import de la configuration
+import { siteConfig } from "../../../config/site"; 
 
-// ✅ Schéma de validation
+// ✅ Schéma de validation Zod
 const contactSchema = z.object({
   name: z.string().min(2, "Le nom est trop court").max(50),
   email: z.string().email("Email invalide"),
   subject: z.string(),
   phone: z.string().optional(),
   message: z.string().min(10, "Message trop court (min. 10 caract.)").max(2000),
-  date: z.string().optional(),
-  guests: z.preprocess((val) => (val === "" ? undefined : Number(val)), z.number().optional()),
 });
 
 export default function ContactPage() {
   const { t, lang } = useTranslation();
   const [errors, setErrors] = useState<Record<string, string>>({});
   
-  // ✅ Génération dynamique des URLs Google Maps à partir de siteConfig
+  // URLs dynamiques
   const addressQuery = encodeURIComponent(`${siteConfig.contact.address.street}, ${siteConfig.contact.address.zipCode} ${siteConfig.contact.address.city}, ${siteConfig.contact.address.country}`);
-  const googleMapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${addressQuery}`;
-  const mapEmbedUrl = `https://www.google.com/maps?q=${addressQuery}&output=embed`;
+  const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${addressQuery}`;
+  const mapEmbedUrl = `https://www.google.com/maps/embed/v1/place?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ''}&q=${addressQuery}`;
 
   const findUsLabel = { fr: "Trouvez-nous", en: "Find us", es: "Encuéntranos" }[lang as "fr" | "en" | "es"] || "Trouvez-nous";
   
@@ -42,7 +40,7 @@ export default function ContactPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSent, setIsSent] = useState(false);
   const [formData, setFormData] = useState({
-    name: "", email: "", subject: "Général", phone: "", date: "", guests: "", message: ""
+    name: "", email: "", subject: "Général", phone: "", message: ""
   });
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -57,35 +55,18 @@ export default function ContactPage() {
         formattedErrors[String(issue.path[0])] = issue.message;
       });
       setErrors(formattedErrors);
-
-      const firstErrorField = String(result.error.issues[0].path[0]);
-      const element = document.getElementsByName(firstErrorField)[0];
-      
-      if (element) {
-        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        setTimeout(() => element.focus(), 500);
-      }
       return;
     }
 
     setIsSubmitting(true);
     try {
-      const response = await fetch('/api/contact', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
-      });
-
-      if (response.ok) {
-        setIsSent(true);
-        setFormData({ name: "", email: "", subject: "Général", phone: "", date: "", guests: "", message: "" });
-        setTimeout(() => setIsSent(false), 5000);
-      } else {
-        const errorData = await response.json();
-        alert("Erreur : " + errorData.message);
-      }
+      // Simulation d'envoi
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      setIsSent(true);
+      setFormData({ name: "", email: "", subject: "Général", phone: "", message: "" });
+      setTimeout(() => setIsSent(false), 5000);
     } catch { 
-      alert("Une erreur réseau est survenue.");
+      alert("Une erreur est survenue.");
     } finally {
       setIsSubmitting(false);
     }
@@ -94,10 +75,8 @@ export default function ContactPage() {
   return (
     <div className="bg-neutral-900 min-h-screen">
       
-      {/* --- HERO HEADER --- */}
+      {/* HERO */}
       <div className="bg-black text-white pt-24 md:pt-32 pb-20 text-center relative overflow-hidden">
-        {/* Note: pattern-kimono.png pourrait être remplacé par un motif générique dans le dossier public */}
-        <div className="absolute inset-0 bg-[url('/pattern-kimono.png')] opacity-5 z-0" aria-hidden="true"></div>
         <Reveal>
           <h1 className="text-4xl md:text-6xl font-display font-bold uppercase tracking-widest relative z-10">
             {t.contact.title}
@@ -121,7 +100,6 @@ export default function ContactPage() {
                 <div>
                   <h3 className="text-xl font-display font-bold text-white mb-2 uppercase tracking-wide">{t.contact.address}</h3>
                   <p className="text-gray-400 leading-relaxed">
-                    {/* ✅ Adresse dynamique */}
                     {siteConfig.name}<br />
                     {siteConfig.contact.address.street}<br />
                     {siteConfig.contact.address.zipCode} {siteConfig.contact.address.city}, {siteConfig.contact.address.country}
@@ -140,28 +118,15 @@ export default function ContactPage() {
                 </div>
                 <div>
                   <h3 className="text-xl font-display font-bold text-white mb-4 uppercase tracking-wide">{t.contact.opening}</h3>
-                  <div className="space-y-4 text-sm text-gray-400 max-w-xs">
+                  <div className="space-y-4 text-sm text-gray-400 max-w-xs text-[11px] uppercase tracking-widest">
                     <div className="border-b border-neutral-800 pb-3">
-                      <div className="font-bold text-white mb-1 uppercase text-xs tracking-wider">{days.tueFri}</div>
-                      <div className="flex justify-between text-[11px]">
-                        <span>{days.midi}</span>
-                        <span className="text-white">11:20 - 14:00</span>
-                      </div>
-                      <div className="flex justify-between text-[11px]">
-                        <span>{days.soir}</span>
-                        <span className="text-white">18:00 - 22:30</span>
-                      </div>
+                      <div className="font-bold text-white mb-1">{days.tueFri}</div>
+                      <div className="flex justify-between"><span>{days.midi}</span><span className="text-white">11:20 - 14:00</span></div>
+                      <div className="flex justify-between"><span>{days.soir}</span><span className="text-white">18:00 - 22:30</span></div>
                     </div>
-                    <div className="border-b border-neutral-800 pb-3">
-                      <div className="font-bold text-white mb-1 uppercase text-xs tracking-wider">{days.satSun}</div>
-                      <div className="flex justify-between text-[11px]">
-                        <span>{days.soir}</span>
-                        <span className="text-white">18:00 - 22:30</span>
-                      </div>
-                    </div>
-                    <div className="flex justify-between items-center text-xs">
-                      <span className="font-bold text-white uppercase tracking-wider">{days.mon}</span>
-                      <span className="text-brand-primary font-bold uppercase">{days.closed}</span>
+                    <div className="flex justify-between items-center">
+                      <span className="font-bold text-white">{days.mon}</span>
+                      <span className="text-brand-primary font-bold">{days.closed}</span>
                     </div>
                   </div>
                 </div>
@@ -175,104 +140,62 @@ export default function ContactPage() {
                 </div>
                 <div>
                   <h3 className="text-xl font-display font-bold text-white mb-2 uppercase tracking-wide">Contact Direct</h3>
-                  {/* ✅ Téléphone et Email dynamiques */}
-                  <p className="text-gray-400">Tél : <a href={`tel:${siteConfig.contact.phone.replace(/\s+/g, '')}`} className="text-white hover:text-brand-primary font-bold transition text-lg tracking-tighter">{siteConfig.contact.phone}</a></p>
-                  <p className="text-gray-400">Email : <a href={`mailto:${siteConfig.contact.email}`} className="text-white hover:text-brand-primary font-bold transition">{siteConfig.contact.email}</a></p>
+                  <p className="text-gray-400">Tél : <a href={`tel:${siteConfig.contact.phone.replace(/\s+/g, '')}`} className="text-white font-bold">{siteConfig.contact.phone}</a></p>
+                  <p className="text-gray-400">Email : <a href={`mailto:${siteConfig.contact.email}`} className="text-white font-bold">{siteConfig.contact.email}</a></p>
                 </div>
               </div>
             </Reveal>
           </div>
 
           <Reveal y={30} delay={0.5}>
-            <div className="bg-neutral-800/40 backdrop-blur-xl p-8 md:p-10 rounded-[2.5rem] shadow-2xl border border-neutral-700/50 relative overflow-hidden">
+            <div className="bg-neutral-800/40 backdrop-blur-xl p-8 md:p-10 rounded-[2.5rem] shadow-2xl border border-neutral-700/50">
               <AnimatePresence mode="wait">
                 {!isSent ? (
-                  <m.form 
-                    key="contact-form"
-                    initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                    onSubmit={handleSubmit} className="space-y-6"
-                    style={{ willChange: "transform, opacity" }}
-                  >
-                    <h3 className="text-2xl font-display font-bold text-white uppercase mb-4">
-                        {t.catering.formSection.title}
-                    </h3>
-                    
+                  <m.form key="contact-form" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onSubmit={handleSubmit} className="space-y-6">
+                    <h3 className="text-2xl font-display font-bold text-white uppercase">Écrivez-nous</h3>
                     <div className="grid md:grid-cols-2 gap-6">
-                      <div className="space-y-2">
-                        <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">{t.catering.formSection.name}</label>
-                        <input name="name" type="text" autoComplete="name" className={`w-full bg-black/40 text-white border ${errors.name ? 'border-brand-primary' : 'border-neutral-700'} focus:border-brand-primary rounded-2xl px-5 py-4 outline-none transition-all shadow-inner`} value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
-                        {errors.name && <p className="text-brand-primary text-[9px] font-bold uppercase mt-1">{errors.name}</p>}
+                      <div className="space-y-1">
+                        <input 
+                          placeholder="Nom" 
+                          className={`w-full bg-black/40 text-white border ${errors.name ? 'border-brand-primary' : 'border-neutral-700'} rounded-2xl px-5 py-4 outline-none transition-all`} 
+                          value={formData.name} 
+                          onChange={e => setFormData({...formData, name: e.target.value})} 
+                        />
+                        {errors.name && <p className="text-brand-primary text-[10px] font-bold uppercase px-2">{errors.name}</p>}
                       </div>
-                      <div className="space-y-2">
-                        <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">{t.catering.formSection.email}</label>
-                        <input name="email" type="email" autoComplete="email" className={`w-full bg-black/40 text-white border ${errors.email ? 'border-brand-primary' : 'border-neutral-700'} focus:border-brand-primary rounded-2xl px-5 py-4 outline-none transition-all shadow-inner`} value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} />
-                        {errors.email && <p className="text-brand-primary text-[9px] font-bold uppercase mt-1">{errors.email}</p>}
+                      <div className="space-y-1">
+                        <input 
+                          placeholder="Email" 
+                          type="email" 
+                          className={`w-full bg-black/40 text-white border ${errors.email ? 'border-brand-primary' : 'border-neutral-700'} rounded-2xl px-5 py-4 outline-none transition-all`} 
+                          value={formData.email} 
+                          onChange={e => setFormData({...formData, email: e.target.value})} 
+                        />
+                        {errors.email && <p className="text-brand-primary text-[10px] font-bold uppercase px-2">{errors.email}</p>}
                       </div>
                     </div>
                     
-                    <div className="grid md:grid-cols-2 gap-6">
-                        <div className="space-y-2">
-                            <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Sujet</label>
-                            <select name="subject" className="w-full bg-black/40 text-white border border-neutral-700 focus:border-brand-primary rounded-2xl px-5 py-4 outline-none transition appearance-none cursor-pointer" value={formData.subject} onChange={e => setFormData({...formData, subject: e.target.value})}>
-                                <option value="Général">Question Générale</option>
-                                <option value="Traiteur">Événement & Traiteur</option>
-                                <option value="Groupe">Réservation de Groupe</option>
-                            </select>
-                        </div>
-                        <div className="space-y-2">
-                            <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Téléphone</label>
-                            <input name="phone" type="tel" autoComplete="tel" className="w-full bg-black/40 text-white border border-neutral-700 focus:border-brand-primary rounded-2xl px-5 py-4 outline-none transition shadow-inner" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} />
-                        </div>
+                    <div className="space-y-1">
+                      <textarea 
+                        placeholder="Message" 
+                        rows={4} 
+                        className={`w-full bg-black/40 text-white border ${errors.message ? 'border-brand-primary' : 'border-neutral-700'} rounded-2xl px-5 py-4 outline-none resize-none transition-all`} 
+                        value={formData.message} 
+                        onChange={e => setFormData({...formData, message: e.target.value})} 
+                      />
+                      {errors.message && <p className="text-brand-primary text-[10px] font-bold uppercase px-2">{errors.message}</p>}
                     </div>
 
-                    <AnimatePresence>
-                      {formData.subject === "Traiteur" && (
-                        <m.div 
-                          initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }}
-                          className="grid md:grid-cols-2 gap-6 overflow-hidden"
-                        >
-                          <div className="space-y-2">
-                            <label className="text-[10px] font-bold text-brand-primary uppercase flex items-center gap-2 tracking-widest">
-                                <Calendar size={12}/> Date souhaitée
-                            </label>
-                            <input name="date" type="date" className="w-full bg-black/40 text-white border border-brand-primary/30 focus:border-brand-primary rounded-2xl px-5 py-4 outline-none transition" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} />
-                          </div>
-                          <div className="space-y-2">
-                            <label className="text-[10px] font-bold text-brand-primary uppercase flex items-center gap-2 tracking-widest">
-                                <Users size={12}/> Convives
-                            </label>
-                            <input name="guests" type="number" placeholder="Ex: 25" className="w-full bg-black/40 text-white border border-brand-primary/30 focus:border-brand-primary rounded-2xl px-5 py-4 outline-none transition" value={formData.guests} onChange={e => setFormData({...formData, guests: e.target.value})} />
-                          </div>
-                        </m.div>
-                      )}
-                    </AnimatePresence>
-
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Message</label>
-                      <textarea name="message" rows={4} className={`w-full bg-black/40 text-white border ${errors.message ? 'border-brand-primary' : 'border-neutral-700'} focus:border-brand-primary rounded-2xl px-5 py-4 outline-none transition resize-none shadow-inner`} value={formData.message} onChange={e => setFormData({...formData, message: e.target.value})} />
-                      {errors.message && <p className="text-brand-primary text-[9px] font-bold uppercase mt-1">{errors.message}</p>}
-                    </div>
-
-                    <button type="submit" disabled={isSubmitting} className="w-full bg-brand-primary text-white font-bold py-5 rounded-2xl hover:opacity-90 transition shadow-xl uppercase tracking-[0.2em] flex items-center justify-center gap-3 disabled:opacity-50 active:scale-95">
-                      {isSubmitting ? <Loader2 className="animate-spin" /> : <><Send size={18}/> {t.catering.formSection.submit}</>}
+                    <button type="submit" disabled={isSubmitting} className="w-full bg-brand-primary text-white font-bold py-5 rounded-2xl hover:opacity-90 transition uppercase tracking-[0.2em] flex items-center justify-center gap-3 disabled:opacity-50 active:scale-95">
+                      {isSubmitting ? <Loader2 className="animate-spin" /> : <><Send size={18}/> Envoyer</>}
                     </button>
                   </m.form>
                 ) : (
-                  <m.div 
-                    initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
-                    className="py-20 text-center space-y-6"
-                  >
-                    <div className="w-20 h-20 bg-green-500/20 text-green-500 rounded-full flex items-center justify-center mx-auto shadow-lg shadow-green-500/10">
-                      <CheckCircle size={40} />
-                    </div>
-                    <div>
-                        <h3 className="text-2xl font-display font-bold text-white uppercase tracking-widest mb-2">Message Envoyé</h3>
-                        <p className="text-gray-400 italic text-sm max-w-xs mx-auto">
-                            {/* ✅ Texte de remerciement générique */}
-                            Merci ! Notre équipe reviendra vers vous très rapidement.
-                        </p>
-                    </div>
-                  </m.div>
+                  <div className="py-20 text-center space-y-6">
+                    <CheckCircle size={48} className="text-green-500 mx-auto" />
+                    <h3 className="text-2xl font-display font-bold text-white uppercase tracking-widest">Message Envoyé</h3>
+                    <p className="text-gray-400 italic">Merci, nous reviendrons vers vous rapidement.</p>
+                  </div>
                 )}
               </AnimatePresence>
             </div>
@@ -289,8 +212,7 @@ export default function ContactPage() {
           style={{border:0}} 
           allowFullScreen={true} 
           loading="lazy" 
-          referrerPolicy="no-referrer-when-downgrade"
-          className="filter grayscale contrast-125 brightness-75 opacity-60 hover:opacity-100 transition-all duration-1000"
+          className="filter grayscale opacity-60 hover:opacity-100 transition-all duration-1000"
         ></iframe>
       </div>
     </div>

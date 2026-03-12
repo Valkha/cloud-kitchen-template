@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { m, AnimatePresence } from "framer-motion";
-import { Clock, ChefHat, Truck, PackageCheck, Loader2, ShoppingBasket, Store } from "lucide-react";
+import { Clock, ChefHat, Truck, PackageCheck, Loader2, ShoppingBasket, Store, Volume2 } from "lucide-react";
 
 interface OrderItem {
   id: string;
@@ -27,6 +27,9 @@ export default function OrderManager() {
   const supabase = useMemo(() => createClient(), []);
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
+  
+  // ✅ Référence pour l'alerte sonore
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const syncOrders = useCallback(async () => {
     const { data, error } = await supabase
@@ -49,7 +52,6 @@ export default function OrderManager() {
   useEffect(() => {
     let isMounted = true;
 
-    // ✅ On encapsule l'appel dans une fonction asynchrone interne
     const initializeKDS = async () => {
       await syncOrders();
       if (isMounted) {
@@ -61,7 +63,12 @@ export default function OrderManager() {
 
     const subscription = supabase
       .channel("orders-kds")
-      .on("postgres_changes", { event: "*", schema: "public", table: "orders" }, () => {
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "orders" }, () => {
+        // ✅ Jouer un son quand une nouvelle commande arrive
+        audioRef.current?.play().catch(() => console.log("Interaction utilisateur requise pour le son"));
+        syncOrders();
+      })
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "orders" }, () => {
         syncOrders();
       })
       .subscribe();
@@ -72,13 +79,51 @@ export default function OrderManager() {
     };
   }, [supabase, syncOrders]);
 
-  const updateStatus = async (orderId: string, newStatus: string) => {
+  // ✅ Nouvelle fonction pour envoyer la notification via l'API
+  const sendPushNotification = async (order: Order, newStatus: string) => {
+    let title = "Mise à jour de commande";
+    let body = "";
+
+    if (newStatus === "preparing") {
+      title = "C'est en cuisine ! 👨‍🍳";
+      body = `Votre commande #${order.id.split('-')[0].toUpperCase()} est en cours de préparation.`;
+    } else if (newStatus === "ready") {
+      title = order.type === "Livraison" ? "Livreur en route ! 🛵" : "Commande prête ! 🎁";
+      body = order.type === "Livraison" 
+        ? "Votre commande a été remise au livreur." 
+        : "Vous pouvez venir récupérer votre commande.";
+    } else {
+      return; // Pas de notification pour les autres statuts ici
+    }
+
+    try {
+      await fetch("/api/push/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          orderId: order.id,
+          title,
+          body,
+          url: `/${window.location.pathname.split('/')[1]}/track?order_id=${order.id}`
+        }),
+      });
+    } catch (err) {
+      console.error("Erreur envoi push:", err);
+    }
+  };
+
+  const updateStatus = async (order: Order, newStatus: string) => {
     const { error } = await supabase
       .from("orders")
       .update({ status: newStatus })
-      .eq("id", orderId);
+      .eq("id", order.id);
 
-    if (error) alert("Erreur lors de la mise à jour");
+    if (error) {
+      alert("Erreur lors de la mise à jour");
+    } else {
+      // ✅ Déclencher la notification push
+      sendPushNotification(order, newStatus);
+    }
   };
 
   const getStatusConfig = (status: string) => {
@@ -98,10 +143,16 @@ export default function OrderManager() {
 
   return (
     <div className="p-6 max-w-6xl mx-auto min-h-screen text-white">
+      {/* ✅ Son d'alerte (prévoir un fichier ping.mp3 dans public/sounds/) */}
+      <audio ref={audioRef} src="/sounds/new-order.mp3" preload="auto" />
+
       <header className="flex justify-between items-center mb-10 border-b border-neutral-800 pb-6">
-        <h2 className="text-2xl font-display font-bold uppercase tracking-widest">
-          Gestion <span className="text-brand-primary">Cuisine</span>
-        </h2>
+        <div className="flex items-center gap-4">
+          <h2 className="text-2xl font-display font-bold uppercase tracking-widest">
+            Gestion <span className="text-brand-primary">Cuisine</span>
+          </h2>
+          <Volume2 size={16} className="text-neutral-600 animate-pulse" />
+        </div>
         <div className="flex items-center gap-2 bg-neutral-900 px-4 py-2 rounded-full border border-neutral-800">
           <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
           <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
@@ -162,7 +213,7 @@ export default function OrderManager() {
                     
                     {config.next && (
                       <button
-                        onClick={() => updateStatus(order.id, config.next!)}
+                        onClick={() => updateStatus(order, config.next!)}
                         className="w-full flex items-center justify-center gap-2 bg-white text-black hover:bg-brand-primary hover:text-white transition-all px-6 py-4 rounded-xl font-black uppercase tracking-widest text-[10px]"
                       >
                         {config.icon}

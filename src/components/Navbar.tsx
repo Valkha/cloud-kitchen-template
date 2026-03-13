@@ -3,7 +3,7 @@
 import { useState } from "react";
 import TransitionLink from "./TransitionLink";
 import { usePathname } from "next/navigation"; 
-import { motion, AnimatePresence } from "framer-motion"; // ✅ Remplacement de 'm' par 'motion'
+import { motion, AnimatePresence } from "framer-motion"; 
 import { useTranslation } from "@/context/LanguageContext";
 import LanguageSwitcher from "./LanguageSwitcher";
 import { ShoppingCart, User as UserIcon, LogOut, Rocket } from "lucide-react"; 
@@ -46,7 +46,6 @@ export default function Navbar({ onOpenCart }: NavbarProps) {
   const navLinks = [
     { name: t?.nav?.home || "Accueil", path: `/${lang}` },
     { 
-      // ✅ Renommé "COMMANDER" et redirection vers l'ancre
       name: lang === 'en' ? 'ORDER' : lang === 'es' ? 'PEDIR' : 'COMMANDER', 
       path: `/${lang}#restaurants` 
     }, 
@@ -60,7 +59,7 @@ export default function Navbar({ onOpenCart }: NavbarProps) {
         {/* --- LOGO PLANET FOOD --- */}
         <TransitionLink 
           href={`/${lang}`} 
-          className="flex items-center gap-3 group"
+          className="flex items-center gap-3 group cursor-pointer"
           onClick={closeMobileMenu}
         >
           <div className="relative flex items-center justify-center">
@@ -90,7 +89,7 @@ export default function Navbar({ onOpenCart }: NavbarProps) {
               <TransitionLink 
                 key={link.path} 
                 href={link.path}
-                className={`text-[10px] font-black uppercase tracking-[0.2em] transition-all duration-300 relative py-2 ${
+                className={`text-[10px] font-black uppercase tracking-[0.2em] transition-all duration-300 relative py-2 cursor-pointer ${
                   isActive(link.path) ? "text-white" : "text-neutral-500 hover:text-white"
                 }`}
               >
@@ -111,7 +110,7 @@ export default function Navbar({ onOpenCart }: NavbarProps) {
               <div className="flex items-center gap-3 bg-white/5 px-4 py-2 rounded-2xl border border-white/5 hover:border-white/10 transition-all">
                 <TransitionLink 
                   href={`/${lang}/profile`}
-                  className="flex flex-col items-end"
+                  className="flex flex-col items-end cursor-pointer"
                 >
                   <span className="text-[10px] font-black text-white uppercase tracking-wider">
                     {profile?.full_name?.split(' ')[0] || "Client"}
@@ -122,7 +121,7 @@ export default function Navbar({ onOpenCart }: NavbarProps) {
                 </TransitionLink>
                 <button 
                   onClick={handleSignOut}
-                  className="text-neutral-500 hover:text-brand-primary transition-colors p-1"
+                  className="text-neutral-500 hover:text-brand-primary transition-colors p-1 cursor-pointer"
                 >
                   <LogOut size={14} />
                 </button>
@@ -130,13 +129,13 @@ export default function Navbar({ onOpenCart }: NavbarProps) {
             ) : (
               <button
                 onClick={() => setIsAuthModalOpen(true)}
-                className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-white hover:glow-white transition-all bg-white/5 px-6 py-3 rounded-2xl border border-white/10"
+                className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-white hover:glow-white transition-all bg-white/5 px-6 py-3 rounded-2xl border border-white/10 cursor-pointer"
               >
                 <UserIcon size={14} className="text-brand-primary" /> Connexion
               </button>
             )}
 
-            <button onClick={onOpenCart} className="relative p-2 active:scale-90 transition-transform group">
+            <button onClick={onOpenCart} className="relative p-2 active:scale-90 transition-transform group cursor-pointer">
               <ShoppingCart size={22} className="text-neutral-400 group-hover:text-white transition-colors" />
               <AnimatePresence>
                 {totalItems > 0 && (
@@ -156,7 +155,7 @@ export default function Navbar({ onOpenCart }: NavbarProps) {
 
         {/* --- MOBILE --- */}
         <div className="flex md:hidden items-center space-x-4">
-          <button onClick={onOpenCart} className="relative p-2 mr-2">
+          <button onClick={onOpenCart} className="relative p-2 mr-2 cursor-pointer">
             <ShoppingCart size={22} />
             {totalItems > 0 && (
                <span className="absolute top-0 right-0 bg-brand-primary text-white text-[8px] font-black w-4 h-4 rounded-full flex items-center justify-center border border-brand-black shadow-[0_0_10px_rgba(168,85,247,0.5)]">
@@ -165,7 +164,7 @@ export default function Navbar({ onOpenCart }: NavbarProps) {
             )}
           </button>
           
-          <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="z-50 w-8 h-8 flex flex-col justify-center items-end gap-1.5">
+          <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="z-50 w-8 h-8 flex flex-col justify-center items-end gap-1.5 cursor-pointer">
             <motion.span animate={isMobileMenuOpen ? { rotate: 45, y: 8, width: "32px" } : { rotate: 0, y: 0, width: "32px" }} className="h-0.5 bg-white block rounded-full" />
             <motion.span animate={isMobileMenuOpen ? { opacity: 0 } : { opacity: 1 }} className="w-5 h-0.5 bg-brand-primary block rounded-full" />
             <motion.span animate={isMobileMenuOpen ? { rotate: -45, y: -8, width: "32px" } : { rotate: 0, y: 0, width: "32px" }} className="h-0.5 bg-white block rounded-full" />
@@ -184,7 +183,7 @@ export default function Navbar({ onOpenCart }: NavbarProps) {
                 <li key={link.path}>
                   <TransitionLink 
                     href={link.path} 
-                    className={`text-3xl font-display font-bold uppercase tracking-[0.2em] block transition-all ${isActive(link.path) ? "text-brand-primary glow-primary" : "text-white"}`} 
+                    className={`text-3xl font-display font-bold uppercase tracking-[0.2em] block transition-all cursor-pointer ${isActive(link.path) ? "text-brand-primary glow-primary" : "text-white"}`} 
                     onClick={closeMobileMenu}
                   >
                     {link.name}
@@ -193,7 +192,7 @@ export default function Navbar({ onOpenCart }: NavbarProps) {
               ))}
               {!user && (
                  <li>
-                    <button onClick={() => { setIsAuthModalOpen(true); closeMobileMenu(); }} className="text-xl font-display font-bold uppercase tracking-widest text-brand-primary border-b-2 border-brand-primary pb-1 glow-primary">
+                    <button onClick={() => { setIsAuthModalOpen(true); closeMobileMenu(); }} className="text-xl font-display font-bold uppercase tracking-widest text-brand-primary border-b-2 border-brand-primary pb-1 glow-primary cursor-pointer">
                       Connexion
                     </button>
                  </li>
@@ -204,7 +203,6 @@ export default function Navbar({ onOpenCart }: NavbarProps) {
       </AnimatePresence>
 
       <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)}/>
-        
     </nav>
   );
 }

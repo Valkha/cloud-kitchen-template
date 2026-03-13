@@ -6,23 +6,24 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
 export async function GET() {
   if (!supabaseUrl || !supabaseAnonKey) {
-    return NextResponse.json({ error: "Variables d'environnement manquantes" }, { status: 500 });
+    return NextResponse.json({ error: "Config manquante" }, { status: 500 });
   }
 
   const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
   try {
-    const { data, error } = await supabase
-      .from('products')
-      .select('*, brands(name)')
-      .eq('is_featured', true)
+    const { data, error: supabaseError } = await supabase
+      .from("products")
+      // ✅ On adapte la jointure : 'restaurants(name)' au lieu de 'brands(name)'
+      .select("*, restaurants(name)")
+      .eq("is_featured", true)
       .limit(3);
 
-    if (error) throw error;
+    if (supabaseError) throw new Error(supabaseError.message);
 
     return NextResponse.json(data || []);
   } catch (error) {
-    const msg = error instanceof Error ? error.message : "Erreur Supabase";
-    return NextResponse.json({ error: msg }, { status: 500 });
+    const message = error instanceof Error ? error.message : "Erreur inconnue";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

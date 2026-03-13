@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { m, AnimatePresence } from "framer-motion";
+// ✅ Correction : Passage de 'm' à 'motion'
+import { motion, AnimatePresence } from "framer-motion";
 import { 
   Phone, MapPin, Send, Loader2, CheckCircle, 
   Clock, ArrowRight 
@@ -11,7 +12,6 @@ import { useTranslation } from "@/context/LanguageContext";
 import { z } from "zod";
 import { siteConfig } from "../../../config/site"; 
 
-// ✅ Schéma de validation Zod
 const contactSchema = z.object({
   name: z.string().min(2, "Le nom est trop court").max(50),
   email: z.string().email("Email invalide"),
@@ -24,10 +24,10 @@ export default function ContactPage() {
   const { t, lang } = useTranslation();
   const [errors, setErrors] = useState<Record<string, string>>({});
   
-  // URLs dynamiques
+  // ✅ Correction : URLs Google Maps valides et sécurisées
   const addressQuery = encodeURIComponent(`${siteConfig.contact.address.street}, ${siteConfig.contact.address.zipCode} ${siteConfig.contact.address.city}, ${siteConfig.contact.address.country}`);
-  const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${addressQuery}`;
-  const mapEmbedUrl = `https://www.google.com/maps/embed/v1/place?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ''}&q=${addressQuery}`;
+  const googleMapsUrl = `https://maps.google.com/?q=${addressQuery}`;
+  const mapEmbedUrl = `https://maps.google.com/maps?q=${addressQuery}&t=m&z=15&output=embed&iwloc=near`;
 
   const findUsLabel = { fr: "Trouvez-nous", en: "Find us", es: "Encuéntranos" }[lang as "fr" | "en" | "es"] || "Trouvez-nous";
   
@@ -73,38 +73,45 @@ export default function ContactPage() {
   };
 
   return (
-    <div className="bg-neutral-900 min-h-screen">
+    <div className="bg-black min-h-screen">
       
-      {/* HERO */}
-      <div className="bg-black text-white pt-24 md:pt-32 pb-20 text-center relative overflow-hidden">
+      {/* --- HERO SECTION --- */}
+      <div className="bg-[#080808] text-white pt-32 pb-24 text-center relative overflow-hidden border-b border-white/5">
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-brand-primary/5 blur-[120px] rounded-full pointer-events-none" />
+        
         <Reveal>
-          <h1 className="text-4xl md:text-6xl font-display font-bold uppercase tracking-widest relative z-10">
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-brand-primary/10 border border-brand-primary/20 mb-6">
+            <span className="w-2 h-2 rounded-full bg-brand-primary animate-pulse" />
+            <span className="text-[10px] font-black uppercase tracking-[0.3em] text-brand-primary">Transmission</span>
+          </div>
+          <h1 className="text-5xl md:text-7xl font-display font-black uppercase tracking-tight relative z-10">
             {t.contact.title}
           </h1>
-          <p className="text-gray-400 mt-4 text-sm md:text-base relative z-10 max-w-xl mx-auto px-6 italic">
+          <p className="text-gray-500 mt-6 text-sm md:text-base relative z-10 max-w-xl mx-auto px-6 font-bold uppercase tracking-widest">
             {t.contact.subtitle}
           </p>
-          <div className="w-16 h-1 bg-brand-primary mx-auto mt-8 relative z-10"></div>
         </Reveal>
       </div>
 
-      <div className="w-full max-w-7xl mx-auto px-4 md:px-8 py-16">
-        <div className="grid lg:grid-cols-2 gap-16">
+      {/* --- CONTENU --- */}
+      <div className="w-full max-w-7xl mx-auto px-6 md:px-12 py-24">
+        <div className="grid lg:grid-cols-2 gap-16 lg:gap-24">
           
+          {/* INFORMATIONS CONTACT */}
           <div className="space-y-12">
             <Reveal x={-30}>
-              <div className="flex gap-6 items-start group">
-                <div className="w-14 h-14 bg-neutral-800 rounded-2xl flex items-center justify-center text-brand-primary border border-neutral-700 group-hover:bg-brand-primary group-hover:text-white transition-all shadow-xl shrink-0">
+              <div className="flex gap-6 items-start group cursor-default">
+                <div className="w-16 h-16 bg-neutral-900 rounded-[1.5rem] flex items-center justify-center text-brand-primary border border-white/5 group-hover:bg-brand-primary group-hover:text-white group-hover:scale-105 transition-all shadow-xl shrink-0">
                   <MapPin size={28} />
                 </div>
                 <div>
-                  <h3 className="text-xl font-display font-bold text-white mb-2 uppercase tracking-wide">{t.contact.address}</h3>
-                  <p className="text-gray-400 leading-relaxed">
-                    {siteConfig.name}<br />
+                  <h3 className="text-xl font-display font-black text-white mb-2 uppercase tracking-widest">{t.contact.address}</h3>
+                  <p className="text-gray-500 leading-relaxed font-bold text-sm uppercase tracking-wider">
+                    <span className="text-white">{siteConfig.name}</span><br />
                     {siteConfig.contact.address.street}<br />
                     {siteConfig.contact.address.zipCode} {siteConfig.contact.address.city}, {siteConfig.contact.address.country}
                   </p>
-                  <a href={googleMapsUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 mt-3 text-brand-primary hover:text-white transition font-bold text-xs uppercase tracking-widest">
+                  <a href={googleMapsUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 mt-4 text-brand-primary hover:text-white transition font-black text-[10px] uppercase tracking-[0.2em] bg-brand-primary/10 px-4 py-2 rounded-lg hover:bg-brand-primary cursor-pointer">
                     {findUsLabel} <ArrowRight size={14} />
                   </a>
                 </div>
@@ -112,21 +119,21 @@ export default function ContactPage() {
             </Reveal>
 
             <Reveal x={-30} delay={0.2}>
-              <div className="flex gap-6 items-start group">
-                <div className="w-14 h-14 bg-neutral-800 rounded-2xl flex items-center justify-center text-brand-primary border border-neutral-700 group-hover:bg-brand-primary group-hover:text-white transition-all shadow-xl shrink-0">
+              <div className="flex gap-6 items-start group cursor-default">
+                <div className="w-16 h-16 bg-neutral-900 rounded-[1.5rem] flex items-center justify-center text-brand-primary border border-white/5 group-hover:bg-brand-primary group-hover:text-white group-hover:scale-105 transition-all shadow-xl shrink-0">
                   <Clock size={28} />
                 </div>
-                <div>
-                  <h3 className="text-xl font-display font-bold text-white mb-4 uppercase tracking-wide">{t.contact.opening}</h3>
-                  <div className="space-y-4 text-sm text-gray-400 max-w-xs text-[11px] uppercase tracking-widest">
-                    <div className="border-b border-neutral-800 pb-3">
-                      <div className="font-bold text-white mb-1">{days.tueFri}</div>
-                      <div className="flex justify-between"><span>{days.midi}</span><span className="text-white">11:20 - 14:00</span></div>
-                      <div className="flex justify-between"><span>{days.soir}</span><span className="text-white">18:00 - 22:30</span></div>
+                <div className="w-full">
+                  <h3 className="text-xl font-display font-black text-white mb-4 uppercase tracking-widest">{t.contact.opening}</h3>
+                  <div className="space-y-4 text-gray-500 max-w-sm text-[10px] uppercase tracking-[0.2em] font-black">
+                    <div className="bg-neutral-900/50 p-4 rounded-2xl border border-white/5 space-y-2">
+                      <div className="text-white mb-2">{days.tueFri}</div>
+                      <div className="flex justify-between items-center border-b border-white/5 pb-2"><span>{days.midi}</span><span className="text-brand-primary">11:20 - 14:00</span></div>
+                      <div className="flex justify-between items-center pt-1"><span>{days.soir}</span><span className="text-brand-primary">18:00 - 22:30</span></div>
                     </div>
-                    <div className="flex justify-between items-center">
-                      <span className="font-bold text-white">{days.mon}</span>
-                      <span className="text-brand-primary font-bold">{days.closed}</span>
+                    <div className="flex justify-between items-center bg-neutral-900/50 p-4 rounded-2xl border border-white/5">
+                      <span className="text-white">{days.mon}</span>
+                      <span className="text-red-500 bg-red-500/10 px-3 py-1 rounded-md">{days.closed}</span>
                     </div>
                   </div>
                 </div>
@@ -134,67 +141,80 @@ export default function ContactPage() {
             </Reveal>
 
             <Reveal x={-30} delay={0.4}>
-              <div className="flex gap-6 items-start group">
-                <div className="w-14 h-14 bg-neutral-800 rounded-2xl flex items-center justify-center text-brand-primary border border-neutral-700 group-hover:bg-brand-primary group-hover:text-white transition-all shadow-xl shrink-0">
+              <div className="flex gap-6 items-start group cursor-default">
+                <div className="w-16 h-16 bg-neutral-900 rounded-[1.5rem] flex items-center justify-center text-brand-primary border border-white/5 group-hover:bg-brand-primary group-hover:text-white group-hover:scale-105 transition-all shadow-xl shrink-0">
                   <Phone size={28} />
                 </div>
                 <div>
-                  <h3 className="text-xl font-display font-bold text-white mb-2 uppercase tracking-wide">Contact Direct</h3>
-                  <p className="text-gray-400">Tél : <a href={`tel:${siteConfig.contact.phone.replace(/\s+/g, '')}`} className="text-white font-bold">{siteConfig.contact.phone}</a></p>
-                  <p className="text-gray-400">Email : <a href={`mailto:${siteConfig.contact.email}`} className="text-white font-bold">{siteConfig.contact.email}</a></p>
+                  <h3 className="text-xl font-display font-black text-white mb-3 uppercase tracking-widest">Contact Direct</h3>
+                  <div className="space-y-2 text-sm font-bold uppercase tracking-wider">
+                    <p className="text-gray-500">Tél : <a href={`tel:${siteConfig.contact.phone.replace(/\s+/g, '')}`} className="text-white hover:text-brand-primary transition ml-2">{siteConfig.contact.phone}</a></p>
+                    <p className="text-gray-500">Email : <a href={`mailto:${siteConfig.contact.email}`} className="text-white hover:text-brand-primary transition ml-2">{siteConfig.contact.email}</a></p>
+                  </div>
                 </div>
               </div>
             </Reveal>
           </div>
 
+          {/* FORMULAIRE */}
           <Reveal y={30} delay={0.5}>
-            <div className="bg-neutral-800/40 backdrop-blur-xl p-8 md:p-10 rounded-[2.5rem] shadow-2xl border border-neutral-700/50">
+            <div className="bg-neutral-900 border border-neutral-800 p-8 md:p-12 rounded-[2.5rem] shadow-2xl relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-64 h-64 bg-brand-primary/5 blur-[80px] rounded-full pointer-events-none" />
+              
               <AnimatePresence mode="wait">
                 {!isSent ? (
-                  <m.form key="contact-form" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onSubmit={handleSubmit} className="space-y-6">
-                    <h3 className="text-2xl font-display font-bold text-white uppercase">Écrivez-nous</h3>
+                  <motion.form key="contact-form" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onSubmit={handleSubmit} className="space-y-6 relative z-10">
+                    <h3 className="text-3xl font-display font-black text-white uppercase tracking-tighter mb-8">Écrivez-nous</h3>
+                    
                     <div className="grid md:grid-cols-2 gap-6">
-                      <div className="space-y-1">
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-500 ml-1">Nom</label>
                         <input 
-                          placeholder="Nom" 
-                          className={`w-full bg-black/40 text-white border ${errors.name ? 'border-brand-primary' : 'border-neutral-700'} rounded-2xl px-5 py-4 outline-none transition-all`} 
+                          placeholder="Ex: Jean Dupont" 
+                          className={`w-full bg-black text-white border ${errors.name ? 'border-brand-primary' : 'border-neutral-800'} rounded-2xl px-5 py-4 font-bold outline-none focus:border-brand-primary transition-all`} 
                           value={formData.name} 
                           onChange={e => setFormData({...formData, name: e.target.value})} 
                         />
-                        {errors.name && <p className="text-brand-primary text-[10px] font-bold uppercase px-2">{errors.name}</p>}
+                        {errors.name && <p className="text-brand-primary text-[9px] font-black uppercase tracking-widest px-2">{errors.name}</p>}
                       </div>
-                      <div className="space-y-1">
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-500 ml-1">Email</label>
                         <input 
-                          placeholder="Email" 
+                          placeholder="jean@exemple.com" 
                           type="email" 
-                          className={`w-full bg-black/40 text-white border ${errors.email ? 'border-brand-primary' : 'border-neutral-700'} rounded-2xl px-5 py-4 outline-none transition-all`} 
+                          className={`w-full bg-black text-white border ${errors.email ? 'border-brand-primary' : 'border-neutral-800'} rounded-2xl px-5 py-4 font-bold outline-none focus:border-brand-primary transition-all`} 
                           value={formData.email} 
                           onChange={e => setFormData({...formData, email: e.target.value})} 
                         />
-                        {errors.email && <p className="text-brand-primary text-[10px] font-bold uppercase px-2">{errors.email}</p>}
+                        {errors.email && <p className="text-brand-primary text-[9px] font-black uppercase tracking-widest px-2">{errors.email}</p>}
                       </div>
                     </div>
                     
-                    <div className="space-y-1">
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-500 ml-1">Message</label>
                       <textarea 
-                        placeholder="Message" 
-                        rows={4} 
-                        className={`w-full bg-black/40 text-white border ${errors.message ? 'border-brand-primary' : 'border-neutral-700'} rounded-2xl px-5 py-4 outline-none resize-none transition-all`} 
+                        placeholder="Votre transmission..." 
+                        rows={5} 
+                        className={`w-full bg-black text-white border ${errors.message ? 'border-brand-primary' : 'border-neutral-800'} rounded-2xl px-5 py-4 font-bold outline-none focus:border-brand-primary resize-none transition-all`} 
                         value={formData.message} 
                         onChange={e => setFormData({...formData, message: e.target.value})} 
                       />
-                      {errors.message && <p className="text-brand-primary text-[10px] font-bold uppercase px-2">{errors.message}</p>}
+                      {errors.message && <p className="text-brand-primary text-[9px] font-black uppercase tracking-widest px-2">{errors.message}</p>}
                     </div>
 
-                    <button type="submit" disabled={isSubmitting} className="w-full bg-brand-primary text-white font-bold py-5 rounded-2xl hover:opacity-90 transition uppercase tracking-[0.2em] flex items-center justify-center gap-3 disabled:opacity-50 active:scale-95">
-                      {isSubmitting ? <Loader2 className="animate-spin" /> : <><Send size={18}/> Envoyer</>}
+                    <button type="submit" disabled={isSubmitting} className="w-full bg-white text-black font-black py-5 rounded-2xl hover:bg-brand-primary hover:text-white transition-all uppercase tracking-[0.3em] text-[10px] flex items-center justify-center gap-4 disabled:opacity-50 cursor-pointer shadow-xl mt-4">
+                      {isSubmitting ? <Loader2 className="animate-spin" size={20} /> : <><Send size={18}/> Envoyer le message</>}
                     </button>
-                  </m.form>
+                  </motion.form>
                 ) : (
-                  <div className="py-20 text-center space-y-6">
-                    <CheckCircle size={48} className="text-green-500 mx-auto" />
-                    <h3 className="text-2xl font-display font-bold text-white uppercase tracking-widest">Message Envoyé</h3>
-                    <p className="text-gray-400 italic">Merci, nous reviendrons vers vous rapidement.</p>
+                  <div className="py-32 text-center space-y-8 relative z-10">
+                    <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="w-24 h-24 bg-green-500/10 rounded-full flex items-center justify-center mx-auto shadow-[0_0_30px_rgba(34,197,94,0.2)]">
+                      <CheckCircle size={56} className="text-green-500" />
+                    </motion.div>
+                    <div>
+                      <h3 className="text-3xl font-display font-black text-white uppercase tracking-tighter mb-2">Message Envoyé</h3>
+                      <p className="text-gray-500 font-bold uppercase tracking-widest text-xs">Notre équipage vous répondra rapidement.</p>
+                    </div>
                   </div>
                 )}
               </AnimatePresence>
@@ -203,7 +223,10 @@ export default function ContactPage() {
         </div>
       </div>
 
-      <div className="w-full h-[450px] bg-neutral-800 border-t border-neutral-800 relative">
+      {/* --- CARTE GOOGLE MAPS --- */}
+      <div className="w-full h-[500px] bg-neutral-900 border-t border-white/5 relative group overflow-hidden">
+        {/* Overlay pour ne pas bloquer le scroll sur mobile */}
+        <div className="absolute inset-0 bg-black/40 group-hover:bg-transparent transition-colors duration-700 pointer-events-none z-10" />
         <iframe 
           src={mapEmbedUrl}
           title={`Plan d'accès ${siteConfig.name}`}
@@ -212,7 +235,7 @@ export default function ContactPage() {
           style={{border:0}} 
           allowFullScreen={true} 
           loading="lazy" 
-          className="filter grayscale opacity-60 hover:opacity-100 transition-all duration-1000"
+          className="filter grayscale opacity-60 group-hover:opacity-100 group-hover:grayscale-0 transition-all duration-1000 scale-105"
         ></iframe>
       </div>
     </div>

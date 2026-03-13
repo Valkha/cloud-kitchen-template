@@ -7,11 +7,13 @@ import {
   CheckCircle2, AlertCircle, Wand2, 
   PowerOff, RefreshCw, Power, ArrowLeft
 } from "lucide-react";
-import { m, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
 import { useTranslation } from "@/context/LanguageContext";
 import { useSearchParams, useRouter } from "next/navigation";
 import TransitionLink from "@/components/TransitionLink";
+// ✅ Correction : Import de siteConfig ajouté
+import { siteConfig } from "@/config/site";
 
 interface MenuItem {
   id: string; 
@@ -27,6 +29,11 @@ interface MenuItem {
   image_url: string;
   is_available: boolean; 
   category_name?: string; 
+}
+
+// ✅ Correction : Interface pour le retour de jointure Supabase
+interface RawProduct extends MenuItem {
+  categories: { name_fr: string } | null;
 }
 
 interface Category {
@@ -93,9 +100,7 @@ export default function AdminMenu() {
         .eq('restaurant_id', targetRestaurantId) 
         .order('order', { ascending: true });
         
-      if (!catsError && cats) {
-        setCategories(cats);
-      }
+      if (!catsError && cats) setCategories(cats);
 
       const { data: products, error: prodError } = await supabase
         .from('products')
@@ -106,7 +111,8 @@ export default function AdminMenu() {
       if (prodError) throw prodError;
       
       if (products) {
-        const formattedProducts = products.map((p: MenuItem & { categories?: { name_fr: string } | null }) => ({
+        // ✅ Correction : Typage explicite au lieu de any
+        const formattedProducts = (products as RawProduct[]).map((p) => ({
           ...p,
           category_name: p.categories?.name_fr || 'Sans catégorie'
         }));
@@ -114,8 +120,8 @@ export default function AdminMenu() {
       }
 
     } catch (error: unknown) {
-      const err = error as Error;
-      showToast(err.message, 'error');
+      const err = error instanceof Error ? error.message : "Erreur lors du chargement";
+      showToast(err, 'error');
     } finally {
       setLoading(false);
     }
@@ -128,11 +134,10 @@ export default function AdminMenu() {
   if (!targetRestaurantId) {
     return (
       <div className="p-4 md:p-10 bg-black min-h-screen text-white pt-24 md:pt-32 flex flex-col items-center justify-center text-center">
-        <AlertCircle size={48} className="text-kabuki-red mb-4" />
-        <h1 className="text-2xl font-bold uppercase tracking-widest mb-2">Aucun restaurant sélectionné</h1>
-        {/* ✅ LINTER FIX : Échappement des apostrophes et guillemets */}
-        <p className="text-gray-500 mb-8 max-w-md text-sm">Veuillez d&apos;abord choisir un restaurant dans l&apos;onglet &quot;Plateforme&quot; pour gérer son menu.</p>
-        <TransitionLink href={`/${lang}/admin/restaurants`} className="bg-white text-black px-6 py-3 rounded-xl font-black uppercase text-xs tracking-widest hover:bg-kabuki-red hover:text-white transition">
+        <AlertCircle size={48} className="text-brand-primary mb-4" />
+        <h1 className="text-2xl font-black uppercase tracking-widest mb-2">Aucun restaurant sélectionné</h1>
+        <p className="text-gray-500 mb-8 max-w-md text-sm uppercase tracking-widest font-bold">Veuillez choisir un restaurant pour gérer son menu.</p>
+        <TransitionLink href={`/${lang}/admin/restaurants`} className="bg-white text-black px-8 py-4 rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-brand-primary hover:text-white transition cursor-pointer">
           Retour aux enseignes
         </TransitionLink>
       </div>
@@ -191,9 +196,9 @@ export default function AdminMenu() {
       const { data } = supabase.storage.from('restaurant-assets').getPublicUrl(fileName);
       setForm(prev => ({ ...prev, image_url: data.publicUrl }));
       showToast("Image mise à jour !");
-    } catch (err) {
-      const error = err as Error;
-      showToast(error.message, 'error');
+    } catch (error: unknown) {
+      const err = error instanceof Error ? error.message : "Erreur lors du transfert";
+      showToast(err, 'error');
     } finally {
       setUploading(false);
     }
@@ -201,7 +206,7 @@ export default function AdminMenu() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!targetRestaurantId) return showToast("Erreur critique: Restaurant non identifié", "error");
+    if (!targetRestaurantId) return showToast("Erreur: Restaurant non identifié", "error");
     
     setActionLoading(true);
     const productData = { 
@@ -224,9 +229,9 @@ export default function AdminMenu() {
       setIsModalOpen(false);
       resetForm();
       fetchMenuData(); 
-    } catch (err) {
-      const error = err as Error;
-      showToast(error.message, 'error');
+    } catch (error: unknown) {
+      const err = error instanceof Error ? error.message : "Erreur lors de l'enregistrement";
+      showToast(err, 'error');
     } finally {
       setActionLoading(false);
     }
@@ -239,9 +244,9 @@ export default function AdminMenu() {
         if (error) throw error;
         setItems(prev => prev.filter(i => i.id !== id));
         showToast("Produit supprimé.");
-      } catch (err) {
-        const error = err as Error;
-        showToast(error.message, 'error');
+      } catch (error: unknown) {
+        const err = error instanceof Error ? error.message : "Erreur lors de la suppression";
+        showToast(err, 'error');
       }
     }
   }
@@ -279,82 +284,99 @@ export default function AdminMenu() {
     <div className="p-4 md:p-10 bg-black min-h-screen text-white pt-24 md:pt-32">
       <AnimatePresence>
         {toast && (
-          <m.div initial={{ opacity: 0, y: 50 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className={`fixed bottom-10 right-10 z-[100] flex items-center gap-3 px-6 py-4 rounded-2xl shadow-2xl border backdrop-blur-md ${toast.type === 'success' ? 'bg-neutral-900/90 border-green-500/50 text-green-400' : 'bg-neutral-900/90 border-red-500/50 text-red-400'}`}>
+          <motion.div 
+            initial={{ opacity: 0, y: 50 }} 
+            animate={{ opacity: 1, y: 0 }} 
+            exit={{ opacity: 0 }} 
+            className={`fixed bottom-10 right-10 z-[100] flex items-center gap-3 px-6 py-4 rounded-2xl shadow-2xl border backdrop-blur-md ${toast.type === 'success' ? 'bg-neutral-900/90 border-green-500/50 text-green-400' : 'bg-neutral-900/90 border-red-500/50 text-red-400'}`}
+          >
             {toast.type === 'success' ? <CheckCircle2 size={20} /> : <AlertCircle size={20} />}
-            <span className="font-bold text-sm uppercase tracking-widest">{toast.message}</span>
-          </m.div>
+            <span className="font-black text-[10px] uppercase tracking-[0.2em]">{toast.message}</span>
+          </motion.div>
         )}
       </AnimatePresence>
 
       <div className="max-w-6xl mx-auto">
         
-        <div className="mb-6 flex items-center gap-4 border-b border-neutral-800 pb-6">
-          <button onClick={() => router.push(`/${lang}/admin/restaurants`)} className="p-2 bg-neutral-900 rounded-full hover:bg-neutral-800 transition text-gray-400 hover:text-white">
-            <ArrowLeft size={20} />
+        <div className="mb-10 flex items-center gap-6 border-b border-neutral-800 pb-8">
+          <button onClick={() => router.push(`/${lang}/admin/restaurants`)} className="p-3 bg-neutral-900 rounded-2xl hover:bg-brand-primary group transition cursor-pointer">
+            <ArrowLeft size={20} className="text-gray-400 group-hover:text-white" />
           </button>
           <div>
-            <h2 className="text-gray-500 text-[10px] font-black uppercase tracking-[0.2em]">Gestion du Menu</h2>
-            <h1 className="text-2xl font-bold uppercase tracking-tight text-white">{restaurantName}</h1>
+            <h2 className="text-gray-500 text-[10px] font-black uppercase tracking-[0.3em] mb-1">Gestion du Menu</h2>
+            <h1 className="text-3xl font-black uppercase tracking-tight text-white">{restaurantName}</h1>
           </div>
-        </div>
-
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
-          <button onClick={() => { resetForm(); setIsModalOpen(true); }} className="flex items-center gap-2 bg-kabuki-red hover:bg-red-700 text-white px-6 py-3 rounded-xl font-bold transition shadow-lg shadow-red-900/20 uppercase text-xs tracking-widest ml-auto">
+          <button onClick={() => { resetForm(); setIsModalOpen(true); }} className="flex items-center gap-2 bg-brand-primary hover:opacity-90 text-white px-8 py-4 rounded-2xl font-black transition shadow-xl shadow-brand-primary/20 uppercase text-[10px] tracking-widest ml-auto cursor-pointer">
              <Plus size={20} /> Nouveau Plat
           </button>
         </div>
 
         <div className="relative mb-8">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" size={20} />
-          <input type="text" placeholder="Rechercher..." className="w-full bg-neutral-900 border border-neutral-800 rounded-2xl py-4 pl-12 pr-4 text-white focus:border-kabuki-red outline-none shadow-xl transition-all" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+          <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-500" size={20} />
+          <input 
+            type="text" 
+            placeholder="Rechercher un plat ou une catégorie..." 
+            className="w-full bg-neutral-900 border border-neutral-800 rounded-2xl py-5 pl-14 pr-4 text-white focus:border-brand-primary outline-none shadow-xl transition-all font-bold" 
+            value={searchTerm} 
+            onChange={(e) => setSearchTerm(e.target.value)} 
+          />
         </div>
 
-        <div className="bg-neutral-900/50 border border-neutral-800 rounded-3xl overflow-hidden backdrop-blur-sm shadow-2xl">
+        <div className="bg-neutral-900 border border-neutral-800 rounded-[2.5rem] overflow-hidden backdrop-blur-sm shadow-2xl">
           {loading ? (
-            <div className="p-20 text-center flex flex-col items-center gap-4 text-gray-500">
-              <Loader2 className="animate-spin text-kabuki-red" size={40} />
-              <p className="italic uppercase text-[10px] tracking-widest">Chargement...</p>
+            <div className="p-20 text-center flex flex-col items-center gap-4">
+              <Loader2 className="animate-spin text-brand-primary" size={40} />
+              <p className="italic uppercase text-[10px] font-black tracking-[0.3em] text-gray-500">Chargement du menu...</p>
             </div>
           ) : items.length === 0 ? (
-             <div className="p-20 text-center flex flex-col items-center gap-4 text-gray-500">
-               <AlertCircle size={40} className="text-neutral-700" />
-               <p className="uppercase text-xs font-bold tracking-widest">Aucun plat dans ce restaurant.</p>
-             </div>
+              <div className="p-20 text-center flex flex-col items-center gap-4 text-gray-500">
+                <AlertCircle size={40} className="text-neutral-700" />
+                <p className="uppercase text-xs font-black tracking-[0.2em]">Aucun plat enregistré pour cet établissement.</p>
+              </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">
-                <thead className="bg-neutral-800/50 text-gray-400 uppercase text-[10px] tracking-widest">
+                <thead className="bg-neutral-800/30 text-gray-500 uppercase text-[10px] font-black tracking-[0.3em]">
                   <tr>
-                    <th className="p-5">Plat</th>
-                    <th className="p-5 text-center">Catégorie</th>
-                    <th className="p-5 text-center">Disponibilité</th>
-                    <th className="p-5 text-center">Prix</th>
-                    <th className="p-5 text-right">Actions</th>
+                    <th className="p-6">Produit</th>
+                    <th className="p-6 text-center">Catégorie</th>
+                    <th className="p-6 text-center">Statut</th>
+                    <th className="p-6 text-center">Tarif</th>
+                    <th className="p-6 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-neutral-800">
                   {filteredItems.map((item) => (
-                    <tr key={item.id} className={`transition-colors group ${!item.is_available ? 'bg-red-900/5 opacity-60' : 'hover:bg-white/5'}`}>
-                      <td className="p-5 flex items-center gap-4">
-                        <div className="relative w-12 h-12 shrink-0">
-                          <Image src={item.image_url || "/placeholder-sushi.jpg"} alt={item.name_fr} fill className={`rounded-xl object-cover bg-neutral-800 border border-neutral-800 shadow-lg ${!item.is_available ? 'grayscale' : ''}`} />
+                    <tr key={item.id} className={`transition-colors group ${!item.is_available ? 'bg-red-900/5 opacity-60' : 'hover:bg-white/[0.02]'}`}>
+                      <td className="p-6 flex items-center gap-5">
+                        <div className="relative w-14 h-14 shrink-0">
+                          <Image 
+                            src={item.image_url || "/placeholder-sushi.jpg"} 
+                            alt={item.name_fr} 
+                            fill 
+                            className={`rounded-2xl object-cover bg-neutral-800 border border-white/5 shadow-lg group-hover:scale-105 transition-transform ${!item.is_available ? 'grayscale' : ''}`} 
+                          />
                         </div>
                         <div>
-                          <div className="font-bold text-white">{item.name_fr}</div>
-                          <div className="text-[10px] text-gray-500 line-clamp-1 italic">{item.description_fr}</div>
+                          <div className="font-black text-white uppercase tracking-wide text-sm">{item.name_fr}</div>
+                          <div className="text-[10px] text-gray-500 line-clamp-1 italic uppercase tracking-wider mt-1">{item.description_fr}</div>
                         </div>
                       </td>
-                      <td className="p-5 text-center text-[10px] text-gray-400 font-bold uppercase">{item.category_name}</td>
-                      <td className="p-5 text-center">
-                        <button onClick={() => toggleAvailability(item.id, item.is_available)} disabled={updatingId === item.id} className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all border ${item.is_available ? "bg-green-500/10 border-green-500/20 text-green-500" : "bg-red-500/10 border-red-500/20 text-red-500 shadow-[0_0_10px_rgba(239,68,68,0.2)]"}`}>
-                          {updatingId === item.id ? <RefreshCw size={12} className="animate-spin" /> : item.is_available ? <><Power size={12} /> Actif</> : <><PowerOff size={12} /> Épuisé</>}
+                      <td className="p-6 text-center text-[10px] text-gray-400 font-black uppercase tracking-widest">{item.category_name}</td>
+                      <td className="p-6 text-center">
+                        <button 
+                          onClick={() => toggleAvailability(item.id, item.is_available)} 
+                          disabled={updatingId === item.id} 
+                          className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-[9px] font-black uppercase transition-all border cursor-pointer ${item.is_available ? "bg-green-500/10 border-green-500/20 text-green-500" : "bg-red-500/10 border-red-500/20 text-red-500 shadow-[0_0_10px_rgba(239,68,68,0.2)]"}`}
+                        >
+                          {updatingId === item.id ? <RefreshCw size={12} className="animate-spin" /> : item.is_available ? <><Power size={12} /> Disponible</> : <><PowerOff size={12} /> Épuisé</>}
                         </button>
                       </td>
-                      <td className="p-5 text-center font-mono text-kabuki-red font-bold">{Number(item.price).toFixed(2)} CHF</td>
-                      <td className="p-5 text-right">
-                        <div className="flex justify-end gap-3">
-                          <button onClick={() => openEditModal(item)} className="p-2 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 rounded-lg transition"><Edit2 size={16} /></button>
-                          <button onClick={() => handleDelete(item.id, item.name_fr)} className="p-2 bg-red-500/10 hover:bg-red-500/20 text-red-500 rounded-lg transition"><Trash2 size={16} /></button>
+                      <td className="p-6 text-center font-display font-black text-brand-primary text-base">{Number(item.price).toFixed(2)} <span className="text-[10px]">{siteConfig.currency}</span></td>
+                      <td className="p-6 text-right">
+                        <div className="flex justify-end gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button onClick={() => openEditModal(item)} className="p-3 bg-white/5 hover:bg-blue-500/20 text-blue-400 rounded-xl transition cursor-pointer border border-white/5"><Edit2 size={16} /></button>
+                          <button onClick={() => handleDelete(item.id, item.name_fr)} className="p-3 bg-white/5 hover:bg-red-500/20 text-red-500 rounded-xl transition cursor-pointer border border-white/5"><Trash2 size={16} /></button>
                         </div>
                       </td>
                     </tr>
@@ -369,30 +391,35 @@ export default function AdminMenu() {
       <AnimatePresence>
         {isModalOpen && (
           <div className="fixed inset-0 bg-black/95 backdrop-blur-md z-[110] flex items-center justify-center p-4">
-            <m.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="bg-neutral-900 border border-neutral-800 p-6 md:p-8 rounded-3xl max-w-4xl w-full shadow-2xl overflow-y-auto max-h-[90vh]">
-              <div className="flex justify-between items-center mb-8 border-b border-neutral-800 pb-4">
-                <h2 className="text-2xl font-bold uppercase tracking-tighter">{editingId ? "Modifier" : "Ajouter"}</h2>
-                <div className="flex items-center gap-3">
-                  <button type="button" onClick={handleTranslate} disabled={isTranslating} className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-[10px] font-bold uppercase transition disabled:opacity-50">
-                    {isTranslating ? <Loader2 className="animate-spin" size={14} /> : <Wand2 size={14} />} Traduire
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }} 
+              animate={{ opacity: 1, scale: 1 }} 
+              exit={{ opacity: 0, scale: 0.95 }} 
+              className="bg-neutral-900 border border-neutral-800 p-8 md:p-12 rounded-[3rem] max-w-5xl w-full shadow-2xl overflow-y-auto max-h-[90vh]"
+            >
+              <div className="flex justify-between items-center mb-10 border-b border-neutral-800 pb-6">
+                <h2 className="text-3xl font-black uppercase tracking-tighter">{editingId ? "Modifier" : "Ajouter un plat"}</h2>
+                <div className="flex items-center gap-4">
+                  <button type="button" onClick={handleTranslate} disabled={isTranslating} className="flex items-center gap-2 bg-brand-primary/10 border border-brand-primary/20 text-brand-primary px-6 py-3 rounded-2xl text-[10px] font-black uppercase transition disabled:opacity-50 cursor-pointer hover:bg-brand-primary hover:text-white">
+                    {isTranslating ? <Loader2 className="animate-spin" size={14} /> : <Wand2 size={14} />} Auto-Traduction
                   </button>
-                  <button onClick={() => setIsModalOpen(false)} className="bg-neutral-800 p-2 rounded-full hover:bg-neutral-700 transition"><X size={20} /></button>
+                  <button onClick={() => setIsModalOpen(false)} className="bg-neutral-800 p-3 rounded-full hover:bg-neutral-700 transition cursor-pointer"><X size={24} /></button>
                 </div>
               </div>
 
-              <form onSubmit={handleSubmit} className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div><label className="text-[10px] uppercase text-gray-500 font-bold mb-2 block">Nom (FR)</label><input className="w-full bg-black border border-neutral-800 p-3 rounded-xl outline-none focus:border-kabuki-red transition text-white" value={form.name_fr} onChange={e => setForm({...form, name_fr: e.target.value})} required /></div>
-                  <div><label className="text-[10px] uppercase text-gray-500 font-bold mb-2 block">Nom (EN)</label><input className="w-full bg-black border border-neutral-800 p-3 rounded-xl outline-none focus:border-kabuki-red transition text-white" value={form.name_en} onChange={e => setForm({...form, name_en: e.target.value})} /></div>
-                  <div><label className="text-[10px] uppercase text-gray-500 font-bold mb-2 block">Nom (ES)</label><input className="w-full bg-black border border-neutral-800 p-3 rounded-xl outline-none focus:border-kabuki-red transition text-white" value={form.name_es} onChange={e => setForm({...form, name_es: e.target.value})} /></div>
+              <form onSubmit={handleSubmit} className="space-y-8">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                  <div><label className="text-[10px] uppercase text-gray-500 font-black tracking-widest mb-3 block ml-1">Nom (FR)</label><input className="w-full bg-black border border-neutral-800 p-5 rounded-2xl outline-none focus:border-brand-primary transition text-white font-bold" value={form.name_fr} onChange={e => setForm({...form, name_fr: e.target.value})} required /></div>
+                  <div><label className="text-[10px] uppercase text-gray-500 font-black tracking-widest mb-3 block ml-1">Nom (EN)</label><input className="w-full bg-black border border-neutral-800 p-5 rounded-2xl outline-none focus:border-brand-primary transition text-white font-bold" value={form.name_en} onChange={e => setForm({...form, name_en: e.target.value})} /></div>
+                  <div><label className="text-[10px] uppercase text-gray-500 font-black tracking-widest mb-3 block ml-1">Nom (ES)</label><input className="w-full bg-black border border-neutral-800 p-5 rounded-2xl outline-none focus:border-brand-primary transition text-white font-bold" value={form.name_es} onChange={e => setForm({...form, name_es: e.target.value})} /></div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-6">
-                  <div><label className="text-[10px] uppercase text-gray-500 font-bold mb-2 block">Prix (CHF)</label><input type="number" step="0.05" className="w-full bg-black border border-neutral-800 p-3 rounded-xl outline-none focus:border-kabuki-red transition text-white" value={form.price} onChange={e => setForm({...form, price: Number(e.target.value)})} required /></div>
+                <div className="grid grid-cols-2 gap-8">
+                  <div><label className="text-[10px] uppercase text-gray-500 font-black tracking-widest mb-3 block ml-1">Prix ({siteConfig.currency})</label><input type="number" step="0.05" className="w-full bg-black border border-neutral-800 p-5 rounded-2xl outline-none focus:border-brand-primary transition text-white font-bold" value={form.price} onChange={e => setForm({...form, price: Number(e.target.value)})} required /></div>
                   <div>
-                    <label className="text-[10px] uppercase text-gray-500 font-bold mb-2 block">Catégorie</label>
-                    <select className="w-full bg-black border border-neutral-800 p-3 rounded-xl outline-none focus:border-kabuki-red transition text-white" value={form.category_id || ""} onChange={e => setForm({...form, category_id: e.target.value})} required>
-                      <option value="" disabled>Choisir une catégorie...</option>
+                    <label className="text-[10px] uppercase text-gray-500 font-black tracking-widest mb-3 block ml-1">Catégorie</label>
+                    <select className="w-full bg-black border border-neutral-800 p-5 rounded-2xl outline-none focus:border-brand-primary transition text-white font-bold cursor-pointer" value={form.category_id || ""} onChange={e => setForm({...form, category_id: e.target.value})} required>
+                      <option value="" disabled>Sélectionner une catégorie...</option>
                       {categories.map(cat => (
                         <option key={cat.id} value={cat.id}>{cat.name_fr}</option>
                       ))}
@@ -400,34 +427,34 @@ export default function AdminMenu() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div><label className="text-[10px] uppercase text-gray-500 font-bold mb-2 block">Desc (FR)</label><textarea className="w-full bg-black border border-neutral-800 p-3 rounded-xl outline-none focus:border-kabuki-red h-24 transition text-white" value={form.description_fr} onChange={e => setForm({...form, description_fr: e.target.value})} /></div>
-                  <div><label className="text-[10px] uppercase text-gray-500 font-bold mb-2 block">Desc (EN)</label><textarea className="w-full bg-black border border-neutral-800 p-3 rounded-xl outline-none focus:border-kabuki-red h-24 transition text-white" value={form.description_en} onChange={e => setForm({...form, description_en: e.target.value})} /></div>
-                  <div><label className="text-[10px] uppercase text-gray-500 font-bold mb-2 block">Desc (ES)</label><textarea className="w-full bg-black border border-neutral-800 p-3 rounded-xl outline-none focus:border-kabuki-red h-24 transition text-white" value={form.description_es} onChange={e => setForm({...form, description_es: e.target.value})} /></div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                  <div><label className="text-[10px] uppercase text-gray-500 font-black tracking-widest mb-3 block ml-1">Desc (FR)</label><textarea className="w-full bg-black border border-neutral-800 p-5 rounded-2xl outline-none focus:border-brand-primary h-32 transition text-white font-bold" value={form.description_fr} onChange={e => setForm({...form, description_fr: e.target.value})} /></div>
+                  <div><label className="text-[10px] uppercase text-gray-500 font-black tracking-widest mb-3 block ml-1">Desc (EN)</label><textarea className="w-full bg-black border border-neutral-800 p-5 rounded-2xl outline-none focus:border-brand-primary h-32 transition text-white font-bold" value={form.description_en} onChange={e => setForm({...form, description_en: e.target.value})} /></div>
+                  <div><label className="text-[10px] uppercase text-gray-500 font-black tracking-widest mb-3 block ml-1">Desc (ES)</label><textarea className="w-full bg-black border border-neutral-800 p-5 rounded-2xl outline-none focus:border-brand-primary h-32 transition text-white font-bold" value={form.description_es} onChange={e => setForm({...form, description_es: e.target.value})} /></div>
                 </div>
 
-                <div className="border-2 border-dashed border-neutral-800 p-6 rounded-2xl text-center hover:border-kabuki-red transition-colors group relative">
+                <div className="border-2 border-dashed border-neutral-800 p-10 rounded-[2.5rem] text-center hover:border-brand-primary transition-colors group relative bg-black/20">
                   {form.image_url ? (
                     <div className="relative inline-block">
-                      <Image src={form.image_url} alt="Aperçu" width={150} height={128} className="rounded-lg object-cover shadow-xl" />
-                      <button type="button" onClick={() => setForm(prev => ({...prev, image_url: ""}))} className="absolute -top-2 -right-2 bg-red-600 rounded-full p-1 text-white shadow-lg"><X size={12}/></button>
+                      <Image src={form.image_url} alt="Aperçu" width={200} height={150} className="rounded-2xl object-cover shadow-2xl border border-white/10" />
+                      <button type="button" onClick={() => setForm(prev => ({...prev, image_url: ""}))} className="absolute -top-3 -right-3 bg-red-600 rounded-full p-2 text-white shadow-lg hover:bg-red-500 transition-colors cursor-pointer"><X size={16}/></button>
                     </div>
                   ) : (
                     <>
-                      <Upload className="mx-auto mb-2 text-gray-600 group-hover:text-kabuki-red transition-colors" />
-                      <label htmlFor="image-upload-admin" className="cursor-pointer text-sm font-bold text-gray-400 group-hover:text-white transition-colors">
-                        {uploading ? "Envoi..." : "Upload photo"}
+                      <Upload className="mx-auto mb-4 text-gray-600 group-hover:text-brand-primary transition-colors" size={32} />
+                      <label htmlFor="image-upload-admin" className="cursor-pointer text-[10px] font-black uppercase tracking-[0.2em] text-gray-500 group-hover:text-white transition-colors">
+                        {uploading ? "Transfert en cours..." : "Téléverser une photographie"}
                       </label>
                       <input id="image-upload-admin" type="file" accept="image/*" className="hidden" onChange={handleImageUpload} disabled={uploading} />
                     </>
                   )}
                 </div>
 
-                <button type="submit" disabled={actionLoading || uploading || isTranslating} className="w-full bg-kabuki-red text-white py-5 rounded-2xl font-bold uppercase tracking-widest hover:bg-red-700 transition-all flex items-center justify-center gap-3 shadow-xl disabled:opacity-50">
-                  {actionLoading ? <Loader2 className="animate-spin" size={20} /> : (editingId ? "Sauvegarder" : "Ajouter")}
+                <button type="submit" disabled={actionLoading || uploading || isTranslating} className="w-full bg-white text-black py-6 rounded-2xl font-black uppercase tracking-[0.3em] text-[12px] hover:bg-brand-primary hover:text-white transition-all flex items-center justify-center gap-4 shadow-2xl disabled:opacity-50 cursor-pointer">
+                  {actionLoading ? <Loader2 className="animate-spin" size={24} /> : (editingId ? "Enregistrer les modifications" : "Ajouter au menu")}
                 </button>
               </form>
-            </m.div>
+            </motion.div>
           </div>
         )}
       </AnimatePresence>

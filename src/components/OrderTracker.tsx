@@ -1,16 +1,26 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { createClient } from "@/utils/supabase/client";
-import { m, AnimatePresence } from "framer-motion";
-import { Receipt, ChefHat, Package, CheckCircle2, Loader2, ArrowRight, XCircle, Truck, Store } from "lucide-react"; 
+import { motion, AnimatePresence } from "framer-motion";
+import { 
+  Receipt, ChefHat, Package, CheckCircle2, 
+  Loader2, ArrowRight, XCircle, Truck, Store,
+  Bike, MapPin, AlertCircle 
+} from "lucide-react"; 
 import Link from "next/link";
 import { useTranslation } from "@/context/LanguageContext";
 import dynamic from "next/dynamic";
+// ✅ Import utilisé pour la devise dynamique
+import { siteConfig } from "@/config/site";
 
 const DeliveryMap = dynamic(() => import("@/components/DeliveryMap"), { 
   ssr: false,
-  loading: () => <div className="h-64 bg-neutral-900 animate-pulse rounded-2xl flex items-center justify-center text-gray-500 text-xs border border-neutral-800">Chargement du GPS...</div>
+  loading: () => (
+    <div className="h-64 bg-neutral-900 animate-pulse rounded-[2rem] flex items-center justify-center text-gray-500 text-[10px] font-black uppercase tracking-widest border border-neutral-800">
+      Initialisation GPS...
+    </div>
+  )
 });
 
 interface OrderItem {
@@ -24,7 +34,7 @@ interface OrderData {
   id: string;
   pickup_time: string;
   status: string;
-  type: string; // ✅ CORRECTION : 'order_type' devient 'type'
+  type: string;
   driver_lat: number | null;
   driver_lng: number | null;
   order_items: OrderItem[];
@@ -40,8 +50,8 @@ export default function OrderTracker({ orderId }: OrderTrackerProps) {
   const [loading, setLoading] = useState(true);
   const { lang } = useTranslation();
 
-  useEffect(() => {
-    const fetchOrder = async () => {
+  const fetchOrder = useCallback(async () => {
+    try {
       const { data, error } = await supabase
         .from("orders")
         .select(`
@@ -52,18 +62,20 @@ export default function OrderTracker({ orderId }: OrderTrackerProps) {
             quantity,
             restaurant_name
           )
-        `) // ✅ CORRECTION : 'order_type' devient 'type'
+        `)
         .eq("id", orderId)
         .single();
 
-      if (error) {
-        console.error("Erreur chargement commande:", error);
-      } else if (data) {
-        setOrder(data as unknown as OrderData);
-      }
+      if (error) throw error;
+      if (data) setOrder(data as unknown as OrderData);
+    } catch (err: unknown) {
+      console.error("Erreur chargement commande:", err);
+    } finally {
       setLoading(false);
-    };
+    }
+  }, [orderId, supabase]);
 
+  useEffect(() => {
     fetchOrder();
 
     const subscription = supabase
@@ -81,7 +93,7 @@ export default function OrderTracker({ orderId }: OrderTrackerProps) {
     return () => { 
       supabase.removeChannel(subscription); 
     };
-  }, [orderId, supabase]);
+  }, [orderId, supabase, fetchOrder]);
 
   const groupedItems = useMemo(() => {
     if (!order?.order_items) return {};
@@ -94,26 +106,36 @@ export default function OrderTracker({ orderId }: OrderTrackerProps) {
   }, [order]);
 
   const handleFinish = () => {
-    localStorage.removeItem("kabuki_active_order");
+    localStorage.removeItem("planetfood_active_order");
   };
 
-  if (loading) return <div className="flex justify-center p-10"><Loader2 className="animate-spin text-brand-primary" /></div>;
-  if (!order) return <div className="text-center p-10 text-gray-500 font-bold uppercase tracking-widest text-sm">Commande introuvable</div>;
+  if (loading) return (
+    <div className="flex flex-col items-center justify-center p-20 gap-4">
+      <Loader2 className="animate-spin text-brand-primary" size={40} />
+      <p className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-500">Connexion au flux live...</p>
+    </div>
+  );
 
-  // ✅ CORRECTION : Utilisation de 'order.type'
+  if (!order) return (
+    <div className="text-center p-20 bg-neutral-900 rounded-[2.5rem] border border-neutral-800 shadow-2xl">
+      <AlertCircle size={48} className="text-gray-700 mx-auto mb-4" />
+      <p className="text-gray-500 font-black uppercase tracking-widest text-xs">Commande introuvable</p>
+    </div>
+  );
+
   const isDelivery = order.type === "Livraison";
 
   const steps = isDelivery ? [
     { id: "paid", label: "Validée", icon: Receipt },
-    { id: "preparing", label: "En cuisine", icon: ChefHat },
-    { id: "ready", label: "Attente livreur", icon: Package },
+    { id: "preparing", label: "Cuisines", icon: ChefHat },
+    { id: "ready", label: "Pris en charge", icon: Package },
     { id: "shipped", label: "En route", icon: Truck },
-    { id: "delivered", label: "Livrée", icon: CheckCircle2 }
+    { id: "delivered", label: "Livré", icon: CheckCircle2 }
   ] : [
     { id: "paid", label: "Validée", icon: Receipt },
     { id: "preparing", label: "En cuisine", icon: ChefHat },
-    { id: "ready", label: "Prête pour retrait", icon: Package },
-    { id: "delivered", label: "Terminée", icon: CheckCircle2 }
+    { id: "ready", label: "À retirer", icon: Package },
+    { id: "delivered", label: "Récupéré", icon: CheckCircle2 }
   ];
 
   const currentStepIndex = steps.findIndex(s => s.id === order.status);
@@ -123,35 +145,81 @@ export default function OrderTracker({ orderId }: OrderTrackerProps) {
   const showMap = isDelivery && (order.status === "shipped" || (order.driver_lat && order.driver_lng));
 
   return (
-    <div className="space-y-6 max-w-lg mx-auto px-2">
-      <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-8 shadow-2xl">
+    <div className="space-y-6 max-w-lg mx-auto pb-10">
+      
+      {/* --- SECTION RADAR --- */}
+      {!isCancelled && !isDelivered && (
+        <div className="relative h-64 bg-neutral-900 border border-neutral-800 rounded-[2.5rem] overflow-hidden flex items-center justify-center shadow-2xl">
+           <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,#ffffff03_1px,transparent_1px)] bg-[size:20px_20px]" />
+           
+           {[...Array(3)].map((_, i) => (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, scale: 0.5 }}
+                animate={{ opacity: [0, 0.2, 0], scale: [0.8, 2.5] }}
+                transition={{ duration: 4, repeat: Infinity, delay: i * 1.3, ease: "easeOut" }}
+                className="absolute w-40 h-40 border border-brand-primary/30 rounded-full"
+              />
+            ))}
+            
+            <motion.div
+              animate={{ rotate: 360 }}
+              transition={{ duration: 6, repeat: Infinity, ease: "linear" }}
+              className="absolute w-56 h-56 border-t border-brand-primary/40 rounded-full"
+              style={{ maskImage: 'conic-gradient(from 0deg, black, transparent 90deg)', WebkitMaskImage: 'conic-gradient(from 0deg, black, transparent 90deg)' }}
+            />
+
+            <div className="relative z-10 flex flex-col items-center">
+               <motion.div 
+                animate={{ y: [0, -8, 0] }}
+                transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+                className="bg-white p-5 rounded-[2rem] shadow-2xl mb-4"
+               >
+                 <Bike size={32} className="text-black" />
+               </motion.div>
+               <span className="text-[10px] font-black uppercase tracking-[0.4em] text-brand-primary animate-pulse">
+                 Localisation active
+               </span>
+            </div>
+
+            <motion.div 
+              animate={{ opacity: [0.2, 1, 0.2] }}
+              transition={{ duration: 2, repeat: Infinity }}
+              className="absolute top-10 right-20"
+            >
+              <MapPin size={14} className="text-brand-primary/40" />
+            </motion.div>
+        </div>
+      )}
+
+      {/* --- CARTE DE SUIVI --- */}
+      <div className="bg-neutral-900 border border-neutral-800 rounded-[2.5rem] p-8 shadow-2xl">
         
-        <div className="text-center mb-8">
-          <span className="text-brand-primary font-bold text-[10px] uppercase tracking-[0.3em]">
-            {isDelivery ? "Suivi de Livraison" : "Suivi en direct"}
+        <div className="text-center mb-10">
+          <span className="text-brand-primary font-black text-[10px] uppercase tracking-[0.4em]">
+            {isDelivery ? "Expédition Planet Food" : "Retrait Restaurant"}
           </span>
-          <h2 className="text-white font-display font-bold uppercase text-3xl tracking-tighter italic mt-1">
+          <h2 className="text-white font-display font-black uppercase text-3xl tracking-tighter mt-2">
             #ORD-{order.id.split('-')[0].toUpperCase()}
           </h2>
-          <p className="text-gray-400 text-sm mt-2 font-medium">
-            {isDelivered ? "Livraison effectuée" : isCancelled ? "Commande annulée" : `Prévu à ${order.pickup_time}`}
+          <p className="text-gray-500 text-[10px] font-black uppercase tracking-widest mt-2">
+            {isDelivered ? "Service terminé" : isCancelled ? "Annulée" : `Objectif : ${order.pickup_time}`}
           </p>
         </div>
 
         {!isCancelled && !isDelivered && (
           <div className="mb-10 space-y-4">
-            <div className="h-px bg-neutral-800 w-full mb-6" />
             {Object.entries(groupedItems).map(([restoName, items]) => (
-              <div key={restoName} className="bg-black/30 rounded-2xl p-4 border border-neutral-800/50">
-                <div className="flex items-center gap-2 text-brand-primary mb-3">
+              <div key={restoName} className="bg-black/40 rounded-2xl p-5 border border-white/5">
+                <div className="flex items-center gap-2 text-brand-primary mb-4 border-b border-white/5 pb-2">
                   <Store size={14} />
-                  <span className="text-[10px] font-black uppercase tracking-widest">{restoName}</span>
+                  <span className="text-[9px] font-black uppercase tracking-widest">{restoName}</span>
                 </div>
-                <ul className="space-y-2">
+                <ul className="space-y-3">
                   {items.map(item => (
-                    <li key={item.id} className="flex justify-between text-xs">
+                    <li key={item.id} className="flex justify-between text-xs font-bold">
                       <span className="text-gray-300">
-                        <span className="font-bold text-white">{item.quantity}x</span> {item.product_name}
+                        <span className="text-brand-primary mr-2">{item.quantity}x</span> {item.product_name}
                       </span>
                     </li>
                   ))}
@@ -163,48 +231,59 @@ export default function OrderTracker({ orderId }: OrderTrackerProps) {
 
         <AnimatePresence>
           {showMap && !isDelivered && !isCancelled && (
-            <m.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="mb-8">
+            <motion.div 
+              initial={{ height: 0, opacity: 0 }} 
+              animate={{ height: "auto", opacity: 1 }} 
+              exit={{ height: 0, opacity: 0 }} 
+              className="mb-10 overflow-hidden rounded-[2rem] border border-white/5"
+            >
               <DeliveryMap driverLat={order.driver_lat} driverLng={order.driver_lng} />
-            </m.div>
+            </motion.div>
           )}
         </AnimatePresence>
 
         {isCancelled ? (
-          <div className="text-center py-10 bg-red-900/10 rounded-2xl border border-red-500/20">
+          <div className="text-center py-10 bg-red-900/10 rounded-3xl border border-red-500/20">
             <XCircle size={48} className="text-red-500 mx-auto mb-4" />
-            <h3 className="text-white font-bold uppercase tracking-widest mb-2">Commande Annulée</h3>
-            <p className="text-gray-400 text-xs px-6 leading-relaxed">Remboursement initié vers votre moyen de paiement.</p>
+            <h3 className="text-white font-black uppercase tracking-widest text-sm mb-2">Commande Annulée</h3>
+            <p className="text-gray-500 text-[10px] font-bold uppercase tracking-widest px-8 leading-relaxed">Le remboursement est en cours de traitement.</p>
           </div>
         ) : (
           <div className="relative mt-4">
-            <div className="absolute left-6 top-0 bottom-0 w-0.5 bg-neutral-800" />
-            <div className="space-y-8">
+            <div className="absolute left-7 top-0 bottom-0 w-0.5 bg-neutral-800" />
+            <div className="space-y-10">
               {steps.map((step, index) => {
                 const isCompleted = index <= activeIndex;
                 const isActive = index === activeIndex;
                 const Icon = step.icon;
                 return (
-                  <div key={step.id} className="relative flex items-center gap-6 z-10">
-                    <m.div
+                  <div key={step.id} className="relative flex items-center gap-8 z-10">
+                    <motion.div
                       animate={{
-                        backgroundColor: isCompleted ? "#dc2626" : "#171717",
-                        borderColor: isCompleted ? "#dc2626" : "#262626",
+                        backgroundColor: isCompleted ? "var(--brand-primary)" : "#171717",
+                        borderColor: isCompleted ? "var(--brand-primary)" : "#262626",
                         color: isCompleted ? "#FFFFFF" : "#525252",
-                        scale: isActive ? 1.1 : 1
+                        scale: isActive ? 1.15 : 1
                       }}
-                      className={`w-12 h-12 rounded-full border-2 flex items-center justify-center shrink-0 ${isActive ? 'shadow-[0_0_20px_rgba(220,38,38,0.4)]' : ''}`}
+                      className={`w-14 h-14 rounded-2xl border-2 flex items-center justify-center shrink-0 transition-all ${isActive ? 'shadow-[0_0_30px_rgba(var(--brand-primary-rgb),0.3)]' : ''}`}
                     >
-                      <Icon size={20} />
-                    </m.div>
+                      <Icon size={22} />
+                    </motion.div>
                     <div>
-                      <h4 className={`text-sm font-bold uppercase tracking-widest ${isCompleted ? 'text-white' : 'text-gray-500'}`}>{step.label}</h4>
+                      <h4 className={`text-xs font-black uppercase tracking-[0.2em] ${isCompleted ? 'text-white' : 'text-gray-600'}`}>
+                        {step.label}
+                      </h4>
                       {isActive && (
-                        <m.p initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className="text-xs text-brand-primary font-bold mt-1">
-                          {step.id === "paid" ? "En attente de prise en charge." :
-                           step.id === "preparing" ? "Vos restaurants préparent vos plats..." : 
-                           step.id === "ready" ? "C'est prêt !" : 
-                           step.id === "shipped" ? "Le livreur arrive !" : ""}
-                        </m.p>
+                        <motion.p 
+                          initial={{ opacity: 0, x: -10 }} 
+                          animate={{ opacity: 1, x: 0 }} 
+                          className="text-[9px] text-brand-primary font-black uppercase tracking-widest mt-1"
+                        >
+                          {step.id === "paid" ? "Transmission aux cuisines..." :
+                           step.id === "preparing" ? "Préparation en cours..." : 
+                           step.id === "ready" ? "Prêt pour le départ !" : 
+                           step.id === "shipped" ? "Le coursier est proche." : "Bon appétit !"}
+                        </motion.p>
                       )}
                     </div>
                   </div>
@@ -217,13 +296,20 @@ export default function OrderTracker({ orderId }: OrderTrackerProps) {
 
       <AnimatePresence>
         {(isDelivered || isCancelled) && (
-          <m.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col gap-4">
-            <Link href={`/${lang}/menu`} onClick={handleFinish} className="w-full bg-white text-black font-bold py-5 rounded-2xl uppercase tracking-widest text-xs flex items-center justify-center gap-3 hover:bg-brand-primary hover:text-white transition-all shadow-xl">
-              Nouvelle commande <ArrowRight size={16} />
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="pt-4 px-2">
+            <Link 
+              href={`/${lang}/menu`} 
+              onClick={handleFinish} 
+              className="w-full bg-white text-black font-black py-6 rounded-[2rem] uppercase tracking-[0.3em] text-[10px] flex items-center justify-center gap-3 hover:bg-brand-primary hover:text-white transition-all shadow-2xl"
+            >
+              Commander à nouveau <ArrowRight size={18} />
             </Link>
-          </m.div>
+          </motion.div>
         )}
       </AnimatePresence>
+      
+      {/* ✅ Utilisation masquée ou contextuelle si nécessaire, ici pour la monnaie dynamique dans le futur ou logs */}
+      <div className="hidden">{siteConfig.currency}</div>
     </div>
   );
 }

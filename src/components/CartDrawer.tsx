@@ -2,7 +2,11 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Minus, Plus, Trash2, ShoppingBag, ArrowRight, ArrowLeft, Clock, Calendar, MessageSquare, Loader2, CheckCircle, ShieldCheck, MapPin, Tag, Store } from "lucide-react";
+import { 
+  X, Minus, Plus, Trash2, ShoppingBag, ArrowRight, ArrowLeft, 
+  Clock, Calendar, MessageSquare, Loader2, CheckCircle, 
+  ShieldCheck, MapPin, Tag, Store, Rocket 
+} from "lucide-react";
 import { useCart } from "@/context/CartContext";
 import Image from "next/image";
 import { useTranslation } from "@/context/LanguageContext";
@@ -70,18 +74,18 @@ function StripeCheckoutForm({ total, onSuccess, onCancel, t }: StripeCheckoutFor
   return (
     <form onSubmit={handleStripeSubmit} className="flex flex-col h-full">
       <div className="flex-1 overflow-y-auto p-6 space-y-6">
-        <div className="bg-green-500/10 border border-green-500/20 p-4 rounded-xl flex items-center gap-3 text-green-500">
-          <ShieldCheck size={24} aria-hidden="true" />
-          <p className="text-[10px] font-bold uppercase tracking-widest">Paiement 100% Sécurisé</p>
+        <div className="bg-green-500/10 border border-green-500/20 p-5 rounded-2xl flex items-center gap-4 text-green-500">
+          <ShieldCheck size={28} aria-hidden="true" />
+          <p className="text-[10px] font-black uppercase tracking-widest">Paiement 100% Sécurisé</p>
         </div>
         <PaymentElement options={{ layout: "tabs" }} />
-        {errorMessage && <div role="alert" className="text-red-500 text-xs font-bold bg-red-900/20 p-3 rounded-xl">⚠️ {errorMessage}</div>}
+        {errorMessage && <div role="alert" className="text-red-500 text-xs font-bold bg-red-900/20 p-4 rounded-xl border border-red-500/30">⚠️ {errorMessage}</div>}
       </div>
-      <div className="p-6 border-t border-neutral-800 bg-neutral-900 space-y-3">
-        <button type="submit" disabled={!stripe || isProcessing} className={`w-full font-bold py-4 rounded-xl uppercase flex items-center justify-center gap-2 transition-all ${isProcessing ? "bg-neutral-800 text-neutral-500" : "bg-green-600 text-white shadow-lg shadow-green-900/20 hover:bg-green-500"}`}>
+      <div className="p-8 border-t border-neutral-800 bg-neutral-900 space-y-4">
+        <button type="submit" disabled={!stripe || isProcessing} className={`w-full font-black py-5 rounded-2xl uppercase tracking-[0.2em] text-[11px] flex items-center justify-center gap-3 transition-all cursor-pointer ${isProcessing ? "bg-neutral-800 text-neutral-500" : "bg-green-600 text-white shadow-[0_0_20px_rgba(22,163,74,0.3)] hover:bg-green-500"}`}>
           {isProcessing ? <><Loader2 size={18} className="animate-spin" aria-hidden="true" /> {t.processing}</> : `${t.btnPay} (${total.toFixed(2)} CHF)`}
         </button>
-        <button type="button" onClick={onCancel} className="w-full text-gray-400 text-[10px] font-bold uppercase py-2 hover:text-white transition">{t.cancelPayment}</button>
+        <button type="button" onClick={onCancel} className="w-full text-gray-500 text-[10px] font-black uppercase tracking-widest py-3 hover:text-white transition cursor-pointer">{t.cancelPayment}</button>
       </div>
     </form>
   );
@@ -107,12 +111,8 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
   const [couponError, setCouponError] = useState("");
   const [isVerifyingCoupon, setIsVerifyingCoupon] = useState(false);
 
-  // ✅ ECOUTEUR D'ÉVÉNEMENT POUR OUVRIR LE PANIER
   useEffect(() => {
-    const handleOpenCart = () => {
-      // Si on veut forcer l'ouverture via ActiveOrderButton
-      // Note: On utilise le prop isOpen géré par le parent, mais on peut ajouter une logique ici si besoin
-    };
+    const handleOpenCart = () => {};
     window.addEventListener("open-cart", handleOpenCart);
     return () => window.removeEventListener("open-cart", handleOpenCart);
   }, []);
@@ -252,184 +252,230 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
     <AnimatePresence>
       {isOpen && (
         <>
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100]" aria-hidden="true" />
-          <motion.div initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }} className="fixed top-0 right-0 h-full w-full md:w-[450px] bg-neutral-900 border-l border-neutral-800 z-[101] flex flex-col shadow-2xl" role="dialog" aria-modal="true" aria-labelledby="cart-title">
+          {/* ✅ OVERLAY Z-INDEX ULTRA HAUT */}
+          <motion.div 
+            initial={{ opacity: 0 }} 
+            animate={{ opacity: 1 }} 
+            exit={{ opacity: 0 }} 
+            onClick={onClose} 
+            className="fixed inset-0 bg-black/80 backdrop-blur-md z-[9998]" 
+            aria-hidden="true" 
+          />
+          
+          {/* ✅ DRAWER Z-INDEX MAXIMAL */}
+          <motion.div 
+            initial={{ x: "100%" }} 
+            animate={{ x: 0 }} 
+            exit={{ x: "100%" }} 
+            transition={{ type: "spring", damping: 25, stiffness: 200 }}
+            className="fixed top-0 right-0 h-full w-full md:w-[480px] bg-neutral-900 border-l border-white/10 z-[9999] flex flex-col shadow-2xl" 
+            role="dialog" 
+            aria-modal="true" 
+            aria-labelledby="cart-title"
+          >
             {!isSuccess && (
-              <div className="flex items-center justify-between p-6 border-b border-neutral-800 bg-black/20">
-                <h2 id="cart-title" className="text-xl font-display font-bold text-white uppercase tracking-widest flex items-center gap-3">
-                  {isPayment ? <><ShieldCheck size={20} className="text-green-500" /> {t.titlePayment}</> : isCheckout ? <><button onClick={() => setIsCheckout(false)} className="hover:text-brand-primary transition"><ArrowLeft size={20} /></button> {t.titleCheckout}</> : <><ShoppingBag size={20} className="text-brand-primary" /> {t.titleCart}</>}
+              <div className="flex items-center justify-between p-6 border-b border-white/5 bg-black/40">
+                <h2 id="cart-title" className="text-xl font-display font-black text-white uppercase tracking-widest flex items-center gap-3">
+                  {isPayment ? (
+                    <><ShieldCheck size={20} className="text-green-500" /> {t.titlePayment}</>
+                  ) : isCheckout ? (
+                    <><button onClick={() => setIsCheckout(false)} className="hover:text-brand-primary transition cursor-pointer"><ArrowLeft size={20} /></button> {t.titleCheckout}</>
+                  ) : (
+                    <><ShoppingBag size={20} className="text-brand-primary" /> {t.titleCart}</>
+                  )}
                 </h2>
-                <button onClick={onClose} className="p-2 text-gray-400 bg-neutral-800 rounded-full hover:text-white transition"><X size={18} /></button>
+                <button onClick={onClose} className="p-2 text-gray-500 bg-neutral-800 rounded-full hover:bg-neutral-700 hover:text-white transition cursor-pointer">
+                  <X size={18} />
+                </button>
               </div>
             )}
             
             {isSuccess ? (
-              <div className="flex-1 flex flex-col items-center justify-center p-8 space-y-6 text-center">
-                <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="w-20 h-20 bg-green-500/10 rounded-full flex items-center justify-center"><CheckCircle size={48} className="text-green-500" /></motion.div>
-                <h2 className="text-2xl font-bold text-white uppercase">{t.successTitle}</h2>
-                <div className="bg-neutral-800 p-6 rounded-2xl border border-neutral-700 w-full shadow-inner">
-                    <p className="text-gray-300 text-sm mb-4">{t.successDesc}</p>
-                    <span className="text-[10px] text-gray-400 uppercase font-black tracking-widest">Numéro de commande</span>
-                    <p className="text-3xl font-display font-bold text-brand-primary tracking-tighter mt-1">#KBK-{orderId ? orderId.split('-')[0].toUpperCase() : '0000'}</p>
+              <div className="flex-1 flex flex-col items-center justify-center p-10 space-y-8 text-center bg-black/20">
+                <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="w-24 h-24 bg-green-500/10 rounded-full flex items-center justify-center shadow-[0_0_30px_rgba(34,197,94,0.2)]">
+                  <CheckCircle size={56} className="text-green-500" />
+                </motion.div>
+                <h2 className="text-3xl font-display font-black text-white uppercase tracking-tight">{t.successTitle}</h2>
+                <div className="bg-neutral-900 p-8 rounded-3xl border border-neutral-800 w-full shadow-xl">
+                    <p className="text-gray-400 text-sm mb-6">{t.successDesc}</p>
+                    <span className="text-[10px] text-brand-primary uppercase font-black tracking-widest">Numéro de commande</span>
+                    <p className="text-4xl font-display font-black text-white tracking-tighter mt-2">#PF-{orderId ? orderId.split('-')[0].toUpperCase() : '0000'}</p>
                 </div>
-                <button onClick={() => { onClose(); window.location.href = `/${lang}/track?order_id=${orderId}`; }} className="w-full bg-brand-primary text-white font-bold py-4 rounded-xl uppercase shadow-lg shadow-red-900/30">Suivre ma commande</button>
+                <button onClick={() => { onClose(); window.location.href = `/${lang}/track?order_id=${orderId}`; }} className="w-full bg-brand-primary text-white font-black py-5 rounded-2xl uppercase tracking-widest text-xs shadow-lg shadow-brand-primary/30 cursor-pointer hover:scale-[1.02] transition-transform">
+                  Suivre ma commande
+                </button>
               </div>
             ) : isPayment && clientSecret && orderId ? (
-              <Elements options={{ clientSecret, appearance: { theme: 'night', variables: { colorPrimary: '#dc2626' } } }} stripe={stripePromise}>
+              <Elements options={{ clientSecret, appearance: { theme: 'night', variables: { colorPrimary: '#a855f7' } } }} stripe={stripePromise}>
                 <StripeCheckoutForm total={finalPrice} orderId={orderId} onSuccess={() => { clearCart(); setIsPayment(false); setIsSuccess(true); }} onCancel={() => setIsPayment(false)} t={t} />
               </Elements>
             ) : (
               <div className="flex-1 flex flex-col overflow-hidden">
                 <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
-                  {items.length === 0 ? <p className="text-center text-gray-400 uppercase py-20 font-bold tracking-widest">{t.emptyCart}</p> : 
-                    !isCheckout ? (
+                  
+                  {/* EMPTY STATE */}
+                  {items.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center h-full text-center space-y-6 opacity-70">
+                      <div className="w-24 h-24 rounded-full bg-brand-primary/10 flex items-center justify-center mb-2">
+                        <Rocket size={48} className="text-brand-primary" />
+                      </div>
+                      <p className="text-white font-display font-black uppercase tracking-widest text-xl">{t.emptyCart}</p>
+                      <p className="text-gray-500 text-xs font-bold uppercase tracking-widest max-w-[200px]">Préparez votre prochaine mission culinaire.</p>
+                    </div>
+                  ) : !isCheckout ? (
                       <div className="space-y-8">
-                        <div className="text-[10px] text-gray-400 font-bold uppercase tracking-widest flex items-center gap-2 border-b border-neutral-800 pb-2"><ShoppingBag size={12} /> {totalItems} {totalItems > 1 ? t.itemsPlural : t.items}</div>
+                        <div className="text-[10px] text-gray-500 font-black uppercase tracking-widest flex items-center gap-2 border-b border-white/5 pb-4">
+                          <ShoppingBag size={14} className="text-brand-primary" /> 
+                          {totalItems} {totalItems > 1 ? t.itemsPlural : t.items} dans le vaisseau
+                        </div>
                         
                         {Object.entries(groupedItems).map(([restoId, group]) => (
                           <div key={restoId} className="space-y-4">
-                            <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-brand-primary flex items-center gap-2 opacity-80">
-                              <Store size={12} /> {group.name}
+                            <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-white flex items-center gap-2 bg-neutral-800/50 p-2 rounded-lg inline-flex">
+                              <Store size={12} className="text-brand-primary" /> {group.name}
                             </h3>
                             <div className="space-y-3">
                               {group.items.map(i => (
-                                <div key={i.id} className="flex gap-4 items-center bg-black/40 p-3 rounded-2xl border border-neutral-800/50 hover:border-neutral-700 transition">
-                                  <div className="w-14 h-14 relative bg-neutral-800 rounded-xl overflow-hidden shrink-0 shadow-md">
+                                <div key={i.id} className="flex gap-4 items-center bg-black/30 p-3 rounded-2xl border border-white/5 hover:border-brand-primary/30 transition-colors group">
+                                  <div className="w-16 h-16 relative bg-neutral-800 rounded-xl overflow-hidden shrink-0 shadow-md">
                                     {i.image_url && <Image src={i.image_url} alt={i.name} fill className="object-cover" />}
                                   </div>
                                   <div className="flex-1">
-                                    <h4 className="text-white font-bold text-[11px] uppercase leading-tight">{i.name}</h4>
-                                    <div className="text-brand-primary font-bold text-xs">{(i.price * i.quantity).toFixed(2)} CHF</div>
+                                    <h4 className="text-white font-black text-[11px] uppercase tracking-wide leading-tight mb-1">{i.name}</h4>
+                                    <div className="text-brand-primary font-bold text-xs">{(i.price * i.quantity).toFixed(2)} {siteConfig.currency}</div>
                                   </div>
-                                  <div className="flex items-center gap-3 bg-neutral-800 rounded-full px-2 py-1 border border-neutral-700/50">
-                                    <button onClick={() => updateQuantity(i.id, i.quantity - 1)} className="text-white hover:text-brand-primary transition"><Minus size={12} /></button>
-                                    <span className="text-white text-[10px] font-black w-4 text-center">{i.quantity}</span>
-                                    <button onClick={() => updateQuantity(i.id, i.quantity + 1)} className="text-white hover:text-brand-primary transition"><Plus size={12} /></button>
+                                  <div className="flex items-center gap-3 bg-neutral-900 rounded-full px-2 py-1.5 border border-white/10">
+                                    <button onClick={() => updateQuantity(i.id, i.quantity - 1)} className="text-gray-400 hover:text-brand-primary transition cursor-pointer p-1"><Minus size={12} /></button>
+                                    <span className="text-white text-[11px] font-black w-4 text-center">{i.quantity}</span>
+                                    <button onClick={() => updateQuantity(i.id, i.quantity + 1)} className="text-gray-400 hover:text-brand-primary transition cursor-pointer p-1"><Plus size={12} /></button>
                                   </div>
-                                  <button onClick={() => removeFromCart(i.id)} className="text-gray-400 hover:text-red-500 transition p-1"><Trash2 size={14} /></button>
+                                  <button onClick={() => removeFromCart(i.id)} className="text-gray-600 hover:text-red-500 transition cursor-pointer p-2"><Trash2 size={16} /></button>
                                 </div>
                               ))}
                             </div>
                           </div>
                         ))}
 
-                        <div className="mt-6 p-4 bg-black/40 rounded-2xl border border-neutral-800">
-                          <label htmlFor="coupon" className="text-[10px] font-bold text-gray-500 uppercase mb-2 flex items-center gap-2"><Tag size={12}/> {t.couponLabel}</label>
+                        <div className="mt-8 p-5 bg-brand-primary/5 rounded-2xl border border-brand-primary/10">
+                          <label htmlFor="coupon" className="text-[10px] font-black text-brand-primary uppercase tracking-[0.2em] mb-3 flex items-center gap-2"><Tag size={14}/> {t.couponLabel}</label>
                           <div className="flex gap-2">
-                            <input id="coupon" type="text" value={couponCode} onChange={(e) => setCouponCode(e.target.value)} placeholder={t.couponPlaceholder} className="flex-1 bg-black border border-neutral-800 rounded-xl px-4 py-2 text-xs text-white focus:border-brand-primary outline-none transition uppercase" />
-                            <button onClick={handleApplyCoupon} disabled={isVerifyingCoupon || !couponCode} className="bg-neutral-800 hover:bg-neutral-700 disabled:opacity-50 text-white px-4 py-2 rounded-xl text-[10px] font-bold uppercase transition">{isVerifyingCoupon ? <Loader2 size={14} className="animate-spin" /> : t.couponBtn}</button>
+                            <input id="coupon" type="text" value={couponCode} onChange={(e) => setCouponCode(e.target.value)} placeholder={t.couponPlaceholder} className="flex-1 bg-black border border-white/10 rounded-xl px-4 py-3 text-xs text-white font-bold focus:border-brand-primary outline-none transition uppercase" />
+                            <button onClick={handleApplyCoupon} disabled={isVerifyingCoupon || !couponCode} className="bg-brand-primary hover:bg-brand-primary/80 disabled:opacity-50 text-white px-5 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition cursor-pointer">
+                              {isVerifyingCoupon ? <Loader2 size={14} className="animate-spin" /> : t.couponBtn}
+                            </button>
                           </div>
-                          {couponError && <p className="text-red-500 text-[9px] mt-2 font-bold uppercase">{couponError}</p>}
+                          {couponError && <p className="text-red-500 text-[9px] mt-3 font-bold uppercase tracking-widest">{couponError}</p>}
                           {appliedCoupon && (
-                            <div className="flex items-center justify-between mt-2">
-                              <p className="text-green-500 text-[9px] font-bold uppercase">✓ {appliedCoupon.code} (-{appliedCoupon.discount_value}{appliedCoupon.discount_type === 'percentage' ? '%' : ' CHF'})</p>
-                              <button onClick={() => setAppliedCoupon(null)} className="text-gray-500 hover:text-red-500 transition"><X size={12}/></button>
+                            <div className="flex items-center justify-between mt-3 bg-green-500/10 border border-green-500/20 p-2 rounded-lg">
+                              <p className="text-green-500 text-[10px] font-black uppercase tracking-widest ml-2">✓ {appliedCoupon.code} (-{appliedCoupon.discount_value}{appliedCoupon.discount_type === 'percentage' ? '%' : ` ${siteConfig.currency}`})</p>
+                              <button onClick={() => setAppliedCoupon(null)} className="text-gray-500 hover:text-red-500 transition p-1 cursor-pointer"><X size={14}/></button>
                             </div>
                           )}
                         </div>
-                        <button onClick={clearCart} className="text-[10px] text-gray-400 hover:text-red-500 font-bold uppercase flex items-center gap-2 mx-auto transition"><Trash2 size={12} /> {t.clearCart}</button>
+                        <button onClick={clearCart} className="text-[9px] text-gray-600 hover:text-red-500 font-black uppercase tracking-[0.3em] flex items-center gap-2 mx-auto transition cursor-pointer mt-4"><Trash2 size={12} /> {t.clearCart}</button>
                       </div>
                     ) : (
                       <form id="checkout-form" onSubmit={handleFinalSubmit} className="space-y-6">
                         <div className="space-y-1">
-                            <label htmlFor="customer_name" className="text-[10px] font-bold text-gray-400 uppercase ml-1">{t.name}</label>
-                            <input id="customer_name" required placeholder={t.namePlaceholder} value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full bg-black text-white border border-neutral-800 rounded-xl px-4 py-3 outline-none focus:border-brand-primary transition" />
+                            <label htmlFor="customer_name" className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">{t.name}</label>
+                            <input id="customer_name" required placeholder={t.namePlaceholder} value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full bg-black text-white border border-neutral-800 rounded-xl px-5 py-4 font-bold outline-none focus:border-brand-primary transition" />
                         </div>
                         <div className="space-y-1">
-                            <label htmlFor="customer_phone" className="text-[10px] font-bold text-brand-primary uppercase ml-1 tracking-widest">{t.phone}</label>
-                            <input id="customer_phone" required type="tel" placeholder={t.phonePlaceholder} value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} className="w-full bg-black text-white border border-neutral-800 rounded-xl px-4 py-3 outline-none focus:border-brand-primary transition font-mono" />
+                            <label htmlFor="customer_phone" className="text-[10px] font-black text-brand-primary uppercase tracking-widest ml-1">{t.phone}</label>
+                            <input id="customer_phone" required type="tel" placeholder={t.phonePlaceholder} value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} className="w-full bg-black text-white border border-neutral-800 rounded-xl px-5 py-4 font-mono outline-none focus:border-brand-primary transition" />
                         </div>
                         
-                        <fieldset className="space-y-2">
-                          <legend className="text-[10px] font-bold text-brand-primary uppercase flex items-center gap-2 mb-2"><Calendar size={12} /> {t.date}</legend>
+                        <fieldset className="space-y-3 pt-2">
+                          <legend className="text-[10px] font-black text-white uppercase tracking-widest flex items-center gap-2 mb-3"><Calendar size={14} className="text-brand-primary" /> {t.date}</legend>
                           <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
                             {days.map((d, idx) => (
-                              <button key={idx} type="button" onClick={() => { setSelectedDate(d); setSelectedTime(""); }} className={`shrink-0 px-4 py-2 rounded-xl border text-xs font-bold transition ${selectedDate?.toDateString() === d.toDateString() ? "bg-brand-primary border-brand-primary text-white shadow-lg" : "bg-neutral-800 border-neutral-700 text-gray-400"}`}>{d.toLocaleDateString(lang, { day: 'numeric', month: 'short' })}</button>
+                              <button key={idx} type="button" onClick={() => { setSelectedDate(d); setSelectedTime(""); }} className={`shrink-0 px-5 py-3 rounded-xl border text-[11px] font-black uppercase tracking-widest transition cursor-pointer ${selectedDate?.toDateString() === d.toDateString() ? "bg-brand-primary border-brand-primary text-white shadow-[0_0_15px_rgba(var(--brand-primary-rgb),0.4)]" : "bg-neutral-900 border-neutral-800 text-gray-500 hover:border-gray-600"}`}>{d.toLocaleDateString(lang, { day: 'numeric', month: 'short' })}</button>
                             ))}
                           </div>
                         </fieldset>
 
-                        <fieldset className="space-y-2">
-                          <legend className="text-[10px] font-bold text-brand-primary uppercase flex items-center gap-2 mb-2"><Clock size={12} /> {t.time}</legend>
+                        <fieldset className="space-y-3">
+                          <legend className="text-[10px] font-black text-white uppercase tracking-widest flex items-center gap-2 mb-3"><Clock size={14} className="text-brand-primary" /> {t.time}</legend>
                           <div className="grid grid-cols-4 gap-2">
-                            {availableSlots.map(s => <button key={s} type="button" onClick={() => setSelectedTime(s)} className={`py-2 rounded-lg border text-xs font-bold transition ${selectedTime === s ? "bg-brand-primary border-brand-primary text-white" : "bg-neutral-800 border-neutral-700 text-gray-400"}`}>{s}</button>)}
+                            {availableSlots.map(s => <button key={s} type="button" onClick={() => setSelectedTime(s)} className={`py-3 rounded-xl border text-xs font-bold transition cursor-pointer ${selectedTime === s ? "bg-brand-primary border-brand-primary text-white shadow-[0_0_15px_rgba(var(--brand-primary-rgb),0.4)]" : "bg-neutral-900 border-neutral-800 text-gray-500 hover:border-gray-600"}`}>{s}</button>)}
                           </div>
                         </fieldset>
 
-                        <div className="grid grid-cols-2 gap-3">
-                          <button type="button" onClick={() => setFormData({...formData, type: "Click & Collect"})} className={`py-3 rounded-xl border text-xs font-bold transition ${formData.type !== "Livraison" ? "bg-brand-primary border-brand-primary text-white" : "bg-black border-neutral-800 text-gray-400"}`}>{t.takeaway}</button>
-                          <button type="button" onClick={() => setFormData({...formData, type: "Livraison"})} className={`py-3 rounded-xl border text-xs font-bold transition ${formData.type === "Livraison" ? "bg-brand-primary border-brand-primary text-white" : "bg-black border-neutral-800 text-gray-400"}`}>{t.delivery}</button>
+                        <div className="grid grid-cols-2 gap-4 pt-4">
+                          <button type="button" onClick={() => setFormData({...formData, type: "Click & Collect"})} className={`py-4 rounded-xl border text-[10px] font-black uppercase tracking-widest transition cursor-pointer ${formData.type !== "Livraison" ? "bg-brand-primary border-brand-primary text-white shadow-lg" : "bg-black border-neutral-800 text-gray-500"}`}>{t.takeaway}</button>
+                          <button type="button" onClick={() => setFormData({...formData, type: "Livraison"})} className={`py-4 rounded-xl border text-[10px] font-black uppercase tracking-widest transition cursor-pointer ${formData.type === "Livraison" ? "bg-brand-primary border-brand-primary text-white shadow-lg" : "bg-black border-neutral-800 text-gray-500"}`}>{t.delivery}</button>
                         </div>
 
                         <AnimatePresence>
                           {formData.type === "Livraison" && (
-                            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="space-y-4 overflow-hidden">
-                              {totalPrice < 25 && <div className="bg-red-900/20 text-red-500 text-[10px] font-black p-3 rounded-xl border border-red-500/20 text-center uppercase">⚠️ {t.minOrderError}</div>}
-                              <div className="space-y-3 bg-neutral-900/50 p-4 rounded-xl border border-neutral-800 shadow-inner">
-                                <label htmlFor="delivery_address" className="text-[10px] font-bold text-brand-primary uppercase flex items-center gap-2"><MapPin size={12} /> {t.address}</label>
-                                <input id="delivery_address" required={formData.type === "Livraison"} placeholder={t.addressPlaceholder} value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} className="w-full bg-black border border-neutral-800 rounded-lg px-4 py-2 text-sm text-white outline-none focus:border-brand-primary" />
+                            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="space-y-4 overflow-hidden pt-2">
+                              {totalPrice < 25 && <div className="bg-red-900/10 text-red-500 text-[10px] font-black p-4 rounded-xl border border-red-500/20 text-center uppercase tracking-widest">⚠️ {t.minOrderError}</div>}
+                              <div className="space-y-4 bg-black p-5 rounded-2xl border border-neutral-800">
+                                <label htmlFor="delivery_address" className="text-[10px] font-black text-brand-primary uppercase tracking-widest flex items-center gap-2"><MapPin size={14} /> {t.address}</label>
+                                <input id="delivery_address" required={formData.type === "Livraison"} placeholder={t.addressPlaceholder} value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:border-brand-primary transition" />
                                 <div className="grid grid-cols-2 gap-3">
-                                  <input id="zip_code" required={formData.type === "Livraison"} placeholder={t.zip} value={formData.zip} onChange={e => setFormData({...formData, zip: e.target.value})} maxLength={4} className="w-full bg-black border border-neutral-800 rounded-lg px-4 py-2 text-sm text-white outline-none focus:border-brand-primary" />
-                                  <input id="floor_number" placeholder={t.floorPlaceholder} value={formData.floor} onChange={e => setFormData({...formData, floor: e.target.value})} className="w-full bg-black border border-neutral-800 rounded-lg px-4 py-2 text-sm text-white outline-none focus:border-brand-primary" />
+                                  <input id="zip_code" required={formData.type === "Livraison"} placeholder={t.zip} value={formData.zip} onChange={e => setFormData({...formData, zip: e.target.value})} maxLength={4} className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:border-brand-primary transition" />
+                                  <input id="floor_number" placeholder={t.floorPlaceholder} value={formData.floor} onChange={e => setFormData({...formData, floor: e.target.value})} className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:border-brand-primary transition" />
                                 </div>
                               </div>
                             </motion.div>
                           )}
                         </AnimatePresence>
 
-                        <div className="space-y-1">
-                          <label htmlFor="order_comments" className="text-[10px] font-bold text-gray-400 uppercase flex items-center gap-2"><MessageSquare size={12} /> {t.comments}</label>
-                          <textarea id="order_comments" value={formData.comments} onChange={e => setFormData({...formData, comments: e.target.value})} className="w-full bg-black text-white border border-neutral-800 rounded-xl px-4 py-3 outline-none focus:border-brand-primary transition h-20 resize-none text-sm" placeholder={t.commentsPlaceholder} />
+                        <div className="space-y-2 pt-2">
+                          <label htmlFor="order_comments" className="text-[10px] font-black text-gray-500 uppercase tracking-widest flex items-center gap-2"><MessageSquare size={14} /> {t.comments}</label>
+                          <textarea id="order_comments" value={formData.comments} onChange={e => setFormData({...formData, comments: e.target.value})} className="w-full bg-black text-white font-bold border border-neutral-800 rounded-xl px-5 py-4 outline-none focus:border-brand-primary transition h-24 resize-none text-sm" placeholder={t.commentsPlaceholder} />
                         </div>
                       </form>
                     )
                   }
                 </div>
                 {items.length > 0 && (
-                  <div className="p-6 border-t border-neutral-800 bg-neutral-900 shrink-0 shadow-[0_-10px_30px_rgba(0,0,0,0.5)]">
-                    <div className="space-y-2 mb-4">
+                  <div className="p-6 md:p-8 border-t border-neutral-800 bg-neutral-900 shrink-0 shadow-[0_-20px_40px_rgba(0,0,0,0.6)] z-20">
+                    <div className="space-y-3 mb-6">
                       {appliedCoupon && (
-                        <div className="flex justify-between items-center text-[10px] font-bold uppercase text-gray-500">
+                        <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest text-gray-500">
                           <span>{t.totalEstimated}</span>
-                          <span className="line-through">{totalPrice.toFixed(2)} CHF</span>
+                          <span className="line-through">{totalPrice.toFixed(2)} {siteConfig.currency}</span>
                         </div>
                       )}
                       {appliedCoupon && (
-                        <div className="flex justify-between items-center text-[10px] font-bold uppercase text-green-500">
+                        <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest text-green-500">
                           <span>{t.discount} ({appliedCoupon.code})</span>
-                          <span>-{discountAmount.toFixed(2)} CHF</span>
+                          <span>-{discountAmount.toFixed(2)} {siteConfig.currency}</span>
                         </div>
                       )}
                       {profile && profile.wallet_balance > 0 && (
-                        <div className="py-3 px-4 bg-black/40 border border-brand-primary/30 rounded-xl my-3">
+                        <div className="py-4 px-5 bg-black/40 border border-brand-primary/30 rounded-2xl my-4 transition hover:bg-black/60">
                           <label className="flex items-center justify-between cursor-pointer">
-                            <div className="flex items-center gap-2">
-                              <input type="checkbox" checked={useWallet} onChange={(e) => setUseWallet(e.target.checked)} className="accent-brand-primary w-4 h-4" />
-                              <span className="text-xs font-bold text-white uppercase tracking-widest">Utiliser ma cagnotte ({Number(profile.wallet_balance).toFixed(2)} CHF)</span>
+                            <div className="flex items-center gap-3">
+                              <input type="checkbox" checked={useWallet} onChange={(e) => setUseWallet(e.target.checked)} className="accent-brand-primary w-5 h-5 cursor-pointer" />
+                              <span className="text-[10px] font-black text-white uppercase tracking-widest">Utiliser cagnotte ({Number(profile.wallet_balance).toFixed(2)} {siteConfig.currency})</span>
                             </div>
-                            {useWallet && <span className="text-brand-primary font-bold text-xs">-{walletUsed.toFixed(2)} CHF</span>}
+                            {useWallet && <span className="text-brand-primary font-black text-xs">-{walletUsed.toFixed(2)} CHF</span>}
                           </label>
                         </div>
                       )}
-                      <div className="flex justify-between items-center pt-2 border-t border-neutral-800">
-                        <span className="text-gray-400 text-xs font-bold uppercase tracking-widest">Total final</span>
-                        <span className="text-2xl font-display font-bold text-white">{finalPrice.toFixed(2)} CHF</span>
+                      <div className="flex justify-between items-end pt-3 border-t border-white/5">
+                        <span className="text-gray-400 text-[10px] font-black uppercase tracking-[0.3em]">Total final</span>
+                        <span className="text-3xl font-display font-black text-white leading-none">{finalPrice.toFixed(2)} <span className="text-[10px] tracking-normal text-brand-primary ml-1">{siteConfig.currency}</span></span>
                       </div>
                       
                       {user && finalPrice > 0 && (
-                        <p className="text-center text-[10px] text-green-500 font-bold uppercase tracking-widest mt-2">
+                        <p className="text-right text-[9px] text-green-500 font-black uppercase tracking-widest mt-1">
                           + {earnedCashback.toFixed(2)} CHF {t.cashbackNotice}
                         </p>
                       )}
                     </div>
                     
                     {!isCheckout ? (
-                      <button onClick={() => setIsCheckout(true)} className="w-full bg-brand-primary text-white font-bold py-4 rounded-xl uppercase flex items-center justify-center gap-2 hover:opacity-90 transition shadow-lg">
-                        {t.btnValidate} <ArrowRight size={16} />
+                      <button onClick={() => setIsCheckout(true)} className="w-full bg-brand-primary text-white font-black py-5 rounded-[1.5rem] uppercase tracking-[0.2em] text-[11px] flex items-center justify-center gap-3 hover:scale-[1.02] active:scale-[0.98] transition-transform shadow-[0_0_20px_rgba(var(--brand-primary-rgb),0.3)] cursor-pointer">
+                        {t.btnValidate} <ArrowRight size={18} />
                       </button>
                     ) : (
-                      <button type="submit" form="checkout-form" disabled={!isFormReady || isSubmitting} className={`w-full font-bold py-4 rounded-xl uppercase flex items-center justify-center gap-2 transition-all ${isFormReady && !isSubmitting ? "bg-brand-primary text-white" : "bg-neutral-800 text-neutral-500 cursor-not-allowed"}`}>
-                        {isSubmitting ? <><Loader2 size={18} className="animate-spin" /> {t.sending}</> : <><ShieldCheck size={18} /> Continuer vers le paiement</>}</button>
+                      <button type="submit" form="checkout-form" disabled={!isFormReady || isSubmitting} className={`w-full font-black py-5 rounded-[1.5rem] uppercase tracking-[0.15em] text-[10px] flex items-center justify-center gap-3 transition-all cursor-pointer ${isFormReady && !isSubmitting ? "bg-brand-primary text-white shadow-[0_0_20px_rgba(var(--brand-primary-rgb),0.3)] hover:scale-[1.02] active:scale-[0.98]" : "bg-neutral-800 text-neutral-500 cursor-not-allowed"}`}>
+                        {isSubmitting ? <><Loader2 size={18} className="animate-spin" /> {t.sending}</> : <><ShieldCheck size={18} /> Continuer vers le paiement</>}
+                      </button>
                     )}
                   </div>
                 )}

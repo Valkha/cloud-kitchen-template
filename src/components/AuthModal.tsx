@@ -84,56 +84,58 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-[200] overflow-y-auto">
-          {/* Backdrop */}
+        // ✅ Z-INDEX ULTRA HAUT ET OVERFLOW
+        <div className="fixed inset-0 z-[9999] overflow-y-auto">
+          
+          {/* Backdrop (Fond sombre) */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="fixed inset-0 bg-black/80 backdrop-blur-sm"
+            className="fixed inset-0 bg-black/90 backdrop-blur-md"
           />
 
-          {/* Wrapper de centrage */}
-          <div className="flex min-h-full items-center justify-center p-4 text-center">
+          {/* ✅ WRAPPER DE CENTRAGE ROBUSTE */}
+          <div className="flex min-h-screen items-center justify-center p-4 text-center">
             <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              initial={{ opacity: 0, scale: 0.95, y: 30 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              exit={{ opacity: 0, scale: 0.95, y: 30 }}
               onClick={(e) => e.stopPropagation()}
-              className="relative w-full max-w-md transform bg-neutral-900 border border-neutral-800 rounded-3xl shadow-2xl overflow-hidden text-left align-middle transition-all"
+              className="relative w-full max-w-md my-auto bg-neutral-900 border border-white/10 rounded-[2.5rem] shadow-2xl overflow-hidden text-left align-middle transition-all"
             >
-              <div className="p-6 md:p-8">
+              <div className="p-8 md:p-10">
                 {/* BOUTON FERMER */}
                 <button
                   onClick={onClose}
-                  className="absolute top-4 right-4 p-2 text-gray-400 hover:text-white bg-neutral-800 hover:bg-neutral-700 rounded-full transition-colors cursor-pointer z-20"
+                  className="absolute top-6 right-6 p-2 text-gray-400 hover:text-white bg-neutral-800 hover:bg-neutral-700 rounded-full transition-colors cursor-pointer z-20"
                 >
-                  <X size={18} />
+                  <X size={20} />
                 </button>
 
-                <div className="text-center mb-8">
-                  <h2 className="text-2xl font-display font-bold text-white uppercase tracking-widest mb-2">
+                <div className="text-center mb-10">
+                  <h2 className="text-3xl font-display font-bold text-white uppercase tracking-widest mb-2">
                     {isLogin ? "Connexion" : "Créer un compte"}
                   </h2>
-                  <p className="text-gray-400 text-xs font-bold uppercase tracking-widest">
-                    {isLogin ? "Accédez à votre cagnotte" : "Rejoignez l'aventure Planet Food"}
+                  <p className="text-gray-400 text-xs font-bold uppercase tracking-widest opacity-60">
+                    {isLogin ? "Accédez à votre espace" : "Rejoignez Planet Food"}
                   </p>
                 </div>
 
                 {error && (
-                  <div className="mb-6 p-3 bg-red-900/20 border border-red-500/20 rounded-xl text-red-500 text-xs font-bold text-center">
+                  <div className="mb-6 p-4 bg-red-900/20 border border-red-500/20 rounded-2xl text-red-500 text-xs font-bold text-center">
                     {error}
                   </div>
                 )}
 
                 {success && (
-                  <div className="mb-6 p-3 bg-green-900/20 border border-green-500/20 rounded-xl text-green-500 text-xs font-bold text-center">
+                  <div className="mb-6 p-4 bg-green-900/20 border border-green-500/20 rounded-2xl text-green-500 text-xs font-bold text-center">
                     {success}
                   </div>
                 )}
 
-                <form onSubmit={handleSubmit} className="space-y-4">
+                <form onSubmit={handleSubmit} className="space-y-5">
                   <AnimatePresence mode="popLayout">
                     {!isLogin && (
                       <motion.div
@@ -142,7 +144,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
                         exit={{ opacity: 0, height: 0 }}
                         className="space-y-1 overflow-hidden"
                       >
-                        <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Nom Complet</label>
+                        <label className="text-[10px] font-bold text-gray-500 uppercase ml-1">Nom Complet</label>
                         <div className="relative">
                           <UserIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" size={16} />
                           <input
@@ -151,7 +153,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
                             value={formData.fullName}
                             onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
                             placeholder="Jean Dupont"
-                            className="w-full bg-black text-white border border-neutral-800 rounded-xl pl-11 pr-4 py-3 outline-none focus:border-brand-primary transition text-sm"
+                            className="w-full bg-black text-white border border-neutral-800 rounded-xl pl-11 pr-4 py-4 outline-none focus:border-brand-primary transition text-sm"
                           />
                         </div>
                       </motion.div>
@@ -159,7 +161,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
                   </AnimatePresence>
 
                   <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Email</label>
+                    <label className="text-[10px] font-bold text-gray-500 uppercase ml-1">Email</label>
                     <div className="relative">
                       <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" size={16} />
                       <input
@@ -168,13 +170,13 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
                         value={formData.email}
                         onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                         placeholder="votre@email.com"
-                        className="w-full bg-black text-white border border-neutral-800 rounded-xl pl-11 pr-4 py-3 outline-none focus:border-brand-primary transition text-sm"
+                        className="w-full bg-black text-white border border-neutral-800 rounded-xl pl-11 pr-4 py-4 outline-none focus:border-brand-primary transition text-sm"
                       />
                     </div>
                   </div>
 
                   <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Mot de passe</label>
+                    <label className="text-[10px] font-bold text-gray-500 uppercase ml-1">Mot de passe</label>
                     <div className="relative">
                       <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" size={16} />
                       <input
@@ -183,7 +185,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
                         value={formData.password}
                         onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                         placeholder="••••••••"
-                        className="w-full bg-black text-white border border-neutral-800 rounded-xl pl-11 pr-4 py-3 outline-none focus:border-brand-primary transition text-sm"
+                        className="w-full bg-black text-white border border-neutral-800 rounded-xl pl-11 pr-4 py-4 outline-none focus:border-brand-primary transition text-sm"
                       />
                     </div>
                   </div>
@@ -191,7 +193,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
                   <button
                     type="submit"
                     disabled={loading}
-                    className="w-full bg-brand-primary text-white font-bold py-4 rounded-xl uppercase tracking-widest flex items-center justify-center gap-2 hover:opacity-90 transition shadow-lg shadow-brand-primary/20 mt-6 disabled:opacity-50 cursor-pointer"
+                    className="w-full bg-brand-primary text-white font-black py-5 rounded-2xl uppercase tracking-[0.2em] text-[11px] flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-[0.98] transition shadow-xl shadow-brand-primary/20 mt-6 disabled:opacity-50 cursor-pointer"
                   >
                     {loading ? (
                       <Loader2 size={18} className="animate-spin" />
@@ -203,13 +205,13 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
                   </button>
                 </form>
 
-                <div className="mt-8 space-y-4">
+                <div className="mt-10 space-y-5">
                   <div className="relative">
                     <div className="absolute inset-0 flex items-center">
                       <span className="w-full border-t border-neutral-800"></span>
                     </div>
-                    <div className="relative flex justify-center text-[10px] uppercase font-bold">
-                      <span className="bg-neutral-900 px-2 text-gray-500 italic">Ou continuer avec</span>
+                    <div className="relative flex justify-center text-[9px] uppercase font-black tracking-widest">
+                      <span className="bg-neutral-900 px-3 text-gray-500">Ou continuer avec</span>
                     </div>
                   </div>
 
@@ -217,7 +219,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
                     type="button"
                     onClick={handleGoogleLogin}
                     disabled={loading}
-                    className="w-full flex items-center justify-center gap-3 bg-white text-black py-4 rounded-xl font-bold uppercase tracking-widest hover:bg-neutral-200 transition-all shadow-lg text-[11px] disabled:opacity-50 cursor-pointer"
+                    className="w-full flex items-center justify-center gap-3 bg-white text-black py-4 rounded-xl font-black uppercase tracking-widest hover:bg-neutral-200 transition-all shadow-lg text-[10px] disabled:opacity-50 cursor-pointer"
                   >
                     <Image 
                       src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" 
@@ -229,11 +231,11 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
                   </button>
                 </div>
 
-                <div className="mt-8 text-center border-t border-neutral-800 pt-6">
+                <div className="mt-10 text-center border-t border-neutral-800 pt-8">
                   <button
                     type="button"
                     onClick={() => setIsLogin(!isLogin)}
-                    className="text-gray-400 hover:text-white text-[10px] font-bold transition uppercase tracking-[0.2em] cursor-pointer"
+                    className="text-gray-500 hover:text-brand-primary text-[10px] font-black transition uppercase tracking-[0.2em] cursor-pointer"
                   >
                     {isLogin ? "Pas encore de compte ? Créer un compte" : "Déjà un compte ? Se connecter"}
                   </button>

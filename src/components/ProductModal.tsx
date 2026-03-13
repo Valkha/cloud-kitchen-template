@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useMemo } from "react";
 import { createPortal } from "react-dom";
-// ✅ Correction ESLint : Retrait de PanInfo et useAnimation inutilisés
 import { motion, AnimatePresence } from "framer-motion"; 
 import { X, Minus, Plus, ShoppingCart, Check } from "lucide-react"; 
 import Image from "next/image";
@@ -138,7 +137,7 @@ export default function ProductModal({ item, onClose }: ProductModalProps) {
         initial={{ y: 50, opacity: 0, scale: 0.95 }}
         animate={{ y: 0, opacity: 1, scale: 1 }}
         exit={{ y: 50, opacity: 0, scale: 0.95 }}
-        className="relative bg-neutral-900 border border-white/10 rounded-[2rem] md:rounded-[3rem] overflow-hidden max-w-4xl w-full shadow-2xl flex flex-col max-h-[90vh] cursor-default"
+        className="relative bg-neutral-900 border border-white/10 rounded-[2rem] md:rounded-[3rem] overflow-hidden max-w-5xl w-full shadow-2xl flex flex-col max-h-[90vh] cursor-default"
         onClick={(e) => e.stopPropagation()}
       >
         <button onClick={onClose} className="absolute top-4 right-4 z-50 bg-black/50 hover:bg-brand-primary text-white p-2.5 rounded-full backdrop-blur-md transition-all active:scale-90">
@@ -146,22 +145,24 @@ export default function ProductModal({ item, onClose }: ProductModalProps) {
         </button>
 
         <div className="flex flex-col md:flex-row h-full overflow-hidden">
-          <div className="relative w-full md:w-1/2 bg-black h-[20vh] md:h-auto overflow-hidden shrink-0">
+          {/* ✅ SECTION IMAGE OPTIMISÉE (35% Width) */}
+          <div className="relative w-full md:w-[35%] bg-black h-[15vh] md:h-auto overflow-hidden shrink-0 border-b md:border-b-0 md:border-r border-white/5">
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(var(--brand-primary-rgb),0.1)_0%,transparent_70%)]" />
             {item.image_url ? (
-              <Image src={item.image_url} alt={baseName} fill className="object-contain p-6 md:p-12 drop-shadow-2xl" priority />
+              <Image src={item.image_url} alt={baseName} fill className="object-contain p-6 md:p-10 drop-shadow-2xl" priority />
             ) : (
               <div className="flex items-center justify-center h-full text-neutral-800 font-display text-4xl uppercase opacity-20 font-black">Planet Food</div>
             )}
           </div>
 
-          <div className="p-6 md:p-10 md:w-1/2 flex flex-col bg-neutral-900 overflow-hidden">
+          {/* ✅ SECTION CONTENU OPTIMISÉE (65% Width) */}
+          <div className="p-6 md:p-10 md:w-[65%] flex flex-col bg-neutral-900 overflow-hidden">
             <div className="mb-4 shrink-0">
               <span className="text-brand-primary text-[8px] uppercase font-black tracking-[0.4em] mb-1 flex items-center gap-2">
                 <span className="w-1.5 h-1.5 bg-brand-primary rounded-full animate-pulse" />
                 Transmission Planet Food
               </span>
-              <h2 className="text-2xl md:text-4xl font-display font-black text-white uppercase tracking-tighter leading-tight">{baseName}</h2>
+              <h2 className="text-2xl md:text-5xl font-display font-black text-white uppercase tracking-tighter leading-tight">{baseName}</h2>
             </div>
             
             <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 mb-4">
@@ -183,7 +184,6 @@ export default function ProductModal({ item, onClose }: ProductModalProps) {
                           return (
                             <button
                               key={opt.name}
-                              // ✅ Correction 'any' : Cast vers keyof typeof TACOS_CONFIG
                               onClick={() => handleOptionToggle(key as keyof typeof TACOS_CONFIG, opt.name, category.max)}
                               disabled={!isSelected && tacosSelections[key].length >= category.max && category.max !== 1}
                               className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border cursor-pointer ${

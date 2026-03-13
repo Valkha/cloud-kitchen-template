@@ -16,6 +16,22 @@ interface NavbarProps {
   onOpenCart: () => void;
 }
 
+// ✅ 1. Déclaration du composant à l'extérieur pour éviter les cascading renders (ESLint fix)
+const CartBadge = ({ mounted, totalItems }: { mounted: boolean; totalItems: number }) => (
+  <AnimatePresence>
+    {mounted && totalItems > 0 && (
+      <m.div 
+        initial={{ scale: 0, opacity: 0 }} 
+        animate={{ scale: 1, opacity: 1 }} 
+        exit={{ scale: 0, opacity: 0 }}
+        className="absolute -top-1 -right-1 bg-brand-primary text-white text-[9px] font-black w-5 h-5 flex items-center justify-center rounded-full border-2 border-[#080808] shadow-[0_0_12px_rgba(168,85,247,0.6)]"
+      >
+        {totalItems}
+      </m.div>
+    )}
+  </AnimatePresence>
+);
+
 export default function Navbar({ onOpenCart }: NavbarProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false); 
@@ -26,7 +42,6 @@ export default function Navbar({ onOpenCart }: NavbarProps) {
   const { totalItems } = useCart(); 
   const { user, profile, signOut } = useUser(); 
 
-  // ✅ Correction ESLint : On rend l'update asynchrone pour éviter le cascading render
   useEffect(() => {
     const handle = requestAnimationFrame(() => {
       setMounted(true);
@@ -130,18 +145,10 @@ export default function Navbar({ onOpenCart }: NavbarProps) {
                 </button>
               )}
 
+              {/* ✅ 2. Badge Desktop Unifié */}
               <button onClick={onOpenCart} className="relative p-2 active:scale-90 transition-transform group cursor-pointer">
                 <ShoppingCart size={22} className="text-neutral-400 group-hover:text-white transition-colors" />
-                <AnimatePresence>
-                  {mounted && totalItems > 0 && (
-                    <m.div 
-                      initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}
-                      className="absolute -top-0.5 -right-0.5 bg-brand-primary text-white text-[9px] font-black w-5 h-5 flex items-center justify-center rounded-full border-2 border-[#080808] shadow-[0_0_12px_rgba(168,85,247,0.6)]"
-                    >
-                      {totalItems}
-                    </m.div>
-                  )}
-                </AnimatePresence>
+                <CartBadge mounted={mounted} totalItems={totalItems} />
               </button>
               <LanguageSwitcher />
             </div>
@@ -149,13 +156,10 @@ export default function Navbar({ onOpenCart }: NavbarProps) {
 
           {/* --- MOBILE --- */}
           <div className="flex md:hidden items-center space-x-4">
-            <button onClick={onOpenCart} className="relative p-2 mr-2 cursor-pointer">
+            {/* ✅ 3. Badge Mobile Unifié (avec animation pop) */}
+            <button onClick={onOpenCart} className="relative p-2 mr-2 cursor-pointer active:scale-90 transition-transform">
               <ShoppingCart size={22} />
-              {mounted && totalItems > 0 && (
-                 <span className="absolute top-0 right-0 bg-brand-primary text-white text-[8px] font-black w-4 h-4 rounded-full flex items-center justify-center border border-[#080808] shadow-[0_0_10px_rgba(168,85,247,0.5)]">
-                   {totalItems}
-                 </span>
-              )}
+              <CartBadge mounted={mounted} totalItems={totalItems} />
             </button>
             <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="z-50 w-8 h-8 flex flex-col justify-center items-end gap-1.5 cursor-pointer">
               <m.span animate={isMobileMenuOpen ? { rotate: 45, y: 8, width: "32px" } : { rotate: 0, y: 0, width: "32px" }} className="h-0.5 bg-white block rounded-full" />

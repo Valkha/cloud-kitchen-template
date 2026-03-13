@@ -73,12 +73,13 @@ const MenuItemCard = memo(({ item, index, onClick }: { item: MenuItem; index: nu
   return (
     <m.div 
       initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true }}
       transition={{ delay: index * 0.05 }}
       onClick={() => onClick(item)}
-      className="bg-neutral-900/50 backdrop-blur-sm rounded-[2rem] overflow-hidden hover:border-[var(--brand-primary)]/50 transition-all duration-500 group border border-neutral-800 flex flex-col h-full cursor-pointer relative"
+      className="bg-neutral-900/50 backdrop-blur-sm rounded-[2rem] overflow-hidden hover:border-[var(--brand-primary)]/50 transition-all duration-500 group border border-neutral-800 flex flex-col h-full cursor-pointer relative shadow-lg"
     >
-      <div className="w-full bg-black/40 relative aspect-square overflow-hidden p-4">
+      <div className="w-full bg-black/40 relative aspect-square overflow-hidden p-6">
         <AnimatePresence>
           {quantity > 0 && (
             <m.div
@@ -89,7 +90,7 @@ const MenuItemCard = memo(({ item, index, onClick }: { item: MenuItem; index: nu
                 backgroundColor: 'var(--brand-primary)',
                 boxShadow: '0 0 15px var(--brand-glow)' 
               }}
-              className="absolute top-4 left-4 z-20 text-white text-[10px] font-black w-7 h-7 rounded-full flex items-center justify-center border border-white/20"
+              className="absolute top-4 left-4 z-20 text-white text-[10px] font-black w-8 h-8 rounded-full flex items-center justify-center border border-white/20"
             >
               <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-black/20 to-white/20 pointer-events-none" />
               <span className="relative z-10">{quantity}</span>
@@ -103,8 +104,9 @@ const MenuItemCard = memo(({ item, index, onClick }: { item: MenuItem; index: nu
               src={item.image_url}
               alt={displayName}
               fill
+              sizes="(max-width: 768px) 50vw, 25vw"
               quality={80} 
-              className={`object-contain transition-all duration-700 group-hover:scale-110 ${
+              className={`object-contain transition-all duration-700 group-hover:scale-110 group-hover:-translate-y-2 ${
                 isImageLoaded ? "opacity-100" : "opacity-0"
               }`}
               onLoad={() => setIsImageLoaded(true)}
@@ -113,38 +115,38 @@ const MenuItemCard = memo(({ item, index, onClick }: { item: MenuItem; index: nu
             />
           </div>
         ) : (
-          <div className="w-full h-full flex items-center justify-center italic text-neutral-700 text-[10px] uppercase font-display tracking-widest text-center">
+          <div className="w-full h-full flex items-center justify-center italic text-neutral-800 text-[10px] font-black uppercase tracking-widest text-center">
             {siteConfig.name}
           </div>
         )}
       </div>
       
-      <div className="p-5 flex flex-col flex-grow">
+      <div className="p-5 md:p-6 flex flex-col flex-grow bg-gradient-to-t from-neutral-900 to-transparent">
         <div className="flex-1 mb-4">
-          <div className="flex justify-between items-start gap-2 mb-1">
-            <h3 className="text-sm font-bold text-white uppercase leading-tight font-display tracking-wide group-hover:text-[var(--brand-primary)] transition-colors">
+          <div className="flex justify-between items-start gap-2 mb-2">
+            <h3 className="text-sm font-black text-white uppercase tracking-wider group-hover:text-[var(--brand-primary)] transition-colors">
               {displayName.split('(')[0]}
             </h3>
             <Info size={14} className="text-neutral-600 mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity" />
           </div>
-          <p className="text-neutral-500 text-[10px] line-clamp-2 leading-relaxed font-light italic">
+          <p className="text-gray-500 text-[10px] line-clamp-2 leading-relaxed font-bold uppercase tracking-wider italic">
             {displayDesc}
           </p>
         </div>
 
-        <div className="flex items-center justify-between pt-4 border-t border-neutral-800/50">
-          <span className="text-white font-black text-sm italic">
-            {Number(item.price).toFixed(2)} <span className="text-[8px] not-italic text-neutral-500 ml-0.5">{siteConfig.currency}</span>
+        <div className="flex items-center justify-between pt-4 border-t border-white/5">
+          <span className="text-white font-display font-black text-base italic">
+            {Number(item.price).toFixed(2)} <span className="text-[10px] not-italic text-brand-primary ml-0.5">{siteConfig.currency}</span>
           </span>
 
           <div className="flex items-center bg-black/40 rounded-xl p-1 border border-neutral-800">
             <AnimatePresence mode="popLayout">
               {quantity > 0 && (
                 <m.div initial={{ width: 0, opacity: 0 }} animate={{ width: "auto", opacity: 1 }} exit={{ width: 0, opacity: 0 }} className="flex items-center overflow-hidden">
-                  <button onClick={handleRemove} className="w-8 h-8 flex items-center justify-center text-neutral-500 hover:text-white transition-colors">
+                  <button onClick={handleRemove} className="w-8 h-8 flex items-center justify-center text-neutral-500 hover:text-white transition-colors cursor-pointer">
                     <Minus size={14} />
                   </button>
-                  <span className="text-xs font-bold text-white w-5 text-center">{quantity}</span>
+                  <span className="text-xs font-black text-white w-6 text-center">{quantity}</span>
                 </m.div>
               )}
             </AnimatePresence>
@@ -152,8 +154,8 @@ const MenuItemCard = memo(({ item, index, onClick }: { item: MenuItem; index: nu
             <button 
               onClick={handleAdd}
               style={{ color: quantity > 0 ? 'var(--brand-primary)' : 'inherit' }}
-              className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${
-                quantity > 0 ? "" : "bg-neutral-800 text-white hover:bg-[var(--brand-primary)]"
+              className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all cursor-pointer ${
+                quantity > 0 ? "" : "bg-neutral-800 text-white hover:bg-[var(--brand-primary)] hover:shadow-[0_0_10px_var(--brand-glow)]"
               }`}
             >
               <Plus size={14} strokeWidth={3} />
@@ -173,12 +175,10 @@ export default function MenuClient({ initialItems, restaurantSlug }: MenuClientP
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedProduct, setSelectedProduct] = useState<MenuItem | null>(null);
 
-  // ✅ Logique de thème dynamique
   const theme = useMemo(() => {
     const themes: Record<string, { primary: string; glow: string }> = {
       "planet-food": { primary: "#A855F7", glow: "rgba(168,85,247,0.6)" },
-      "burger-station": { primary: "#FACC15", glow: "rgba(250,204,21,0.6)" }, // Exemple
-      // Ajoute d'autres enseignes ici
+      "burger-station": { primary: "#FACC15", glow: "rgba(250,204,21,0.6)" },
     };
     return themes[restaurantSlug] || { primary: "#A855F7", glow: "rgba(168,85,247,0.6)" };
   }, [restaurantSlug]);
@@ -187,7 +187,7 @@ export default function MenuClient({ initialItems, restaurantSlug }: MenuClientP
     const searchLower = searchQuery.toLowerCase();
     return initialItems.filter((item) => {
       const matchesSearch = item.name_fr?.toLowerCase().includes(searchLower) || 
-                          item.description_fr?.toLowerCase().includes(searchLower);
+                            item.description_fr?.toLowerCase().includes(searchLower);
       const matchesCategory = activeCategory === "Tous" || item.category === activeCategory;
       return matchesSearch && matchesCategory;
     });
@@ -208,70 +208,63 @@ export default function MenuClient({ initialItems, restaurantSlug }: MenuClientP
       <div 
         className="bg-[#080808] min-h-screen pb-40"
         style={{ 
-          // ✅ Plus besoin de directive ici, le "as React.CSSProperties" fait le travail
           "--brand-primary": theme.primary, 
           "--brand-glow": theme.glow 
         } as React.CSSProperties}
       >
-        <div className="bg-black py-20 text-center relative overflow-hidden">
+        {/* HEADER */}
+        <div className="bg-black py-24 text-center relative overflow-hidden border-b border-white/5">
           <div 
-            className="absolute inset-0 opacity-50"
+            className="absolute inset-0 opacity-40"
             style={{ background: `radial-gradient(circle at center, ${theme.primary}1A 0%, transparent 70%)` }}
           />
           <Reveal>
-            <h1 className="text-5xl md:text-7xl font-display font-bold uppercase tracking-[0.2em] text-white relative z-10">
+            <h1 className="text-5xl md:text-8xl font-display font-black uppercase tracking-tighter text-white relative z-10">
               {restaurantSlug.replace(/-/g, ' ')}
             </h1>
-            <div className="flex items-center justify-center gap-4 mt-6">
+            <div className="flex items-center justify-center gap-6 mt-8">
                <div className="h-[1px] w-12 bg-neutral-800" />
                <span className="text-[10px] font-black uppercase tracking-[0.5em] text-[var(--brand-primary)]">
-                 {restaurantSlug.replace(/-/g, ' ')} Experience
+                 Mission Menu
                </span>
                <div className="h-[1px] w-12 bg-neutral-800" />
             </div>
           </Reveal>
         </div>
 
-        <div className="sticky top-[70px] z-30 bg-[#080808]/90 backdrop-blur-2xl py-6 border-b border-white/5 mb-12">
+        {/* NAVIGATION STICKY */}
+        <div className="sticky top-[70px] z-40 bg-[#080808]/90 backdrop-blur-2xl py-6 border-b border-white/5 mb-12 shadow-2xl">
           <div className="container mx-auto px-6">
-            <div className="relative max-w-lg mx-auto mb-8">
-              <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-neutral-500" size={18} />
+            <div className="relative max-w-xl mx-auto mb-8">
+              <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-neutral-500" size={18} />
               <input 
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder={lang === "fr" ? "Explorer la carte..." : "Explore the menu..."}
-                className="w-full bg-neutral-900/50 border border-neutral-800 rounded-2xl py-4 pl-14 pr-6 text-sm text-white focus:border-[var(--brand-primary)] focus:ring-1 focus:ring-[var(--brand-primary)]/20 outline-none transition-all"
+                placeholder={lang === "fr" ? "Explorer la carte..." : "Explore coordinates..."}
+                className="w-full bg-black border border-neutral-800 rounded-2xl py-5 pl-16 pr-6 text-sm font-bold text-white focus:border-[var(--brand-primary)] outline-none transition-all shadow-inner"
               />
             </div>
 
-            <nav className="flex flex-nowrap overflow-x-auto md:justify-center gap-4 pb-4 no-scrollbar">
+            <nav className="flex flex-nowrap overflow-x-auto md:justify-center gap-4 pb-2 no-scrollbar">
               {filterCategories.map((cat) => {
+                // ✅ Ligne corrigée : Suppression de "as any" et variables inutilisées
                 const isActive = activeCategory === cat.id;
+                
                 return (
                   <m.button
                     key={cat.id}
                     onClick={() => setActiveCategory(cat.id)}
-                    animate={isActive ? { scale: [1, 1.02, 1] } : { scale: 1 }}
-                    transition={{ repeat: Infinity, duration: 2.5, ease: "easeInOut" }}
                     className={`
-                      flex-shrink-0 px-8 py-3 rounded-full text-[10px] font-black uppercase tracking-[0.2em] 
-                      transition-all duration-500 relative overflow-hidden border
+                      flex-shrink-0 px-8 py-3.5 rounded-full text-[10px] font-black uppercase tracking-[0.2em] 
+                      transition-all duration-500 border cursor-pointer
                       ${isActive 
                         ? "bg-white text-black border-white" 
-                        : "bg-neutral-900/50 text-neutral-500 hover:text-white border-neutral-800"
+                        : "bg-neutral-900/50 text-neutral-500 hover:text-white border-white/5 hover:bg-neutral-800"
                       }
                     `}
-                    style={isActive ? { boxShadow: `0 0 30px ${theme.glow}` } : {}}
+                    style={isActive ? { boxShadow: `0 0 25px ${theme.glow}` } : {}}
                   >
-                    {isActive && (
-                      <m.div 
-                        layoutId="active-glow-sweep"
-                        className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -skew-x-12"
-                        animate={{ x: ['-100%', '200%'] }}
-                        transition={{ repeat: Infinity, duration: 2, ease: "linear" }}
-                      />
-                    )}
                     <span className="relative z-10">{cat.label}</span>
                   </m.button>
                 );
@@ -280,9 +273,10 @@ export default function MenuClient({ initialItems, restaurantSlug }: MenuClientP
           </div>
         </div>
 
+        {/* LISTE PRODUITS */}
         <div className="container mx-auto px-6">
           <AnimatePresence mode="popLayout">
-            <m.div layout className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6 md:gap-8">
+            <m.div layout className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
               {filteredItems.map((item, index) => (
                 <MenuItemCard key={item.id} item={item} index={index} onClick={setSelectedProduct} />
               ))}
@@ -290,9 +284,9 @@ export default function MenuClient({ initialItems, restaurantSlug }: MenuClientP
           </AnimatePresence>
 
           {filteredItems.length === 0 && (
-            <div className="text-center py-40">
-              <ShoppingBag size={48} className="mx-auto text-neutral-800 mb-4" />
-              <p className="text-neutral-500 font-display uppercase tracking-widest text-xs">Aucun résultat trouvé</p>
+            <div className="text-center py-40 border border-dashed border-white/5 rounded-[3rem]">
+              <ShoppingBag size={48} className="mx-auto text-neutral-800 mb-6" />
+              <p className="text-neutral-500 font-display font-black uppercase tracking-[0.3em] text-xs">Aucune transmission trouvée</p>
             </div>
           )}
         </div>

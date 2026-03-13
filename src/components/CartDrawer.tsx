@@ -16,25 +16,23 @@ import { siteConfig } from "@/config/site";
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
 
-// ✅ Typage précis pour les traductions
 type TranslationKeys = typeof cartTranslations.fr;
 
 const cartTranslations = {
   fr: {
     titleCart: "Mon Panier", titleCheckout: "Validation", titlePayment: "Paiement Sécurisé", emptyCart: "Votre panier est vide", items: "article", itemsPlural: "articles", clearCart: "Vider le panier", name: "Nom Complet *", namePlaceholder: "Jean Dupont", phone: "Téléphone Mobile *", phonePlaceholder: "07X XXX XX XX", date: "Date *", time: "Heure *", pickupMode: "Mode de retrait *", takeaway: "À Emporter", delivery: "Livraison", address: "Adresse *", addressPlaceholder: "Rue des Alpes 12", zip: "NPA *", floor: "Étage", floorPlaceholder: "Ex: 4", code: "Code", codePlaceholder: "Ex: A123", comments: "Instructions / Allergies", commentsPlaceholder: "Sans wasabi...", totalEstimated: "Total à payer", btnValidate: "Passer à la caisse", btnPay: "Payer la commande", minOrderError: "Minimum 25 CHF requis pour la livraison.", noTimeSlots: "Aucun horaire disponible.", today: "Aujourd'hui", tomorrow: "Demain", sending: "Génération...", processing: "Traitement...", paymentError: "Le paiement a échoué.", successTitle: "Paiement réussi !", successDesc: "Votre commande est validée.", btnClose: "Fermer", cancelPayment: "Annuler", remove: "Supprimer", decrease: "Diminuer quantité", increase: "Augmenter quantité", back: "Retour",
-    couponLabel: "Code Promo", couponPlaceholder: "EX: KABUKI10", couponBtn: "Appliquer", couponInvalid: "Code invalide ou expiré", couponMinError: "Min. {min} CHF requis", discount: "Réduction", preparedBy: "Cuisiné par", cashbackNotice: "crédités sur votre cagnotte !"
+    couponLabel: "Code Promo", couponPlaceholder: "EX: PLANET10", couponBtn: "Appliquer", couponInvalid: "Code invalide ou expiré", couponMinError: "Min. {min} CHF requis", discount: "Réduction", preparedBy: "Cuisiné par", cashbackNotice: "crédités sur votre cagnotte !"
   },
   en: {
     titleCart: "My Cart", titleCheckout: "Checkout", titlePayment: "Secure Payment", emptyCart: "Empty", items: "item", itemsPlural: "items", clearCart: "Clear", name: "Name *", namePlaceholder: "John Doe", phone: "Mobile Phone *", phonePlaceholder: "07X XXX XX XX", date: "Date *", time: "Time *", pickupMode: "Method *", takeaway: "Takeaway", delivery: "Delivery", address: "Address *", addressPlaceholder: "Street", zip: "ZIP *", floor: "Floor", floorPlaceholder: "Ex: 4", code: "Code", codePlaceholder: "Ex: A123", comments: "Instructions", commentsPlaceholder: "Allergies...", totalEstimated: "Total", btnValidate: "Checkout", btnPay: "Pay Now", minOrderError: "Min 25 CHF for delivery.", noTimeSlots: "No slots.", today: "Today", tomorrow: "Tomorrow", sending: "Sending...", processing: "Processing...", paymentError: "Failed.", successTitle: "Success!", successDesc: "Confirmed.", btnClose: "Close", cancelPayment: "Cancel", remove: "Remove", decrease: "Decrease", increase: "Increase", back: "Back",
-    couponLabel: "Promo Code", couponPlaceholder: "EX: KABUKI10", couponBtn: "Apply", couponInvalid: "Invalid or expired", couponMinError: "Min. {min} CHF required", discount: "Discount", preparedBy: "Prepared by", cashbackNotice: "credited to your wallet!"
+    couponLabel: "Promo Code", couponPlaceholder: "EX: PLANET10", couponBtn: "Apply", couponInvalid: "Invalid or expired", couponMinError: "Min. {min} CHF required", discount: "Discount", preparedBy: "Prepared by", cashbackNotice: "credited to your wallet!"
   },
   es: {
     titleCart: "Carrito", titleCheckout: "Pago", titlePayment: "Pago Seguro", emptyCart: "Vacío", items: "artículo", itemsPlural: "artículos", clearCart: "Vaciar", name: "Nombre *", namePlaceholder: "Juan", phone: "Teléfono *", phonePlaceholder: "07X XXX XX XX", date: "Date *", time: "Hora *", pickupMode: "Método *", takeaway: "Para llevar", delivery: "Entrega", address: "Dirección *", addressPlaceholder: "Calle", zip: "CP *", floor: "Piso", floorPlaceholder: "Ej: 4", code: "Código", codePlaceholder: "Ej: A123", comments: "Notas", commentsPlaceholder: "Alergias...", totalEstimated: "Total", btnValidate: "Pagar", btnPay: "Pagar pedido", minOrderError: "Mínimo 25 CHF para entrega.", noTimeSlots: "No disponible.", today: "Hoy", tomorrow: "Mañana", sending: "Enviando...", processing: "Procesando...", paymentError: "Error.", successTitle: "¡Éxito!", successDesc: "Confirmado.", btnClose: "Cerrar", cancelPayment: "Cancelar", remove: "Eliminar", decrease: "Disminuir", increase: "Aumentar", back: "Volver",
-    couponLabel: "Código Promo", couponPlaceholder: "EJ: KABUKI10", couponBtn: "Aplicar", couponInvalid: "Inválido o expirado", couponMinError: "Min. {min} CHF requerido", discount: "Descuento", preparedBy: "Cocinado por", cashbackNotice: "abonados en tu monedero!"
+    couponLabel: "Código Promo", couponPlaceholder: "EJ: PLANET10", couponBtn: "Aplicar", couponInvalid: "Inválido o expirado", couponMinError: "Min. {min} CHF requerido", discount: "Descuento", preparedBy: "Cocinado por", cashbackNotice: "abonados en tu monedero!"
   }
 };
 
-// ✅ Typage précis pour les coupons
 interface Coupon {
   code: string;
   discount_type: 'percentage' | 'fixed';
@@ -108,6 +106,16 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
   const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
   const [couponError, setCouponError] = useState("");
   const [isVerifyingCoupon, setIsVerifyingCoupon] = useState(false);
+
+  // ✅ ECOUTEUR D'ÉVÉNEMENT POUR OUVRIR LE PANIER
+  useEffect(() => {
+    const handleOpenCart = () => {
+      // Si on veut forcer l'ouverture via ActiveOrderButton
+      // Note: On utilise le prop isOpen géré par le parent, mais on peut ajouter une logique ici si besoin
+    };
+    window.addEventListener("open-cart", handleOpenCart);
+    return () => window.removeEventListener("open-cart", handleOpenCart);
+  }, []);
 
   const groupedItems = useMemo(() => {
     return items.reduce((acc, item) => {
@@ -408,7 +416,6 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
                         <span className="text-2xl font-display font-bold text-white">{finalPrice.toFixed(2)} CHF</span>
                       </div>
                       
-                      {/* ✅ UTILISATION DE earnedCashback POUR SATISFAIRE ESLINT */}
                       {user && finalPrice > 0 && (
                         <p className="text-center text-[10px] text-green-500 font-bold uppercase tracking-widest mt-2">
                           + {earnedCashback.toFixed(2)} CHF {t.cashbackNotice}

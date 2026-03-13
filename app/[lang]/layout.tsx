@@ -7,8 +7,18 @@ import { UserProvider } from "@/context/UserContext";
 import LayoutClient from "@/components/LayoutClient"; 
 import ActiveOrderButton from "@/components/ActiveOrderButton";
 
-const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: 'swap' });
-const oswald = Oswald({ subsets: ["latin"], variable: "--font-oswald", display: 'swap', weight: ['400', '700'] });
+const inter = Inter({ 
+  subsets: ["latin"], 
+  variable: "--font-inter",
+  display: 'swap' 
+});
+
+const oswald = Oswald({ 
+  subsets: ["latin"], 
+  variable: "--font-oswald", 
+  display: 'swap', 
+  weight: ['400', '700'] 
+});
 
 export default async function LocaleLayout({
   children,
@@ -17,25 +27,31 @@ export default async function LocaleLayout({
   children: ReactNode;
   params: Promise<{ lang: string }>;
 }) {
-  // ✅ Résolution de lang
+  // On attend la résolution des paramètres de langue
   const { lang } = await params;
 
   return (
-    // ✅ Utilisation de lang dans l'id ou un data-attribute pour satisfaire ESLint
-    <div 
-      id={`app-locale-${lang}`}
-      className={`${inter.variable} ${oswald.variable} antialiased bg-[#080808] text-white min-h-screen`}
+    <html 
+      lang={lang} 
+      className={`${inter.variable} ${oswald.variable}`} 
+      suppressHydrationWarning
     >
-      <UserProvider>
-        <LanguageProvider>
-          <CartProvider>
-            <LayoutClient>
-              {children}
-            </LayoutClient>
-            <ActiveOrderButton />
-          </CartProvider>
-        </LanguageProvider>
-      </UserProvider>
-    </div>
+      <body className="bg-[#080808] text-white antialiased">
+        {/* On enveloppe tout dans les Providers pour garantir l'accès au contexte partout */}
+        <UserProvider>
+          <LanguageProvider>
+            <CartProvider>
+              {/* LayoutClient gère la Navbar et le CartDrawer */}
+              <LayoutClient>
+                {children}
+              </LayoutClient>
+              
+              {/* Le bouton flottant de commande active */}
+              <ActiveOrderButton />
+            </CartProvider>
+          </LanguageProvider>
+        </UserProvider>
+      </body>
+    </html>
   );
 }

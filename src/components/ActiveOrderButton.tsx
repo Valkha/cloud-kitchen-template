@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react"; // ✅ Ajout des hooks React
 import { m, AnimatePresence } from "framer-motion";
 import { ShoppingBag } from "lucide-react";
 import { useCart } from "@/context/CartContext";
@@ -8,11 +9,25 @@ import { useTranslation } from "@/context/LanguageContext";
 export default function ActiveOrderButton() {
   const { totalItems, totalPrice } = useCart();
   const { lang } = useTranslation();
+  
+  // ✅ État pour gérer l'hydratation
+  const [mounted, setMounted] = useState(false);
+
+  // ✅ Correction Hydratation : Update asynchrone pour ESLint et Next.js
+  useEffect(() => {
+    const handle = requestAnimationFrame(() => {
+      setMounted(true);
+    });
+    return () => cancelAnimationFrame(handle);
+  }, []);
 
   const handleOpenCart = () => {
     // Déclenche l'événement que LayoutClient écoute
     window.dispatchEvent(new Event("open-cart"));
   };
+
+  // ✅ Important : On ne rend rien tant que le client n'est pas prêt
+  if (!mounted) return null;
 
   return (
     <AnimatePresence>

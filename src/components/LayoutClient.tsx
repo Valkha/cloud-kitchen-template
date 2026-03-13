@@ -18,8 +18,9 @@ export default function LayoutClient({ children }: { children: ReactNode }) {
     <div className="flex flex-col min-h-screen">
       <Navbar onOpenCart={() => setIsCartOpen(true)} />
       
-      {/* ✅ Suppression du pt-20 ici pour laisser le Hero respirer */}
-      <main className="flex-grow">
+      {/* ✅ Restauration du pt-20 : cela garantit que le contenu des pages 
+          standard (Profil, Contact, etc.) commence sous la Navbar. */}
+      <main className="flex-grow pt-20">
         {children}
       </main>
 

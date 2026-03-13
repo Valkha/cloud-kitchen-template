@@ -2,7 +2,8 @@
 
 import { useEffect, useState, useMemo } from "react";
 import { createPortal } from "react-dom";
-import { m, useAnimation, PanInfo, AnimatePresence } from "framer-motion"; 
+// ✅ On utilise exclusivement 'motion' pour éviter les erreurs de parsing
+import { motion, useAnimation, PanInfo, AnimatePresence } from "framer-motion"; 
 import { X, Minus, Plus, ShoppingCart, Check } from "lucide-react"; 
 import Image from "next/image";
 import { useTranslation } from "@/context/LanguageContext";
@@ -10,10 +11,10 @@ import { useCart, MenuItem as ContextMenuItem } from "@/context/CartContext";
 import { siteConfig } from "../../config/site";
 
 export interface MenuItem extends ContextMenuItem {
-  name_fr: string; // Obligatoire pour la détection du Tacos
+  name_fr: string; 
   name_en?: string;
   name_es?: string;
-  description_fr?: string; // ✅ Changé en optionnel (?) pour éviter les blocages
+  description_fr?: string; 
   description_en?: string;
   description_es?: string;
 }
@@ -74,10 +75,10 @@ export default function ProductModal({ item, onClose }: ProductModalProps) {
     gratinage: ["Aucun"]
   });
 
-  // ✅ Correction ESLint : On évite le setState synchrone avec requestAnimationFrame
   useEffect(() => {
     const handle = requestAnimationFrame(() => {
       setMounted(true);
+      controls.start({ y: 0 });
     });
     document.body.style.overflow = "hidden";
     
@@ -85,7 +86,7 @@ export default function ProductModal({ item, onClose }: ProductModalProps) {
       cancelAnimationFrame(handle);
       document.body.style.overflow = "unset";
     };
-  }, []);
+  }, [controls]);
 
   const handleDragEnd = (_: unknown, info: PanInfo) => {
     if (info.offset.y > 150) onClose();
@@ -155,14 +156,23 @@ export default function ProductModal({ item, onClose }: ProductModalProps) {
   const isCartDisabled = isAdded || (isCustomTacos && tacosSelections.viandes.length === 0);
 
   const modalJSX = (
-    <m.div 
-      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-      className="fixed inset-0 z-[10000] flex items-end md:items-center justify-center bg-black/80 backdrop-blur-md"
-      onClick={onClose}
-    >
-      <m.div 
-        drag="y" dragConstraints={{ top: 0 }} dragElastic={0.2} onDragEnd={handleDragEnd} animate={controls}
-        initial={{ y: "100%" }} whileInView={{ y: 0 }} exit={{ y: "100%" }}
+    <div className="fixed inset-0 z-[99999] flex items-end md:items-center justify-center">
+      <motion.div 
+        initial={{ opacity: 0 }} 
+        animate={{ opacity: 1 }} 
+        exit={{ opacity: 0 }}
+        className="absolute inset-0 bg-black/90 backdrop-blur-xl"
+        onClick={onClose}
+      />
+
+      <motion.div 
+        drag="y" 
+        dragConstraints={{ top: 0 }} 
+        dragElastic={0.2} 
+        onDragEnd={handleDragEnd} 
+        animate={controls}
+        initial={{ y: "100%" }} 
+        exit={{ y: "100%" }}
         transition={{ type: "spring", damping: 30, stiffness: 300 }}
         onClick={(e) => e.stopPropagation()}
         className="bg-neutral-900 border-t md:border border-white/10 rounded-t-[2.5rem] md:rounded-[3rem] overflow-hidden max-w-4xl w-full shadow-2xl relative flex flex-col max-h-[92vh] md:max-h-[85vh] cursor-default"
@@ -251,7 +261,7 @@ export default function ProductModal({ item, onClose }: ProductModalProps) {
                   </div>
                </div>
 
-              <m.button 
+              <motion.button 
                 onClick={handleAddToCart} disabled={isCartDisabled}
                 animate={isAdded ? { scale: [1, 0.95, 1.05, 1] } : {}}
                 className={`w-full h-16 rounded-2xl uppercase tracking-[0.3em] text-[11px] font-black transition-all duration-300 flex items-center justify-center gap-4 relative overflow-hidden cursor-pointer ${
@@ -262,22 +272,22 @@ export default function ProductModal({ item, onClose }: ProductModalProps) {
               >
                 <AnimatePresence mode="wait">
                   {isAdded ? (
-                    <m.div key="check" initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: -20, opacity: 0 }} className="flex items-center gap-3">
+                    <motion.div key="check" initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: -20, opacity: 0 }} className="flex items-center gap-3">
                       <Check size={20} strokeWidth={3} /> Transmission réussie
-                    </m.div>
+                    </motion.div>
                   ) : (
-                    <m.div key="add" initial={{ y: -20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 20, opacity: 0 }} className="flex items-center gap-3">
+                    <motion.div key="add" initial={{ y: -20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 20, opacity: 0 }} className="flex items-center gap-3">
                       <ShoppingCart size={18} />
                       <span>{isCustomTacos && tacosSelections.viandes.length === 0 ? "Sélectionnez une viande" : `Ajouter • ${(finalPrice * quantity).toFixed(2)} ${siteConfig.currency}`}</span>
-                    </m.div>
+                    </motion.div>
                   )}
                 </AnimatePresence>
-              </m.button>
+              </motion.button>
             </div>
           </div>
         </div>
-      </m.div>
-    </m.div>
+      </motion.div>
+    </div>
   );
 
   if (!mounted) return null;

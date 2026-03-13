@@ -12,7 +12,6 @@ import Image from "next/image";
 import { useTranslation } from "@/context/LanguageContext";
 import { useSearchParams, useRouter } from "next/navigation";
 import TransitionLink from "@/components/TransitionLink";
-// ✅ Correction : Import de siteConfig ajouté
 import { siteConfig } from "@/config/site";
 
 interface MenuItem {
@@ -31,7 +30,6 @@ interface MenuItem {
   category_name?: string; 
 }
 
-// ✅ Correction : Interface pour le retour de jointure Supabase
 interface RawProduct extends MenuItem {
   categories: { name_fr: string } | null;
 }
@@ -111,7 +109,6 @@ export default function AdminMenu() {
       if (prodError) throw prodError;
       
       if (products) {
-        // ✅ Correction : Typage explicite au lieu de any
         const formattedProducts = (products as RawProduct[]).map((p) => ({
           ...p,
           category_name: p.categories?.name_fr || 'Sans catégorie'
@@ -162,22 +159,51 @@ export default function AdminMenu() {
     setUpdatingId(null);
   };
 
+  const translateText = async (text: string, targetLang: string): Promise<string> => {
+    if (!text) return "";
+    try {
+      const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=fr&tl=${targetLang}&dt=t&q=${encodeURIComponent(text)}`;
+      const res = await fetch(url);
+      const data = await res.json();
+      if (Array.isArray(data) && Array.isArray(data[0])) {
+        return data[0].map((item: unknown[]) => String(item[0])).join("");
+      }
+      return text;
+    } catch (error) {
+      console.error(`Erreur de traduction vers ${targetLang}:`, error);
+      return text;
+    }
+  };
+
   const handleTranslate = async () => {
     if (!form.name_fr && !form.description_fr) {
-      showToast("Remplissez d'abord le Français", 'error');
+      showToast("Veuillez remplir au moins le Nom ou la Description en Français", 'error');
       return;
     }
+    
     setIsTranslating(true);
+    
     try {
-      await new Promise(resolve => setTimeout(resolve, 800));
+      const [nameEn, nameEs, descEn, descEs] = await Promise.all([
+        form.name_fr && !form.name_en ? translateText(form.name_fr, "en") : Promise.resolve(form.name_en),
+        form.name_fr && !form.name_es ? translateText(form.name_fr, "es") : Promise.resolve(form.name_es),
+        form.description_fr && !form.description_en ? translateText(form.description_fr, "en") : Promise.resolve(form.description_en),
+        form.description_fr && !form.description_es ? translateText(form.description_fr, "es") : Promise.resolve(form.description_es),
+      ]);
+
       setForm(prev => ({
         ...prev,
-        name_en: prev.name_en || prev.name_fr,
-        name_es: prev.name_es || prev.name_fr,
-        description_en: prev.description_en || prev.description_fr,
-        description_es: prev.description_es || prev.description_fr
+        name_en: nameEn || prev.name_en,
+        name_es: nameEs || prev.name_es,
+        description_en: descEn || prev.description_en,
+        description_es: descEs || prev.description_es
       }));
-      showToast("Suggestions générées !");
+      
+      showToast("Traduction automatique réussie !");
+    } catch (error) {
+      // ✅ ESLint fix : Le paramètre 'error' est maintenant utilisé (loggé dans la console)
+      console.error("Erreur globale de traduction:", error);
+      showToast("Une erreur est survenue lors de la traduction", "error");
     } finally {
       setIsTranslating(false);
     }
@@ -400,6 +426,7 @@ export default function AdminMenu() {
               <div className="flex justify-between items-center mb-10 border-b border-neutral-800 pb-6">
                 <h2 className="text-3xl font-black uppercase tracking-tighter">{editingId ? "Modifier" : "Ajouter un plat"}</h2>
                 <div className="flex items-center gap-4">
+                  {/* BOUTON D'AUTO-TRADUCTION API */}
                   <button type="button" onClick={handleTranslate} disabled={isTranslating} className="flex items-center gap-2 bg-brand-primary/10 border border-brand-primary/20 text-brand-primary px-6 py-3 rounded-2xl text-[10px] font-black uppercase transition disabled:opacity-50 cursor-pointer hover:bg-brand-primary hover:text-white">
                     {isTranslating ? <Loader2 className="animate-spin" size={14} /> : <Wand2 size={14} />} Auto-Traduction
                   </button>

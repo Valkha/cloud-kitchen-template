@@ -103,11 +103,11 @@ export default async function MenuPage({
                 <div className="glass-panel rounded-[2.5rem] p-6 group hover:border-white/20 transition-all duration-500 flex flex-col h-full bg-white/[0.02]">
                   <div className="relative aspect-video mb-6 overflow-hidden rounded-2xl bg-white/5">
                     <Image
-                      src={product.image_url || "/images/placeholder-food.png"}
-                      alt={product.name}
-                      fill
-                      className="object-cover group-hover:scale-110 transition-transform duration-700"
-                    />
+  src={product.image_url || "/images/placeholder-food.png"}
+  alt={product.name || "Image produit Planet Food"}
+  fill
+  className="object-cover"
+/>
                   </div>
 
                   <div className="flex justify-between items-start mb-4">

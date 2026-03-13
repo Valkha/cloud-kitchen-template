@@ -2,7 +2,6 @@ import MenuClient from "./MenuClient";
 import { getRestaurantMenu } from "@/services/productService";
 import { siteConfig } from "@/config/site";
 import { Metadata } from "next";
-import { redirect } from "next/navigation";
 
 export async function generateMetadata(): Promise<Metadata> {
   return {
@@ -13,7 +12,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
 interface RawProduct {
   id: string;
-  restaurant_id: string; // ✅ Ajouté
+  restaurant_id: string;
   name_fr: string;
   name_en?: string;
   name_es?: string;
@@ -27,27 +26,23 @@ interface RawProduct {
 }
 
 export default async function MenuPage({
-  params,
+  // ✅ On retire `params` d'ici puisqu'on ne s'en sert plus
   searchParams,
 }: {
   params: Promise<{ lang: string }>;
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
-  const resolvedParams = await params;
   const resolvedSearchParams = await searchParams;
   
-  const lang = resolvedParams.lang || "fr";
-  const restaurantSlug = resolvedSearchParams.restaurant;
-
-  if (!restaurantSlug || typeof restaurantSlug !== "string") {
-    redirect(`/${lang}`);
-  }
+  // ✅ Plus de `lang`, plus de `resolvedParams`, on va droit au but
+  const restaurantSlug = typeof resolvedSearchParams.restaurant === "string" 
+    ? resolvedSearchParams.restaurant 
+    : "all";
 
   const rawProducts = await getRestaurantMenu(restaurantSlug);
 
-  // 2. Formatage des données pour correspondre à l'interface MenuItem du CartContext
   const formattedProducts = (rawProducts || []).map((product: RawProduct) => ({
-    id: product.id, // ✅ Plus de hack "as unknown as number", on garde l'UUID string
+    id: product.id,
     name: product.name_fr,
     name_fr: product.name_fr,
     name_en: product.name_en,
@@ -59,7 +54,6 @@ export default async function MenuPage({
     image_url: product.image_url,
     is_available: product.is_available,
     category: product.categories?.name_fr || "Non classé",
-    // ✅ CHAMPS OBLIGATOIRES POUR LE MODE FOOD COURT
     restaurant_id: product.restaurant_id,
     restaurant_name: restaurantSlug.replace(/-/g, ' '), 
   }));

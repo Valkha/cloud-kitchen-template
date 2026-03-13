@@ -3,7 +3,7 @@
 import { ReactNode, useState, useEffect } from "react";
 import Navbar from "./Navbar";
 import CartDrawer from "./CartDrawer";
-import Footer from "./Footer"; // ✅ Ajout de l'import (vérifie le chemin si besoin)
+import Footer from "./Footer"; 
 
 export default function LayoutClient({ children }: { children: ReactNode }) {
   const [isCartOpen, setIsCartOpen] = useState(false);
@@ -18,12 +18,11 @@ export default function LayoutClient({ children }: { children: ReactNode }) {
     <div className="flex flex-col min-h-screen">
       <Navbar onOpenCart={() => setIsCartOpen(true)} />
       
-      {/* flex-grow permet à la page de pousser le footer vers le bas */}
-      <main className="flex-grow pt-20">
+      {/* ✅ Suppression du pt-20 ici pour laisser le Hero respirer */}
+      <main className="flex-grow">
         {children}
       </main>
 
-      {/* ✅ Réintégration du Footer */}
       <Footer />
 
       <CartDrawer 

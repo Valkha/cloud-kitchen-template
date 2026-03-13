@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
+import { createPortal } from "react-dom";
 import { m, useAnimation, PanInfo, AnimatePresence } from "framer-motion"; 
 import { X, Minus, Plus, ShoppingCart, Check } from "lucide-react"; 
 import Image from "next/image";
@@ -22,11 +23,10 @@ interface ProductModalProps {
   onClose: () => void;
 }
 
-// --- CONFIGURATION EN DUR POUR "A LA LYONNAISE" ---
 const TACOS_CONFIG = {
   format: { label: "1. Choisissez votre format", max: 1, options: [
     { name: "Standard", price: 0 },
-    { name: "Format XL", price: 12.0 } // Supplément pour arriver à 34.90 (22.90 + 12.0)
+    { name: "Format XL", price: 12.0 }
   ]},
   sauces: { label: "Nos sauces (2 max)", max: 2, options: [
     { name: "Algérienne", price: 0 }, { name: "Biggy", price: 0 }, { name: "Ketchup", price: 0 }, 
@@ -60,12 +60,11 @@ export default function ProductModal({ item, onClose }: ProductModalProps) {
   const { addToCart } = useCart();
   const [quantity, setQuantity] = useState(1);
   const [isAdded, setIsAdded] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const controls = useAnimation();
 
-  // Détection du Tacos Lyonnais (flexible pour inclure "Lyonnais" ou "Tacos")
   const isCustomTacos = item.name_fr?.toLowerCase().includes("tacos") && item.restaurant_name?.toLowerCase().includes("lyonnaise");
 
-  // Initialisation avec "Standard" sélectionné par défaut pour le format
   const [tacosSelections, setTacosSelections] = useState<Record<string, string[]>>({
     format: ["Standard"],
     sauces: [], 
@@ -75,9 +74,17 @@ export default function ProductModal({ item, onClose }: ProductModalProps) {
     gratinage: ["Aucun"]
   });
 
+  // ✅ Correction ESLint : On évite le setState synchrone avec requestAnimationFrame
   useEffect(() => {
+    const handle = requestAnimationFrame(() => {
+      setMounted(true);
+    });
     document.body.style.overflow = "hidden";
-    return () => { document.body.style.overflow = "unset"; };
+    
+    return () => {
+      cancelAnimationFrame(handle);
+      document.body.style.overflow = "unset";
+    };
   }, []);
 
   const handleDragEnd = (_: unknown, info: PanInfo) => {
@@ -113,32 +120,23 @@ export default function ProductModal({ item, onClose }: ProductModalProps) {
     setTacosSelections(prev => {
       const current = prev[category];
       if (current.includes(optionName)) {
-        // Empêcher de déselectionner si c'est le format (doit en avoir un)
         if (category === 'format') return prev;
         return { ...prev, [category]: current.filter(n => n !== optionName) };
       }
-      if (max === 1) {
-        return { ...prev, [category]: [optionName] };
-      }
-      if (current.length < max) {
-        return { ...prev, [category]: [...current, optionName] };
-      }
+      if (max === 1) return { ...prev, [category]: [optionName] };
+      if (current.length < max) return { ...prev, [category]: [...current, optionName] };
       return prev;
     });
   };
 
   const handleAddToCart = () => {
     if (window.navigator?.vibrate) window.navigator.vibrate(20);
-
     let finalName = baseName;
     if (isCustomTacos) {
-      const allSelected = Object.values(tacosSelections).flat()
-        .filter(n => n !== "Aucune" && n !== "Aucun" && n !== "Standard");
-      
+      const allSelected = Object.values(tacosSelections).flat().filter(n => n !== "Aucune" && n !== "Aucun" && n !== "Standard");
       const formatLabel = tacosSelections.format[0] === "Format XL" ? " XL" : "";
       finalName = `${baseName}${formatLabel} (${allSelected.join(", ")})`;
     }
-
     for (let i = 0; i < quantity; i++) {
       addToCart({
         id: isCustomTacos ? `${item.id}-${Date.now()}-${i}` : item.id,
@@ -150,17 +148,16 @@ export default function ProductModal({ item, onClose }: ProductModalProps) {
         restaurant_name: item.restaurant_name
       });
     }
-
     setIsAdded(true);
     setTimeout(() => onClose(), 600);
   };
 
   const isCartDisabled = isAdded || (isCustomTacos && tacosSelections.viandes.length === 0);
 
-  return (
+  const modalJSX = (
     <m.div 
       initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-      className="fixed inset-0 z-[9999] flex items-end md:items-center justify-center bg-black/80 backdrop-blur-md"
+      className="fixed inset-0 z-[10000] flex items-end md:items-center justify-center bg-black/80 backdrop-blur-md"
       onClick={onClose}
     >
       <m.div 
@@ -171,13 +168,11 @@ export default function ProductModal({ item, onClose }: ProductModalProps) {
         className="bg-neutral-900 border-t md:border border-white/10 rounded-t-[2.5rem] md:rounded-[3rem] overflow-hidden max-w-4xl w-full shadow-2xl relative flex flex-col max-h-[92vh] md:max-h-[85vh] cursor-default"
       >
         <div className="w-12 h-1.5 bg-neutral-700 rounded-full mx-auto mt-4 mb-2 md:hidden" />
-
         <button onClick={onClose} className="absolute top-6 right-6 z-30 bg-black/50 hover:bg-brand-primary border border-white/10 text-white p-3 rounded-full backdrop-blur-md transition-colors duration-300 md:flex hidden cursor-pointer">
           <X size={20} />
         </button>
 
         <div className="flex flex-col md:flex-row h-full overflow-hidden">
-          {/* IMAGE SECTION */}
           <div className="relative w-full md:w-1/2 bg-black h-[25vh] md:h-auto overflow-hidden group shrink-0">
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(var(--brand-primary-rgb),0.1)_0%,transparent_70%)] opacity-50" />
             {item.image_url ? (
@@ -188,7 +183,6 @@ export default function ProductModal({ item, onClose }: ProductModalProps) {
             <div className="absolute inset-0 bg-gradient-to-t from-neutral-900 via-transparent to-transparent md:hidden" />
           </div>
 
-          {/* CONTENT SECTION */}
           <div className="p-6 md:p-10 md:w-1/2 flex flex-col bg-neutral-900 overflow-hidden">
             <div className="mb-4 shrink-0">
               <span className="text-brand-primary text-[10px] uppercase font-black tracking-[0.4em] mb-2 flex items-center gap-2">
@@ -285,4 +279,7 @@ export default function ProductModal({ item, onClose }: ProductModalProps) {
       </m.div>
     </m.div>
   );
+
+  if (!mounted) return null;
+  return createPortal(modalJSX, document.body);
 }

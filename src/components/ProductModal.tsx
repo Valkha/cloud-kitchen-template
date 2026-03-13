@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useMemo } from "react";
 import { m, useAnimation, PanInfo, AnimatePresence } from "framer-motion"; 
-// ✅ Correction ESLint : Suppression de ChevronRight inutilisé
 import { X, Minus, Plus, ShoppingCart, Check } from "lucide-react"; 
 import Image from "next/image";
 import { useTranslation } from "@/context/LanguageContext";
@@ -25,6 +24,10 @@ interface ProductModalProps {
 
 // --- CONFIGURATION EN DUR POUR "A LA LYONNAISE" ---
 const TACOS_CONFIG = {
+  format: { label: "1. Choisissez votre format", max: 1, options: [
+    { name: "Standard", price: 0 },
+    { name: "Format XL", price: 12.0 } // Supplément pour arriver à 34.90 (22.90 + 12.0)
+  ]},
   sauces: { label: "Nos sauces (2 max)", max: 2, options: [
     { name: "Algérienne", price: 0 }, { name: "Biggy", price: 0 }, { name: "Ketchup", price: 0 }, 
     { name: "Mayo", price: 0 }, { name: "Samouraï", price: 0 }, { name: "Andalouse", price: 0 }, 
@@ -59,12 +62,17 @@ export default function ProductModal({ item, onClose }: ProductModalProps) {
   const [isAdded, setIsAdded] = useState(false);
   const controls = useAnimation();
 
-  // Détection du Tacos Lyonnais
-  const isCustomTacos = item.name_fr?.toLowerCase() === "tacos" && item.restaurant_name?.toLowerCase().includes("lyonnaise");
+  // Détection du Tacos Lyonnais (flexible pour inclure "Lyonnais" ou "Tacos")
+  const isCustomTacos = item.name_fr?.toLowerCase().includes("tacos") && item.restaurant_name?.toLowerCase().includes("lyonnaise");
 
-  // State pour les options du Tacos
+  // Initialisation avec "Standard" sélectionné par défaut pour le format
   const [tacosSelections, setTacosSelections] = useState<Record<string, string[]>>({
-    sauces: [], crudites: [], viandes: [], extraViandes: ["Aucune"], gratinage: ["Aucun"]
+    format: ["Standard"],
+    sauces: [], 
+    crudites: [], 
+    viandes: [], 
+    extraViandes: ["Aucune"], 
+    gratinage: ["Aucun"]
   });
 
   useEffect(() => {
@@ -77,7 +85,6 @@ export default function ProductModal({ item, onClose }: ProductModalProps) {
     else controls.start({ y: 0 });
   };
 
-  // ✅ Correction TypeScript : Correspondance entre nom de variable et propriété
   const { baseName, desc } = useMemo(() => {
     const currentLang = lang.toLowerCase();
     const n = currentLang === "es" ? item.name_es : currentLang === "en" ? item.name_en : item.name_fr;
@@ -88,7 +95,6 @@ export default function ProductModal({ item, onClose }: ProductModalProps) {
     };
   }, [lang, item]);
 
-  // Calcul du prix final avec options
   const finalPrice = useMemo(() => {
     let extraCost = 0;
     if (isCustomTacos) {
@@ -107,6 +113,8 @@ export default function ProductModal({ item, onClose }: ProductModalProps) {
     setTacosSelections(prev => {
       const current = prev[category];
       if (current.includes(optionName)) {
+        // Empêcher de déselectionner si c'est le format (doit en avoir un)
+        if (category === 'format') return prev;
         return { ...prev, [category]: current.filter(n => n !== optionName) };
       }
       if (max === 1) {
@@ -124,10 +132,11 @@ export default function ProductModal({ item, onClose }: ProductModalProps) {
 
     let finalName = baseName;
     if (isCustomTacos) {
-      const allSelected = Object.values(tacosSelections).flat().filter(n => n !== "Aucune" && n !== "Aucun");
-      if (allSelected.length > 0) {
-        finalName = `${baseName} (${allSelected.join(", ")})`;
-      }
+      const allSelected = Object.values(tacosSelections).flat()
+        .filter(n => n !== "Aucune" && n !== "Aucun" && n !== "Standard");
+      
+      const formatLabel = tacosSelections.format[0] === "Format XL" ? " XL" : "";
+      finalName = `${baseName}${formatLabel} (${allSelected.join(", ")})`;
     }
 
     for (let i = 0; i < quantity; i++) {
@@ -168,6 +177,7 @@ export default function ProductModal({ item, onClose }: ProductModalProps) {
         </button>
 
         <div className="flex flex-col md:flex-row h-full overflow-hidden">
+          {/* IMAGE SECTION */}
           <div className="relative w-full md:w-1/2 bg-black h-[25vh] md:h-auto overflow-hidden group shrink-0">
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(var(--brand-primary-rgb),0.1)_0%,transparent_70%)] opacity-50" />
             {item.image_url ? (
@@ -178,6 +188,7 @@ export default function ProductModal({ item, onClose }: ProductModalProps) {
             <div className="absolute inset-0 bg-gradient-to-t from-neutral-900 via-transparent to-transparent md:hidden" />
           </div>
 
+          {/* CONTENT SECTION */}
           <div className="p-6 md:p-10 md:w-1/2 flex flex-col bg-neutral-900 overflow-hidden">
             <div className="mb-4 shrink-0">
               <span className="text-brand-primary text-[10px] uppercase font-black tracking-[0.4em] mb-2 flex items-center gap-2">

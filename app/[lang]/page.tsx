@@ -1,5 +1,6 @@
 import { Metadata } from "next";
 import { siteConfig } from "../../config/site";
+import { Suspense } from "react";
 
 // Importation des sections
 import Hero from "@/components/Hero";
@@ -11,25 +12,33 @@ import FinalCTA from "@/components/FinalCTA";
 export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }): Promise<Metadata> {
   const { lang } = await params;
   return { 
-    title: lang === 'fr' ? `Accueil - ${siteConfig.name}` : `Home - ${siteConfig.name}` 
+    title: lang === 'en' ? `Home - ${siteConfig.name}` : `Accueil - ${siteConfig.name}` 
   };
 }
 
-export default function HomePage() {
+export default async function HomePage({ params }: { params: Promise<{ lang: string }> }) {
+  // ✅ On attend les params mais on ne déclare pas 'lang' s'il n'est pas utilisé ici
+  await params;
+
   return (
     <main className="relative min-h-screen bg-[#080808]">
-      {/* ✅ FIX : On s'assure que le fond ne bloque pas les clics avec 'pointer-events-none' 
-        et qu'il reste bien en dessous de tout avec 'z-0'.
-      */}
+      {/* Fond décoratif */}
       <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
         <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_50%_50%,rgba(168,85,247,0.03)_0%,transparent_70%)]" />
       </div>
 
-      {/* ✅ Le contenu doit impérativement être en z-10 pour être cliquable */}
       <div className="relative z-10 w-full">
         <Hero />
-        <BrandsSection />
-        <FeaturedSelection />
+        
+        {/* Sections avec Suspense pour éviter de bloquer le rendu de la page */}
+        <Suspense fallback={<div className="h-96 flex items-center justify-center opacity-20 uppercase tracking-widest text-[10px]">Chargement des secteurs...</div>}>
+          <BrandsSection />
+        </Suspense>
+
+        <Suspense fallback={<div className="h-96 flex items-center justify-center opacity-20 uppercase tracking-widest text-[10px]">Initialisation des produits...</div>}>
+          <FeaturedSelection />
+        </Suspense>
+
         <ConceptSection />
         <FinalCTA />
       </div>

@@ -45,22 +45,26 @@ export default function Hero() {
 
         <Reveal delay={0.6}>
           <div className="flex flex-col md:flex-row items-center justify-center gap-6">
+            
+            {/* ✅ Bouton Principal : On le fait pointer vers les enseignes */}
             <TransitionLink 
-              href={`/${lang}/menu`}
-              className="group relative px-10 py-5 bg-white text-black rounded-2xl font-black uppercase text-[12px] tracking-[0.2em] overflow-hidden transition-all hover:scale-105 active:scale-95 shadow-[0_0_40px_rgba(255,255,255,0.1)]"
+              href={`/${lang || 'fr'}#restaurants`}
+              className="relative z-50 group px-10 py-5 bg-white text-black rounded-2xl font-black uppercase text-[12px] tracking-[0.2em] overflow-hidden transition-all hover:scale-105 active:scale-95 shadow-[0_0_40px_rgba(255,255,255,0.1)]"
             >
               <div className="absolute inset-0 bg-brand-primary translate-y-[101%] group-hover:translate-y-0 transition-transform duration-500" />
               <span className="relative z-10 group-hover:text-white transition-colors duration-500">
-                {t?.hero?.btnMenu || "Lancer l'expérience"}
+                {t?.hero?.btnMenu || "Choisir une enseigne"}
               </span>
             </TransitionLink>
 
+            {/* ✅ Bouton Secondaire : On le fait pointer vers le concept */}
             <TransitionLink 
-              href={`/${lang}#restaurants`}
-              className="px-10 py-5 rounded-2xl border border-white/10 text-white font-black uppercase text-[12px] tracking-[0.2em] hover:bg-white/5 transition-all"
+              href={`/${lang || 'fr'}#concept`}
+              className="relative z-50 px-10 py-5 rounded-2xl border border-white/10 text-white font-black uppercase text-[12px] tracking-[0.2em] hover:bg-white/5 transition-all"
             >
-              {lang === 'fr' ? "Voir les enseignes" : "Explore Brands"}
+              {lang === 'fr' ? "Notre Concept" : "Our Concept"}
             </TransitionLink>
+            
           </div>
         </Reveal>
       </div>

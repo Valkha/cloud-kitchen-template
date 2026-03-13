@@ -2,6 +2,7 @@ import MenuClient from "./MenuClient";
 import { getRestaurantMenu } from "@/services/productService";
 import { siteConfig } from "@/config/site";
 import { Metadata } from "next";
+import { redirect } from "next/navigation";
 
 export async function generateMetadata(): Promise<Metadata> {
   return {
@@ -26,18 +27,22 @@ interface RawProduct {
 }
 
 export default async function MenuPage({
-  // ✅ On retire `params` d'ici puisqu'on ne s'en sert plus
+  params,
   searchParams,
 }: {
   params: Promise<{ lang: string }>;
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
+  const resolvedParams = await params;
   const resolvedSearchParams = await searchParams;
   
-  // ✅ Plus de `lang`, plus de `resolvedParams`, on va droit au but
-  const restaurantSlug = typeof resolvedSearchParams.restaurant === "string" 
-    ? resolvedSearchParams.restaurant 
-    : "all";
+  const lang = resolvedParams.lang || "fr";
+  const restaurantSlug = resolvedSearchParams.restaurant;
+
+  // ✅ Le Videur : Pas de resto = retour au choix des enseignes
+  if (!restaurantSlug || typeof restaurantSlug !== "string" || restaurantSlug === "all") {
+    redirect(`/${lang}#restaurants`);
+  }
 
   const rawProducts = await getRestaurantMenu(restaurantSlug);
 

@@ -2,15 +2,20 @@ import { notFound } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
 import Image from "next/image";
 import Reveal from "@/components/Reveal";
-import { Star, Info } from "lucide-react";
+import { Star } from "lucide-react";
 import AddToCartWrapper from "@/components/AddToCartWrapper";
+// ✅ Import du type de base pour l'extension
+import { MenuItem as ContextMenuItem } from "@/context/CartContext";
 
-// ✅ Interfaces alignées sur ta structure Supabase
 interface Product {
   id: string;
-  name: string;
+  name_fr: string;
+  name_en?: string;
+  name_es?: string;
   price: number;
-  description: string;
+  description_fr: string;
+  description_en?: string;
+  description_es?: string;
   image_url: string;
 }
 
@@ -18,9 +23,9 @@ interface Restaurant {
   id: string;
   name: string;
   slug: string;
-  description: string; // Vérifie si c'est 'desc' ou 'description' dans ta table
+  description: string;
   color: string;
-  image_url: string; // Vérifie si c'est 'image' ou 'image_url'
+  image_url: string;
   products: Product[];
 }
 
@@ -36,7 +41,6 @@ export default async function MenuPage({
 }) {
   const { slug, lang } = await params;
 
-  // 📡 Récupération du restaurant et de ses produits via la relation
   const { data: restaurant, error } = await supabase
     .from("restaurants")
     .select("*, products(*)")
@@ -89,61 +93,56 @@ export default async function MenuPage({
             <h2 className="text-2xl font-display font-black uppercase tracking-widest">
               {lang === 'fr' ? 'La Carte' : 'The Menu'}
             </h2>
-            <div className="flex gap-4 text-[10px] font-black uppercase opacity-40">
-              <div className="flex items-center gap-2">
-                <Info size={12} />
-                <span>Standard Galactique</span>
-              </div>
-            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {typedRestaurant.products?.map((product, index) => (
-              <Reveal key={product.id} delay={index * 0.1}>
-                <div className="glass-panel rounded-[2.5rem] p-6 group hover:border-white/20 transition-all duration-500 flex flex-col h-full bg-white/[0.02]">
-                  <div className="relative aspect-video mb-6 overflow-hidden rounded-2xl bg-white/5">
-                    <Image
-  src={product.image_url || "/images/placeholder-food.png"}
-  alt={product.name || "Image produit Planet Food"}
-  fill
-  className="object-cover"
-/>
+            {typedRestaurant.products?.map((product, index) => {
+              const productName = lang === 'en' ? product.name_en : lang === 'es' ? product.name_es : product.name_fr;
+              const productDesc = lang === 'en' ? product.description_en : lang === 'es' ? product.description_es : product.description_fr;
+
+              return (
+                <Reveal key={product.id} delay={index * 0.1}>
+                  <div className="glass-panel rounded-[2.5rem] p-6 group hover:border-white/20 transition-all duration-500 flex flex-col h-full bg-white/[0.02]">
+                    <div className="relative aspect-video mb-6 overflow-hidden rounded-2xl bg-white/5">
+                      <Image
+                        src={product.image_url || "/images/placeholder-food.png"}
+                        alt={productName || "Image produit"}
+                        fill
+                        className="object-cover"
+                      />
+                    </div>
+
+                    <div className="flex justify-between items-start mb-4">
+                      <h3 className="text-xl font-display font-black uppercase tracking-tight group-hover:text-brand-primary transition-colors">
+                        {productName || "Sans Nom"}
+                      </h3>
+                      <span className="text-brand-primary font-display font-black text-lg italic">
+                        {product.price.toFixed(2)}
+                      </span>
+                    </div>
+
+                    <p className="text-neutral-500 text-xs leading-relaxed mb-8 flex-grow">
+                      {productDesc}
+                    </p>
+
+                    <AddToCartWrapper 
+                      lang={lang}
+                      // ✅ Correction : Utilisation d'une intersection de type au lieu de 'any'
+                      item={{
+                        id: product.id,
+                        name: productName || "Produit",
+                        name_fr: product.name_fr, 
+                        price: product.price,
+                        image_url: product.image_url,
+                        restaurant_id: typedRestaurant.id,
+                        restaurant_name: typedRestaurant.name
+                      } as ContextMenuItem & { name_fr: string }}
+                    />
                   </div>
-
-                  <div className="flex justify-between items-start mb-4">
-                    <h3 className="text-xl font-display font-black uppercase tracking-tight group-hover:text-brand-primary transition-colors">
-                      {product.name}
-                    </h3>
-                    <span className="text-brand-primary font-display font-black text-lg italic">
-                      {product.price.toFixed(2)}
-                    </span>
-                  </div>
-
-                  <p className="text-neutral-500 text-xs leading-relaxed mb-8 flex-grow">
-                    {product.description}
-                  </p>
-
-                  <AddToCartWrapper 
-                    lang={lang}
-                    item={{
-                      id: product.id,
-                      name: product.name,
-                      price: product.price,
-                      image_url: product.image_url,
-                      restaurant_id: typedRestaurant.id,
-                      restaurant_name: typedRestaurant.name
-                    }}
-                  />
-                </div>
-              </Reveal>
-            ))}
+                </Reveal>
+              );
+            })}
           </div>
-
-          {(!typedRestaurant.products || typedRestaurant.products.length === 0) && (
-            <div className="py-20 text-center opacity-30 text-[10px] font-black uppercase tracking-widest">
-              Aucun ravitaillement disponible pour le moment.
-            </div>
-          )}
         </div>
       </section>
     </main>

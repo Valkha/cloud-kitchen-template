@@ -17,7 +17,8 @@ interface NavbarProps {
 }
 
 export default function Navbar({ onOpenCart }: NavbarProps) {
-  const [isOpen, setIsOpen] = useState(false);
+  // ✅ On garde l'état simple pour le menu mobile
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false); 
   
   const pathname = usePathname();
@@ -25,18 +26,14 @@ export default function Navbar({ onOpenCart }: NavbarProps) {
   const { totalItems } = useCart(); 
   const { user, profile, signOut } = useUser(); 
 
-  const [prevPathname, setPrevPathname] = useState(pathname);
-
-  if (pathname !== prevPathname) {
-    setPrevPathname(pathname);
-    if (isOpen) setIsOpen(false);
-  }
+  // ✅ SOLUTION SANS EFFECT : On ferme le menu manuellement via les liens
+  const closeMobileMenu = () => setIsMobileMenuOpen(false);
 
   const isActive = (path: string) => pathname === path;
 
   const handleSignOut = async () => {
     try {
-      setIsOpen(false);
+      closeMobileMenu();
       setIsAuthModalOpen(false);
       await signOut();
       localStorage.clear();
@@ -61,14 +58,13 @@ export default function Navbar({ onOpenCart }: NavbarProps) {
     <nav className="glass-panel text-white fixed w-full z-50 border-b border-white/5 shadow-2xl">
       <div className="container mx-auto px-6 h-20 flex justify-between items-center">
         
-        {/* --- LOGO PLANET FOOD (Violet Sweep) --- */}
+        {/* --- LOGO PLANET FOOD --- */}
         <TransitionLink 
           href={`/${lang}`} 
           className="flex items-center gap-3 group"
-          onClick={() => setIsOpen(false)}
+          onClick={closeMobileMenu}
         >
           <div className="relative flex items-center justify-center">
-            {/* Lueur d'ambiance violette */}
             <div className="absolute inset-0 bg-brand-primary/20 blur-lg rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
             
             <m.div
@@ -141,7 +137,6 @@ export default function Navbar({ onOpenCart }: NavbarProps) {
               </button>
             )}
 
-            {/* Panier avec Glow Violet */}
             <button onClick={onOpenCart} className="relative p-2 active:scale-90 transition-transform group">
               <ShoppingCart size={22} className="text-neutral-400 group-hover:text-white transition-colors" />
               <AnimatePresence>
@@ -171,19 +166,19 @@ export default function Navbar({ onOpenCart }: NavbarProps) {
             )}
           </button>
           
-          <button onClick={() => setIsOpen(!isOpen)} className="z-50 w-8 h-8 flex flex-col justify-center items-end gap-1.5">
-            <m.span animate={isOpen ? { rotate: 45, y: 8, width: "32px" } : { rotate: 0, y: 0, width: "32px" }} className="h-0.5 bg-white block rounded-full" />
-            <m.span animate={isOpen ? { opacity: 0 } : { opacity: 1 }} className="w-5 h-0.5 bg-brand-primary block rounded-full" />
-            <m.span animate={isOpen ? { rotate: -45, y: -8, width: "32px" } : { rotate: 0, y: 0, width: "32px" }} className="h-0.5 bg-white block rounded-full" />
+          <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="z-50 w-8 h-8 flex flex-col justify-center items-end gap-1.5">
+            <m.span animate={isMobileMenuOpen ? { rotate: 45, y: 8, width: "32px" } : { rotate: 0, y: 0, width: "32px" }} className="h-0.5 bg-white block rounded-full" />
+            <m.span animate={isMobileMenuOpen ? { opacity: 0 } : { opacity: 1 }} className="w-5 h-0.5 bg-brand-primary block rounded-full" />
+            <m.span animate={isMobileMenuOpen ? { rotate: -45, y: -8, width: "32px" } : { rotate: 0, y: 0, width: "32px" }} className="h-0.5 bg-white block rounded-full" />
           </button>
         </div>
       </div>
 
       <AnimatePresence>
-        {isOpen && (
+        {isMobileMenuOpen && (
           <m.div
             initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}
-            className="fixed inset-0 bg-background/95 backdrop-blur-2xl z-40 flex flex-col items-center justify-center md:hidden"
+            className="fixed inset-0 bg-[#080808]/95 backdrop-blur-2xl z-40 flex flex-col items-center justify-center md:hidden"
           >
             <ul className="space-y-10 text-center">
               {navLinks.map((link) => (
@@ -191,7 +186,7 @@ export default function Navbar({ onOpenCart }: NavbarProps) {
                   <TransitionLink 
                     href={link.path} 
                     className={`text-3xl font-display font-bold uppercase tracking-[0.2em] block transition-all ${isActive(link.path) ? "text-brand-primary glow-primary" : "text-white"}`} 
-                    onClick={() => setIsOpen(false)}
+                    onClick={closeMobileMenu}
                   >
                     {link.name}
                   </TransitionLink>
@@ -199,7 +194,7 @@ export default function Navbar({ onOpenCart }: NavbarProps) {
               ))}
               {!user && (
                  <li>
-                    <button onClick={() => { setIsAuthModalOpen(true); setIsOpen(false); }} className="text-xl font-display font-bold uppercase tracking-widest text-brand-primary border-b-2 border-brand-primary pb-1 glow-primary">
+                    <button onClick={() => { setIsAuthModalOpen(true); closeMobileMenu(); }} className="text-xl font-display font-bold uppercase tracking-widest text-brand-primary border-b-2 border-brand-primary pb-1 glow-primary">
                       Connexion
                     </button>
                  </li>

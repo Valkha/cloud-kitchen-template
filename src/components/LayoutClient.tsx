@@ -1,42 +1,16 @@
 "use client";
 
-import { ReactNode, useState, useEffect } from "react";
-import Navbar from "./Navbar";
-import CartDrawer from "./CartDrawer";
+import { ReactNode } from "react";
 
 export default function LayoutClient({ children }: { children: ReactNode }) {
-  const [isCartOpen, setIsCartOpen] = useState(false);
-
-  // ✅ On utilise une fonction de rappel dans useEffect pour éviter le setState synchrone
-  // ou on laisse le CartDrawer gérer sa propre visibilité interne.
-  useEffect(() => {
-    const handleOpenCart = () => setIsCartOpen(true);
-    window.addEventListener("open-cart", handleOpenCart);
-
-    return () => {
-      window.removeEventListener("open-cart", handleOpenCart);
-    };
-  }, []);
-
   return (
-    <>
-      <Navbar onOpenCart={() => setIsCartOpen(true)} />
-      
-      {/* Le contenu (children) est rendu normalement ici. 
-          Si ta page est vide, vérifie que {children} n'est pas "undefined".
-      */}
-      <main className="pt-20 min-h-screen">
+    <div className="min-h-screen bg-red-900 flex flex-col">
+      <nav className="p-4 bg-black border-b border-white/10">
+        TEST NAVIGATION - SI TU VOIS ÇA, LE LAYOUT FONCTIONNE
+      </nav>
+      <main className="flex-1 p-10">
         {children}
       </main>
-
-      {/* On passe l'état à CartDrawer. 
-          S'il y a une erreur d'hydratation, c'est au CartDrawer de la gérer 
-          avec un rendu null s'il n'est pas prêt.
-      */}
-      <CartDrawer 
-        isOpen={isCartOpen} 
-        onClose={() => setIsCartOpen(false)} 
-      />
-    </>
+    </div>
   );
 }

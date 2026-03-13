@@ -1,48 +1,42 @@
 "use client";
 
-import { useState } from "react";
-import dynamic from "next/dynamic";
-import { LazyMotion, domMax } from "framer-motion";
-import Navbar from "@/components/Navbar";
-import MobileActionBar from "@/components/MobileActionBar";
-import PageLoader from "@/components/PageLoader";
-import ScrollToTop from "@/components/ScrollToTop";
-import CookieBanner from "@/components/CookieBanner";
-import Footer from "@/components/Footer";
+import { ReactNode, useState, useEffect } from "react";
+import Navbar from "./Navbar";
+import CartDrawer from "./CartDrawer";
 
-// ✅ CHARGEMENT DYNAMIQUE DU PANIER
-const CartDrawer = dynamic(() => import("@/components/CartDrawer"), {
-  ssr: false,
-});
-
-export default function LayoutClient({ children }: { children: React.ReactNode }) {
+export default function LayoutClient({ children }: { children: ReactNode }) {
   const [isCartOpen, setIsCartOpen] = useState(false);
 
-  const openCart = () => setIsCartOpen(true);
-  const closeCart = () => setIsCartOpen(false);
+  // ✅ On utilise une fonction de rappel dans useEffect pour éviter le setState synchrone
+  // ou on laisse le CartDrawer gérer sa propre visibilité interne.
+  useEffect(() => {
+    const handleOpenCart = () => setIsCartOpen(true);
+    window.addEventListener("open-cart", handleOpenCart);
+
+    return () => {
+      window.removeEventListener("open-cart", handleOpenCart);
+    };
+  }, []);
 
   return (
-    <LazyMotion features={domMax} strict>
-      <div className="flex flex-col min-h-screen">
-        <PageLoader />
-        
-        <Navbar onOpenCart={openCart} />
+    <>
+      <Navbar onOpenCart={() => setIsCartOpen(true)} />
+      
+      {/* Le contenu (children) est rendu normalement ici. 
+          Si ta page est vide, vérifie que {children} n'est pas "undefined".
+      */}
+      <main className="pt-20 min-h-screen">
+        {children}
+      </main>
 
-        <main className="flex-1">
-          {children}
-        </main>
-
-        <ScrollToTop />
-
-        {/* ✅ ActionBar intégrée pour le mobile */}
-        <MobileActionBar onOpenCart={openCart} />
-
-        <CookieBanner />
-
-        <Footer />
-
-        <CartDrawer isOpen={isCartOpen} onClose={closeCart} />
-      </div>
-    </LazyMotion>
+      {/* On passe l'état à CartDrawer. 
+          S'il y a une erreur d'hydratation, c'est au CartDrawer de la gérer 
+          avec un rendu null s'il n'est pas prêt.
+      */}
+      <CartDrawer 
+        isOpen={isCartOpen} 
+        onClose={() => setIsCartOpen(false)} 
+      />
+    </>
   );
 }

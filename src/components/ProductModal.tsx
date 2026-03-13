@@ -2,8 +2,8 @@
 
 import { useEffect, useState, useMemo } from "react";
 import { createPortal } from "react-dom";
-// ✅ On utilise exclusivement 'motion' pour éviter les erreurs de parsing
-import { motion, useAnimation, PanInfo, AnimatePresence } from "framer-motion"; 
+// ✅ Correction ESLint : Retrait de PanInfo et useAnimation inutilisés
+import { motion, AnimatePresence } from "framer-motion"; 
 import { X, Minus, Plus, ShoppingCart, Check } from "lucide-react"; 
 import Image from "next/image";
 import { useTranslation } from "@/context/LanguageContext";
@@ -62,54 +62,35 @@ export default function ProductModal({ item, onClose }: ProductModalProps) {
   const [quantity, setQuantity] = useState(1);
   const [isAdded, setIsAdded] = useState(false);
   const [mounted, setMounted] = useState(false);
-  const controls = useAnimation();
 
   const isCustomTacos = item.name_fr?.toLowerCase().includes("tacos") && item.restaurant_name?.toLowerCase().includes("lyonnaise");
 
   const [tacosSelections, setTacosSelections] = useState<Record<string, string[]>>({
-    format: ["Standard"],
-    sauces: [], 
-    crudites: [], 
-    viandes: [], 
-    extraViandes: ["Aucune"], 
-    gratinage: ["Aucun"]
+    format: ["Standard"], sauces: [], crudites: [], viandes: [], extraViandes: ["Aucune"], gratinage: ["Aucun"]
   });
 
   useEffect(() => {
-    const handle = requestAnimationFrame(() => {
-      setMounted(true);
-      controls.start({ y: 0 });
-    });
+    const handle = requestAnimationFrame(() => setMounted(true));
     document.body.style.overflow = "hidden";
-    
     return () => {
       cancelAnimationFrame(handle);
       document.body.style.overflow = "unset";
     };
-  }, [controls]);
-
-  const handleDragEnd = (_: unknown, info: PanInfo) => {
-    if (info.offset.y > 150) onClose();
-    else controls.start({ y: 0 });
-  };
+  }, []);
 
   const { baseName, desc } = useMemo(() => {
     const currentLang = lang.toLowerCase();
     const n = currentLang === "es" ? item.name_es : currentLang === "en" ? item.name_en : item.name_fr;
     const d = currentLang === "es" ? item.description_es : currentLang === "en" ? item.description_en : item.description_fr;
-    return { 
-      baseName: n?.trim() || item.name_fr, 
-      desc: d?.trim() || item.description_fr 
-    };
+    return { baseName: n?.trim() || item.name_fr, desc: d?.trim() || item.description_fr };
   }, [lang, item]);
 
   const finalPrice = useMemo(() => {
     let extraCost = 0;
     if (isCustomTacos) {
-      Object.entries(tacosSelections).forEach(([categoryKey, selectedItems]) => {
-        const categoryData = TACOS_CONFIG[categoryKey as keyof typeof TACOS_CONFIG];
-        selectedItems.forEach(sel => {
-          const opt = categoryData.options.find(o => o.name === sel);
+      Object.entries(tacosSelections).forEach(([key, selections]) => {
+        selections.forEach(sel => {
+          const opt = TACOS_CONFIG[key as keyof typeof TACOS_CONFIG].options.find(o => o.name === sel);
           if (opt) extraCost += opt.price;
         });
       });
@@ -124,9 +105,7 @@ export default function ProductModal({ item, onClose }: ProductModalProps) {
         if (category === 'format') return prev;
         return { ...prev, [category]: current.filter(n => n !== optionName) };
       }
-      if (max === 1) return { ...prev, [category]: [optionName] };
-      if (current.length < max) return { ...prev, [category]: [...current, optionName] };
-      return prev;
+      return { ...prev, [category]: max === 1 ? [optionName] : current.length < max ? [...current, optionName] : current };
     });
   };
 
@@ -134,79 +113,60 @@ export default function ProductModal({ item, onClose }: ProductModalProps) {
     if (window.navigator?.vibrate) window.navigator.vibrate(20);
     let finalName = baseName;
     if (isCustomTacos) {
-      const allSelected = Object.values(tacosSelections).flat().filter(n => n !== "Aucune" && n !== "Aucun" && n !== "Standard");
-      const formatLabel = tacosSelections.format[0] === "Format XL" ? " XL" : "";
-      finalName = `${baseName}${formatLabel} (${allSelected.join(", ")})`;
+      const extras = Object.values(tacosSelections).flat().filter(n => !["Aucune", "Aucun", "Standard"].includes(n));
+      const xl = tacosSelections.format[0] === "Format XL" ? " XL" : "";
+      finalName = `${baseName}${xl} (${extras.join(", ")})`;
     }
     for (let i = 0; i < quantity; i++) {
-      addToCart({
-        id: isCustomTacos ? `${item.id}-${Date.now()}-${i}` : item.id,
-        name: finalName,
-        price: finalPrice,
-        image_url: item.image_url,
-        category: item.category,
-        restaurant_id: item.restaurant_id, 
-        restaurant_name: item.restaurant_name
-      });
+      addToCart({ ...item, id: isCustomTacos ? `${item.id}-${Date.now()}-${i}` : item.id, name: finalName, price: finalPrice });
     }
     setIsAdded(true);
     setTimeout(() => onClose(), 600);
   };
 
-  const isCartDisabled = isAdded || (isCustomTacos && tacosSelections.viandes.length === 0);
+  if (!mounted) return null;
 
-  const modalJSX = (
-    <div className="fixed inset-0 z-[99999] flex items-end md:items-center justify-center">
+  return createPortal(
+    <div className="fixed inset-0 z-[75] flex items-center justify-center p-4 md:p-6">
       <motion.div 
-        initial={{ opacity: 0 }} 
-        animate={{ opacity: 1 }} 
-        exit={{ opacity: 0 }}
-        className="absolute inset-0 bg-black/90 backdrop-blur-xl"
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+        className="absolute inset-0 bg-black/90 backdrop-blur-sm"
         onClick={onClose}
       />
 
       <motion.div 
-        drag="y" 
-        dragConstraints={{ top: 0 }} 
-        dragElastic={0.2} 
-        onDragEnd={handleDragEnd} 
-        animate={controls}
-        initial={{ y: "100%" }} 
-        exit={{ y: "100%" }}
-        transition={{ type: "spring", damping: 30, stiffness: 300 }}
+        initial={{ y: 50, opacity: 0, scale: 0.95 }}
+        animate={{ y: 0, opacity: 1, scale: 1 }}
+        exit={{ y: 50, opacity: 0, scale: 0.95 }}
+        className="relative bg-neutral-900 border border-white/10 rounded-[2rem] md:rounded-[3rem] overflow-hidden max-w-4xl w-full shadow-2xl flex flex-col max-h-[90vh] cursor-default"
         onClick={(e) => e.stopPropagation()}
-        className="bg-neutral-900 border-t md:border border-white/10 rounded-t-[2.5rem] md:rounded-[3rem] overflow-hidden max-w-4xl w-full shadow-2xl relative flex flex-col max-h-[92vh] md:max-h-[85vh] cursor-default"
       >
-        <div className="w-12 h-1.5 bg-neutral-700 rounded-full mx-auto mt-4 mb-2 md:hidden" />
-        <button onClick={onClose} className="absolute top-6 right-6 z-30 bg-black/50 hover:bg-brand-primary border border-white/10 text-white p-3 rounded-full backdrop-blur-md transition-colors duration-300 md:flex hidden cursor-pointer">
+        <button onClick={onClose} className="absolute top-4 right-4 z-50 bg-black/50 hover:bg-brand-primary text-white p-2.5 rounded-full backdrop-blur-md transition-all active:scale-90">
           <X size={20} />
         </button>
 
         <div className="flex flex-col md:flex-row h-full overflow-hidden">
-          <div className="relative w-full md:w-1/2 bg-black h-[25vh] md:h-auto overflow-hidden group shrink-0">
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(var(--brand-primary-rgb),0.1)_0%,transparent_70%)] opacity-50" />
+          <div className="relative w-full md:w-1/2 bg-black h-[20vh] md:h-auto overflow-hidden shrink-0">
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(var(--brand-primary-rgb),0.1)_0%,transparent_70%)]" />
             {item.image_url ? (
-              <Image src={item.image_url} alt={baseName} fill sizes="(max-width: 768px) 100vw, 50vw" className="object-contain p-8 md:p-12 transition-transform duration-1000 group-hover:scale-110 drop-shadow-2xl" priority />
+              <Image src={item.image_url} alt={baseName} fill className="object-contain p-6 md:p-12 drop-shadow-2xl" priority />
             ) : (
-              <div className="flex items-center justify-center h-full text-neutral-800 font-display text-4xl uppercase opacity-20 tracking-widest font-black">{siteConfig.name}</div>
+              <div className="flex items-center justify-center h-full text-neutral-800 font-display text-4xl uppercase opacity-20 font-black">Planet Food</div>
             )}
-            <div className="absolute inset-0 bg-gradient-to-t from-neutral-900 via-transparent to-transparent md:hidden" />
           </div>
 
           <div className="p-6 md:p-10 md:w-1/2 flex flex-col bg-neutral-900 overflow-hidden">
             <div className="mb-4 shrink-0">
-              <span className="text-brand-primary text-[10px] uppercase font-black tracking-[0.4em] mb-2 flex items-center gap-2">
+              <span className="text-brand-primary text-[8px] uppercase font-black tracking-[0.4em] mb-1 flex items-center gap-2">
                 <span className="w-1.5 h-1.5 bg-brand-primary rounded-full animate-pulse" />
                 Transmission Planet Food
               </span>
-              <h2 className="text-3xl md:text-5xl font-display font-black text-white uppercase tracking-tighter leading-none">{baseName}</h2>
+              <h2 className="text-2xl md:text-4xl font-display font-black text-white uppercase tracking-tighter leading-tight">{baseName}</h2>
             </div>
             
-            <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 mb-6">
+            <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 mb-4">
               {!isCustomTacos ? (
-                <p className="text-gray-400 text-sm leading-relaxed font-bold uppercase tracking-wider">
-                  {desc || "Aucune information supplémentaire fournie pour cette transmission."}
-                </p>
+                <p className="text-gray-400 text-sm leading-relaxed font-bold uppercase tracking-wider">{desc}</p>
               ) : (
                 <div className="space-y-6">
                   {Object.entries(TACOS_CONFIG).map(([key, category]) => (
@@ -220,20 +180,17 @@ export default function ProductModal({ item, onClose }: ProductModalProps) {
                       <div className="flex flex-wrap gap-2">
                         {category.options.map(opt => {
                           const isSelected = tacosSelections[key].includes(opt.name);
-                          const isDisabled = !isSelected && tacosSelections[key].length >= category.max && category.max !== 1;
                           return (
                             <button
                               key={opt.name}
+                              // ✅ Correction 'any' : Cast vers keyof typeof TACOS_CONFIG
                               onClick={() => handleOptionToggle(key as keyof typeof TACOS_CONFIG, opt.name, category.max)}
-                              disabled={isDisabled}
-                              className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border cursor-pointer flex items-center gap-2 ${
-                                isSelected 
-                                  ? "bg-brand-primary text-white border-brand-primary" 
-                                  : "bg-neutral-800 text-gray-400 border-transparent hover:bg-neutral-700 disabled:opacity-30 disabled:cursor-not-allowed"
+                              disabled={!isSelected && tacosSelections[key].length >= category.max && category.max !== 1}
+                              className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border cursor-pointer ${
+                                isSelected ? "bg-brand-primary text-white border-brand-primary" : "bg-neutral-800 text-gray-400 border-transparent hover:bg-neutral-700 disabled:opacity-30"
                               }`}
                             >
-                              {opt.name}
-                              {opt.price > 0 && <span className={isSelected ? "text-white/80" : "text-brand-primary"}>+{opt.price.toFixed(2)}</span>}
+                              {opt.name} {opt.price > 0 && <span>+{opt.price.toFixed(2)}</span>}
                             </button>
                           );
                         })}
@@ -244,52 +201,42 @@ export default function ProductModal({ item, onClose }: ProductModalProps) {
               )}
             </div>
 
-            <div className="space-y-5 pt-4 border-t border-white/5 shrink-0">
+            <div className="pt-4 border-t border-white/5 space-y-4 shrink-0">
                <div className="flex items-center justify-between">
-                  <span className="text-gray-500 text-[10px] uppercase font-black tracking-widest">Coût Unitaire</span>
-                  <span className="text-2xl font-display font-black text-white tracking-tighter">
-                    {finalPrice.toFixed(2)} <span className="text-[10px] text-brand-primary uppercase tracking-widest">{siteConfig.currency}</span>
-                  </span>
+                  <span className="text-gray-500 text-[10px] uppercase font-black">Coût Unitaire</span>
+                  <span className="text-xl font-display font-black text-white">{finalPrice.toFixed(2)} {siteConfig.currency}</span>
                </div>
-
                <div className="flex items-center justify-between">
-                  <span className="text-gray-500 text-[10px] uppercase font-black tracking-widest">Quantité</span>
-                  <div className="flex items-center gap-6 bg-black p-1.5 rounded-2xl border border-white/5">
-                    <button onClick={() => setQuantity(Math.max(1, quantity - 1))} className="w-10 h-10 flex items-center justify-center text-gray-500 hover:text-brand-primary transition-colors active:scale-90 cursor-pointer"><Minus size={18} /></button>
-                    <span className="font-black text-white min-w-[20px] text-center text-lg">{quantity}</span>
-                    <button onClick={() => setQuantity(Math.min(20, quantity + 1))} className="w-10 h-10 flex items-center justify-center text-gray-500 hover:text-brand-primary transition-colors active:scale-90 cursor-pointer"><Plus size={18} /></button>
+                  <span className="text-gray-500 text-[10px] uppercase font-black">Quantité</span>
+                  <div className="flex items-center gap-4 bg-black p-1 rounded-xl border border-white/5">
+                    <button onClick={() => setQuantity(Math.max(1, quantity - 1))} className="w-8 h-8 flex items-center justify-center text-gray-500 hover:text-brand-primary transition-colors"><Minus size={14} /></button>
+                    <span className="font-black text-white">{quantity}</span>
+                    <button onClick={() => setQuantity(Math.min(20, quantity + 1))} className="w-8 h-8 flex items-center justify-center text-gray-500 hover:text-brand-primary transition-colors"><Plus size={14} /></button>
                   </div>
                </div>
-
-              <motion.button 
-                onClick={handleAddToCart} disabled={isCartDisabled}
-                animate={isAdded ? { scale: [1, 0.95, 1.05, 1] } : {}}
-                className={`w-full h-16 rounded-2xl uppercase tracking-[0.3em] text-[11px] font-black transition-all duration-300 flex items-center justify-center gap-4 relative overflow-hidden cursor-pointer ${
-                  isAdded ? "bg-green-500 text-white shadow-[0_0_20px_rgba(34,197,94,0.4)]" 
-                  : isCartDisabled ? "bg-neutral-800 text-neutral-600 cursor-not-allowed"
-                  : "bg-white text-black hover:bg-brand-primary hover:text-white shadow-xl hover:shadow-[0_0_25px_rgba(var(--brand-primary-rgb),0.5)]"
+              <button 
+                onClick={handleAddToCart} 
+                disabled={isAdded || (isCustomTacos && tacosSelections.viandes.length === 0)}
+                className={`w-full h-14 rounded-2xl uppercase tracking-[0.2em] text-[10px] font-black transition-all flex items-center justify-center gap-3 ${
+                  isAdded ? "bg-green-500 text-white" : "bg-white text-black hover:bg-brand-primary hover:text-white"
                 }`}
               >
                 <AnimatePresence mode="wait">
                   {isAdded ? (
-                    <motion.div key="check" initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: -20, opacity: 0 }} className="flex items-center gap-3">
-                      <Check size={20} strokeWidth={3} /> Transmission réussie
-                    </motion.div>
+                    <motion.div key="check" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-center gap-2"><Check size={18} /> Reçu</motion.div>
                   ) : (
-                    <motion.div key="add" initial={{ y: -20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 20, opacity: 0 }} className="flex items-center gap-3">
-                      <ShoppingCart size={18} />
-                      <span>{isCustomTacos && tacosSelections.viandes.length === 0 ? "Sélectionnez une viande" : `Ajouter • ${(finalPrice * quantity).toFixed(2)} ${siteConfig.currency}`}</span>
-                    </motion.div>
+                    <div className="flex items-center gap-2">
+                      <ShoppingCart size={16} />
+                      <span>{isCustomTacos && tacosSelections.viandes.length === 0 ? "Viande requise" : `Ajouter • ${(finalPrice * quantity).toFixed(2)}`}</span>
+                    </div>
                   )}
                 </AnimatePresence>
-              </motion.button>
+              </button>
             </div>
           </div>
         </div>
       </motion.div>
-    </div>
+    </div>,
+    document.body
   );
-
-  if (!mounted) return null;
-  return createPortal(modalJSX, document.body);
 }

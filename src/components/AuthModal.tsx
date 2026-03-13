@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { m, AnimatePresence } from "framer-motion";
+// ✅ Utilisation de 'motion' au lieu de 'm'
+import { motion, AnimatePresence } from "framer-motion";
 import { X, Mail, Lock, User as UserIcon, Loader2, ArrowRight } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import Image from "next/image";
@@ -28,9 +29,6 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
     setLoading(true);
     setError(null);
     try {
-      // ✅ CORRECTION DE L'URL DE REDIRECTION
-      // On s'assure d'utiliser l'URL exacte attendue par le Route Handler
-      // et autorisée dans les paramètres de Supabase (Site URL / Redirect URIs)
       const redirectUrl = new URL('/auth/callback', window.location.origin);
       
       const { error } = await supabase.auth.signInWithOAuth({
@@ -88,7 +86,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
     <AnimatePresence>
       {isOpen && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
-          <m.div
+          <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -96,7 +94,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
             className="absolute inset-0 bg-black/80 backdrop-blur-sm"
           />
 
-          <m.div
+          <motion.div
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -115,7 +113,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
                   {isLogin ? "Connexion" : "Créer un compte"}
                 </h2>
                 <p className="text-gray-400 text-xs font-bold uppercase tracking-widest">
-                  {isLogin ? "Accédez à votre cagnotte fidélité" : "Rejoignez le club Kabuki"}
+                  {isLogin ? "Accédez à votre cagnotte" : "Rejoignez l'aventure Planet Food"}
                 </p>
               </div>
 
@@ -134,7 +132,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
               <form onSubmit={handleSubmit} className="space-y-4">
                 <AnimatePresence mode="popLayout">
                   {!isLogin && (
-                    <m.div
+                    <motion.div
                       initial={{ opacity: 0, height: 0 }}
                       animate={{ opacity: 1, height: "auto" }}
                       exit={{ opacity: 0, height: 0 }}
@@ -149,10 +147,10 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
                           value={formData.fullName}
                           onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
                           placeholder="Jean Dupont"
-                          className="w-full bg-black text-white border border-neutral-800 rounded-xl pl-11 pr-4 py-3 outline-none focus:border-kabuki-red transition text-sm"
+                          className="w-full bg-black text-white border border-neutral-800 rounded-xl pl-11 pr-4 py-3 outline-none focus:border-brand-primary transition text-sm"
                         />
                       </div>
-                    </m.div>
+                    </motion.div>
                   )}
                 </AnimatePresence>
 
@@ -166,7 +164,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
                       value={formData.email}
                       onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                       placeholder="votre@email.com"
-                      className="w-full bg-black text-white border border-neutral-800 rounded-xl pl-11 pr-4 py-3 outline-none focus:border-kabuki-red transition text-sm"
+                      className="w-full bg-black text-white border border-neutral-800 rounded-xl pl-11 pr-4 py-3 outline-none focus:border-brand-primary transition text-sm"
                     />
                   </div>
                 </div>
@@ -181,7 +179,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
                       value={formData.password}
                       onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                       placeholder="••••••••"
-                      className="w-full bg-black text-white border border-neutral-800 rounded-xl pl-11 pr-4 py-3 outline-none focus:border-kabuki-red transition text-sm"
+                      className="w-full bg-black text-white border border-neutral-800 rounded-xl pl-11 pr-4 py-3 outline-none focus:border-brand-primary transition text-sm"
                     />
                   </div>
                 </div>
@@ -189,9 +187,9 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full bg-kabuki-red text-white font-bold py-4 rounded-xl uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-red-700 transition shadow-lg shadow-red-900/30 mt-6 disabled:opacity-50"
+                  className="w-full bg-brand-primary text-white font-bold py-4 rounded-xl uppercase tracking-widest flex items-center justify-center gap-2 hover:opacity-90 transition shadow-lg shadow-brand-primary/20 mt-6 disabled:opacity-50"
                 >
-                  {loading && isLogin ? (
+                  {loading ? (
                     <Loader2 size={18} className="animate-spin" />
                   ) : (
                     <>
@@ -237,7 +235,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
                 </button>
               </div>
             </div>
-          </m.div>
+          </motion.div>
         </div>
       )}
     </AnimatePresence>

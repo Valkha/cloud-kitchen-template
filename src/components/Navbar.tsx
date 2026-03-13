@@ -3,7 +3,7 @@
 import { useState } from "react";
 import TransitionLink from "./TransitionLink";
 import { usePathname } from "next/navigation"; 
-import { m, AnimatePresence } from "framer-motion"; 
+import { motion, AnimatePresence } from "framer-motion"; // ✅ Remplacement de 'm' par 'motion'
 import { useTranslation } from "@/context/LanguageContext";
 import LanguageSwitcher from "./LanguageSwitcher";
 import { ShoppingCart, User as UserIcon, LogOut, Rocket } from "lucide-react"; 
@@ -17,7 +17,6 @@ interface NavbarProps {
 }
 
 export default function Navbar({ onOpenCart }: NavbarProps) {
-  // ✅ On garde l'état simple pour le menu mobile
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false); 
   
@@ -26,7 +25,6 @@ export default function Navbar({ onOpenCart }: NavbarProps) {
   const { totalItems } = useCart(); 
   const { user, profile, signOut } = useUser(); 
 
-  // ✅ SOLUTION SANS EFFECT : On ferme le menu manuellement via les liens
   const closeMobileMenu = () => setIsMobileMenuOpen(false);
 
   const isActive = (path: string) => pathname === path;
@@ -48,7 +46,8 @@ export default function Navbar({ onOpenCart }: NavbarProps) {
   const navLinks = [
     { name: t?.nav?.home || "Accueil", path: `/${lang}` },
     { 
-      name: lang === 'en' ? 'Brands' : lang === 'es' ? 'Nuestras Marcas' : 'Enseignes', 
+      // ✅ Renommé "COMMANDER" et redirection vers l'ancre
+      name: lang === 'en' ? 'ORDER' : lang === 'es' ? 'PEDIR' : 'COMMANDER', 
       path: `/${lang}#restaurants` 
     }, 
     { name: t?.nav?.contact || "Contact", path: `/${lang}/contact` },
@@ -67,7 +66,7 @@ export default function Navbar({ onOpenCart }: NavbarProps) {
           <div className="relative flex items-center justify-center">
             <div className="absolute inset-0 bg-brand-primary/20 blur-lg rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
             
-            <m.div
+            <motion.div
               whileHover={{ y: -4, rotate: 12, scale: 1.1 }}
               transition={{ type: "spring", stiffness: 400, damping: 10 }}
             >
@@ -76,7 +75,7 @@ export default function Navbar({ onOpenCart }: NavbarProps) {
                 className="text-brand-primary group-hover:text-white transition-colors duration-300" 
                 strokeWidth={2.5}
               />
-            </m.div>
+            </motion.div>
           </div>
 
           <span className="text-xl font-display font-black uppercase tracking-[0.2em] leading-none">
@@ -97,7 +96,7 @@ export default function Navbar({ onOpenCart }: NavbarProps) {
               >
                 {link.name}
                 {isActive(link.path) && (
-                  <m.div 
+                  <motion.div 
                     layoutId="activeNav"
                     className="absolute -bottom-1 left-0 right-0 h-0.5 bg-brand-primary glow-primary"
                     transition={{ type: "spring", stiffness: 380, damping: 30 }}
@@ -141,12 +140,12 @@ export default function Navbar({ onOpenCart }: NavbarProps) {
               <ShoppingCart size={22} className="text-neutral-400 group-hover:text-white transition-colors" />
               <AnimatePresence>
                 {totalItems > 0 && (
-                  <m.div 
+                  <motion.div 
                     initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}
                     className="absolute -top-0.5 -right-0.5 bg-brand-primary text-white text-[9px] font-black w-5 h-5 flex items-center justify-center rounded-full border-2 border-brand-black shadow-[0_0_12px_rgba(168,85,247,0.6)]"
                   >
                     {totalItems}
-                  </m.div>
+                  </motion.div>
                 )}
               </AnimatePresence>
             </button>
@@ -167,16 +166,16 @@ export default function Navbar({ onOpenCart }: NavbarProps) {
           </button>
           
           <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="z-50 w-8 h-8 flex flex-col justify-center items-end gap-1.5">
-            <m.span animate={isMobileMenuOpen ? { rotate: 45, y: 8, width: "32px" } : { rotate: 0, y: 0, width: "32px" }} className="h-0.5 bg-white block rounded-full" />
-            <m.span animate={isMobileMenuOpen ? { opacity: 0 } : { opacity: 1 }} className="w-5 h-0.5 bg-brand-primary block rounded-full" />
-            <m.span animate={isMobileMenuOpen ? { rotate: -45, y: -8, width: "32px" } : { rotate: 0, y: 0, width: "32px" }} className="h-0.5 bg-white block rounded-full" />
+            <motion.span animate={isMobileMenuOpen ? { rotate: 45, y: 8, width: "32px" } : { rotate: 0, y: 0, width: "32px" }} className="h-0.5 bg-white block rounded-full" />
+            <motion.span animate={isMobileMenuOpen ? { opacity: 0 } : { opacity: 1 }} className="w-5 h-0.5 bg-brand-primary block rounded-full" />
+            <motion.span animate={isMobileMenuOpen ? { rotate: -45, y: -8, width: "32px" } : { rotate: 0, y: 0, width: "32px" }} className="h-0.5 bg-white block rounded-full" />
           </button>
         </div>
       </div>
 
       <AnimatePresence>
         {isMobileMenuOpen && (
-          <m.div
+          <motion.div
             initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}
             className="fixed inset-0 bg-[#080808]/95 backdrop-blur-2xl z-40 flex flex-col items-center justify-center md:hidden"
           >
@@ -200,11 +199,12 @@ export default function Navbar({ onOpenCart }: NavbarProps) {
                  </li>
               )}
             </ul>
-          </m.div>
+          </motion.div>
         )}
       </AnimatePresence>
 
-      <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
+      <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)}/>
+        
     </nav>
   );
 }

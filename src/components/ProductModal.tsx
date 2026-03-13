@@ -10,10 +10,10 @@ import { useCart, MenuItem as ContextMenuItem } from "@/context/CartContext";
 import { siteConfig } from "../../config/site";
 
 export interface MenuItem extends ContextMenuItem {
-  name_fr: string;
+  name_fr: string; // Obligatoire pour la détection du Tacos
   name_en?: string;
   name_es?: string;
-  description_fr: string;
+  description_fr?: string; // ✅ Changé en optionnel (?) pour éviter les blocages
   description_en?: string;
   description_es?: string;
 }

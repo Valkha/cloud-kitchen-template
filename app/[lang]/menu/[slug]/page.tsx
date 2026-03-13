@@ -3,9 +3,8 @@ import { createClient } from "@supabase/supabase-js";
 import Image from "next/image";
 import Reveal from "@/components/Reveal";
 import { Star } from "lucide-react";
-import AddToCartWrapper from "@/components/AddToCartWrapper";
-// ✅ Import du type de base pour l'extension
-import { MenuItem as ContextMenuItem } from "@/context/CartContext";
+// ✅ Import de WrapperItem et retrait de ContextMenuItem (ESLint fix)
+import AddToCartWrapper, { WrapperItem } from "@/components/AddToCartWrapper";
 
 interface Product {
   id: string;
@@ -127,16 +126,17 @@ export default async function MenuPage({
 
                     <AddToCartWrapper 
                       lang={lang}
-                      // ✅ Correction : Utilisation d'une intersection de type au lieu de 'any'
+                      // ✅ Maintenant TypeScript utilise WrapperItem correctement
                       item={{
                         id: product.id,
                         name: productName || "Produit",
                         name_fr: product.name_fr, 
                         price: product.price,
                         image_url: product.image_url,
+                        description_fr: product.description_fr,
                         restaurant_id: typedRestaurant.id,
                         restaurant_name: typedRestaurant.name
-                      } as ContextMenuItem & { name_fr: string }}
+                      } as WrapperItem} 
                     />
                   </div>
                 </Reveal>

@@ -2,20 +2,18 @@
 
 import { useState } from "react";
 import { Plus } from "lucide-react";
-import { useCart, MenuItem } from "@/context/CartContext";
-// ✅ Import de l'interface spécifique de la modale
+import { useCart } from "@/context/CartContext";
 import ProductModal, { MenuItem as ModalItem } from "./ProductModal";
+import { AnimatePresence } from "framer-motion";
 
-// Interface étendue pour le Wrapper
-interface ExtendedMenuItem extends MenuItem {
-  name_fr?: string;
-  description_fr?: string;
-  description_en?: string;
-  description_es?: string;
+// On définit l'interface attendue pour éviter le 'any'
+export interface WrapperItem extends ModalItem {
+  restaurant_name?: string; 
+  // name_fr est déjà hérité de ModalItem, pas besoin de le redéfinir ici
 }
 
 interface AddToCartWrapperProps {
-  item: ExtendedMenuItem;
+  item: WrapperItem;
   lang: string;
 }
 
@@ -23,15 +21,15 @@ export default function AddToCartWrapper({ item, lang }: AddToCartWrapperProps) 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const { addToCart } = useCart();
 
-  // Détection : Est-ce un Tacos de chez "A La Lyonnaise" ?
+  // Détection souple du Tacos
   const isTacos = 
-    item.name_fr?.toLowerCase().includes("tacos") && 
+    (item.name?.toLowerCase().includes("tacos") || item.name_fr?.toLowerCase().includes("tacos")) &&
     item.restaurant_name?.toLowerCase().includes("lyonnaise");
 
   const handleAction = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-
+    
     if (isTacos) {
       setIsModalOpen(true);
     } else {
@@ -48,19 +46,21 @@ export default function AddToCartWrapper({ item, lang }: AddToCartWrapperProps) 
         <Plus size={18} className="text-brand-primary group-hover:text-white transition-colors" />
         <span className="text-[10px] font-black uppercase tracking-[0.2em]">
           {isTacos 
-            ? (lang === 'fr' ? 'Personnaliser' : 'Customize')
+            ? (lang === 'fr' ? 'Personnaliser' : 'Customize') 
             : (lang === 'fr' ? 'Ajouter au panier' : 'Add to cart')
           }
         </span>
       </button>
 
-      {/* ✅ Correction TypeScript : Cast vers ModalItem au lieu de any */}
-      {isModalOpen && (
-        <ProductModal 
-          item={item as ModalItem} 
-          onClose={() => setIsModalOpen(false)} 
-        />
-      )}
+      <AnimatePresence mode="wait">
+        {isModalOpen && (
+          <ProductModal 
+            key="tacos-modal"
+            item={item as ModalItem} 
+            onClose={() => setIsModalOpen(false)} 
+          />
+        )}
+      </AnimatePresence>
     </>
   );
 }

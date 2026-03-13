@@ -7,18 +7,8 @@ import { UserProvider } from "@/context/UserContext";
 import LayoutClient from "@/components/LayoutClient"; 
 import ActiveOrderButton from "@/components/ActiveOrderButton";
 
-const inter = Inter({ 
-  subsets: ["latin"], 
-  variable: "--font-inter",
-  display: 'swap' 
-});
-
-const oswald = Oswald({ 
-  subsets: ["latin"], 
-  variable: "--font-oswald", 
-  display: 'swap', 
-  weight: ['400', '700'] 
-});
+const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: 'swap' });
+const oswald = Oswald({ subsets: ["latin"], variable: "--font-oswald", display: 'swap', weight: ['400', '700'] });
 
 export default async function LocaleLayout({
   children,
@@ -27,26 +17,18 @@ export default async function LocaleLayout({
   children: ReactNode;
   params: Promise<{ lang: string }>;
 }) {
-  // On attend la résolution des paramètres de langue
   const { lang } = await params;
 
   return (
-    <html 
-      lang={lang} 
-      className={`${inter.variable} ${oswald.variable}`} 
-      suppressHydrationWarning
-    >
+    <html lang={lang} className={`${inter.variable} ${oswald.variable}`} suppressHydrationWarning>
       <body className="bg-[#080808] text-white antialiased">
-        {/* On enveloppe tout dans les Providers pour garantir l'accès au contexte partout */}
         <UserProvider>
           <LanguageProvider>
             <CartProvider>
-              {/* LayoutClient gère la Navbar et le CartDrawer */}
+              {/* On réintègre LayoutClient pour supprimer l'erreur ESLint */}
               <LayoutClient>
                 {children}
               </LayoutClient>
-              
-              {/* Le bouton flottant de commande active */}
               <ActiveOrderButton />
             </CartProvider>
           </LanguageProvider>

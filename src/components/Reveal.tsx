@@ -1,6 +1,7 @@
 "use client";
 
-import { m, useReducedMotion } from "framer-motion"; // ✅ Utilisation de 'm' pour le Lazy Loading
+// ✅ On remplace 'm' par 'motion' pour éviter le crash lié à l'absence de LazyMotion
+import { motion, useReducedMotion } from "framer-motion"; 
 import { ReactNode } from "react";
 
 interface Props {
@@ -9,20 +10,19 @@ interface Props {
   delay?: number;
   y?: number;
   x?: number;
-  className?: string; // ✅ Ajout pour plus de flexibilité
+  className?: string;
 }
 
 export default function Reveal({ 
   children, 
   width = "100%", 
   delay = 0.2, 
-  y = 20, // ✅ Réduit de 30 à 20 pour un mouvement plus subtil et rapide
+  y = 20, 
   x = 0,
   className = ""
 }: Props) {
   const shouldReduceMotion = useReducedMotion();
 
-  // ✅ 1. Si l'utilisateur préfère moins de mouvement, on annule les offsets
   const initialY = shouldReduceMotion ? 0 : y;
   const initialX = shouldReduceMotion ? 0 : x;
 
@@ -31,7 +31,8 @@ export default function Reveal({
       className={`relative overflow-hidden ${className}`} 
       style={{ width }}
     >
-      <m.div
+      {/* ✅ Utilisation de motion.div au lieu de m.div */}
+      <motion.div
         variants={{
           hidden: { 
             opacity: 0, 
@@ -48,20 +49,20 @@ export default function Reveal({
         whileInView="visible"
         viewport={{ 
           once: true, 
-          margin: "-20px", // ✅ Réduit pour déclencher l'animation plus tôt sur mobile
+          margin: "-20px",
           amount: "some" 
         }}
         transition={{ 
-          duration: 0.4, // ✅ Un peu plus rapide (0.4s au lieu de 0.5s) pour une sensation de réactivité
+          duration: 0.4,
           delay: shouldReduceMotion ? 0 : delay, 
-          ease: [0.25, 1, 0.5, 1], // ✅ Circ out : très fluide et pro
+          ease: [0.25, 1, 0.5, 1],
         }}
         style={{ 
-          willChange: "opacity, transform" // ✅ Optimisation GPU cruciale
+          willChange: "opacity, transform"
         }}
       >
         {children}
-      </m.div>
+      </motion.div>
     </div>
   );
 }

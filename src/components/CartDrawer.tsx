@@ -103,7 +103,7 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
   const [isPayment, setIsPayment] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [checkoutError, setCheckoutError] = useState("");
+  const [checkoutError, setCheckoutError] = useState(""); 
   const [orderId, setOrderId] = useState<string | null>(null);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
 
@@ -245,10 +245,11 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
           pickupTime: selectedTime,
           orderType: formData.type,
           databaseOrderId: supabaseOrderId,
-          // ✅ LES CHAMPS MANQUANTS SONT LÀ
           deliveryAddress: formData.address,
           deliveryZip: formData.zip,
-          comments: formData.comments
+          comments: formData.comments,
+          // ✅ NOUVEAU: Transmis directement depuis le front !
+          userId: user?.id || null 
         }) 
       });
       

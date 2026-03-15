@@ -5,20 +5,21 @@ import { createClient } from "@/utils/supabase/client";
 import { 
   Package, User, MapPin, Eye, XCircle, Calendar, CheckCircle2, 
   AlertCircle, ChefHat, Truck, Loader2, RefreshCw, Clock, 
-  MessageSquare, Volume2, VolumeX, ShoppingBag 
+  MessageSquare, Volume2, VolumeX, ShoppingBag, Utensils 
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
-// ✅ CORRECTION : Adapté à la nouvelle structure de la table order_items
+// ✅ Structure mise à jour avec le nom du restaurant
 interface OrderItem {
   id: string;
   product_name: string;
   unit_price: number;
   quantity: number;
+  restaurant_name?: string; 
 }
 
 interface Order {
-  id: string; // ✅ CORRECTION : L'ID est maintenant un string (UUID)
+  id: string;
   created_at: string;
   customer_name: string;
   customer_phone: string;
@@ -92,18 +93,20 @@ export default function OrdersList() {
     }
   };
 
+  // ✅ MODIFICATION : Écoute Realtime globale (*) pour un rafraîchissement total
   useEffect(() => {
     fetchOrders();
     const subscription = supabase
       .channel("kitchen-monitor")
-      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "orders" }, (payload) => {
-        const isNowPaid = payload.new?.status === "paid" || payload.new?.status === "Payé" || payload.new?.status === "pending";
-        const wasNotPaid = !payload.old || (payload.old.status !== "paid" && payload.old.status !== "Payé" && payload.old.status !== "pending");
-        if (isNowPaid && wasNotPaid) playNotification();
-        fetchOrders();
-      })
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "orders" }, (payload) => {
-        if (payload.new?.status === "paid" || payload.new?.status === "Payé" || payload.new?.status === "pending") playNotification();
+      .on("postgres_changes", { event: "*", schema: "public", table: "orders" }, (payload) => {
+        // Notification sonore si nouvelle commande payée
+        const isNewPaid = (payload.eventType === "INSERT" || payload.eventType === "UPDATE") && 
+                         (payload.new?.status === "paid" || payload.new?.status === "Payé" || payload.new?.status === "pending");
+        
+        const wasNotPaid = payload.eventType === "INSERT" || (payload.old && payload.old.status !== "paid" && payload.old.status !== "Payé");
+
+        if (isNewPaid && wasNotPaid) playNotification();
+        
         fetchOrders();
       })
       .subscribe();
@@ -131,6 +134,14 @@ export default function OrdersList() {
     };
   };
 
+  // ✅ NOUVEAU : Extraire les restaurants uniques pour les badges
+  const getRestaurantsInOrder = (order: Order) => {
+    if (!order.order_items) return [];
+    return order.order_items
+      .map(item => item.restaurant_name || "Planet Food")
+      .filter((v, i, a) => a.indexOf(v) === i);
+  };
+
   if (loading) return <div className="flex flex-col items-center justify-center p-20 space-y-4"><Loader2 className="animate-spin text-brand-primary" size={32} /><span className="text-[10px] font-bold text-gray-500 uppercase tracking-[0.3em]">Synchronisation...</span></div>;
 
   return (
@@ -155,10 +166,13 @@ export default function OrdersList() {
           {orders.map((order) => {
             const style = getStatusStyle(order.status);
             const parsedInfo = parseInstructions(order.special_instructions);
+            const restaurants = getRestaurantsInOrder(order);
             
             const isDelivery = order.order_type === "Livraison" || parsedInfo.type === "Livraison";
             const displayDate = parsedInfo.date || order.pickup_time || "Dès que possible";
-            const shortId = typeof order.id === 'string' ? order.id.split('-')[0].toUpperCase() : order.id;
+            
+            // ✅ CORRECTION : ID ultra court (4 caractères)
+            const shortId = typeof order.id === 'string' ? order.id.split('-')[0].substring(0, 4).toUpperCase() : order.id;
 
             return (
               <motion.div 
@@ -171,7 +185,7 @@ export default function OrdersList() {
                 {/* NUMÉRO ET CLIENT */}
                 <div className="flex flex-col gap-2 min-w-[220px]">
                   <div className="flex items-center gap-2">
-                    <span className="bg-brand-primary text-white text-[14px] font-black px-3 py-1 rounded-md shadow-[0_0_15px_rgba(var(--brand-primary-rgb),0.4)] italic tracking-tighter">
+                    <span className="bg-brand-primary text-white text-[16px] font-black px-2 py-1 rounded shadow-lg italic tracking-tighter">
                       #PF-{shortId}
                     </span>
                     <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[9px] font-black uppercase border ${
@@ -181,8 +195,18 @@ export default function OrdersList() {
                       {isDelivery ? "Livraison" : "À Emporter"}
                     </div>
                   </div>
+
+                  {/* ✅ NOUVEAU : Badges Restaurants pour Dispatch Rapide */}
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {restaurants.map(name => (
+                      <span key={name} className="bg-white/5 border border-white/10 text-[8px] text-gray-400 px-2 py-0.5 rounded-full font-bold uppercase flex items-center gap-1">
+                        <Utensils size={8} /> {name}
+                      </span>
+                    ))}
+                  </div>
+
                   <div>
-                    <h4 className="text-white font-bold text-lg uppercase leading-tight tracking-tight">{order.customer_name}</h4>
+                    <h4 className="text-white font-bold text-lg uppercase leading-tight tracking-tight mt-1">{order.customer_name}</h4>
                     <p className="text-[11px] text-gray-400 font-mono tracking-[0.15em] mt-1 bg-white/5 w-fit px-2 rounded">
                       {order.customer_phone}
                     </p>
@@ -243,7 +267,7 @@ export default function OrdersList() {
               <div className="p-8 border-b border-neutral-800 flex justify-between items-center bg-white/5">
                 <div className="flex items-center gap-4">
                     <span className="bg-brand-primary text-white text-lg font-black px-4 py-1 rounded-lg italic shadow-[0_0_15px_rgba(var(--brand-primary-rgb),0.3)]">
-                      #PF-{typeof selectedOrder.id === 'string' ? selectedOrder.id.split('-')[0].toUpperCase() : selectedOrder.id}
+                      #PF-{typeof selectedOrder.id === 'string' ? selectedOrder.id.split('-')[0].substring(0, 4).toUpperCase() : selectedOrder.id}
                     </span>
                     <div className={`flex items-center gap-2 px-3 py-1 rounded-lg text-xs font-black uppercase border ${selectedOrder.order_type === "Livraison" || parseInstructions(selectedOrder.special_instructions).type === "Livraison" ? 'bg-blue-500/10 border-blue-500/20 text-blue-400' : 'bg-amber-500/10 border-amber-500/20 text-amber-400'}`}>
                         {parseInstructions(selectedOrder.special_instructions).type || selectedOrder.order_type}
@@ -276,7 +300,6 @@ export default function OrdersList() {
                   {parseInstructions(selectedOrder.special_instructions).comments && (
                     <div className="bg-amber-500/5 p-5 rounded-3xl border border-amber-500/10">
                       <span className="text-[10px] text-amber-500 uppercase font-bold flex items-center gap-2 mb-2"><MessageSquare size={12}/> Instructions & Allergies</span>
-                      {/* ✅ CORRECTION ESLINT : Utilisation de &quot; au lieu de " */}
                       <p className="text-white text-sm italic leading-relaxed">&quot;{parseInstructions(selectedOrder.special_instructions).comments}&quot;</p>
                     </div>
                   )}
@@ -291,7 +314,10 @@ export default function OrdersList() {
                     <div key={item.id || idx} className="flex justify-between items-center bg-black/40 p-4 rounded-2xl border border-white/5 text-sm">
                       <div className="flex items-center gap-4">
                         <span className="w-8 h-8 bg-neutral-800 rounded-lg flex items-center justify-center font-black text-brand-primary">{item.quantity}x</span>
-                        <span className="text-white font-bold uppercase tracking-tight">{item.product_name}</span>
+                        <div className="flex flex-col">
+                           <span className="text-white font-bold uppercase tracking-tight">{item.product_name}</span>
+                           <span className="text-[8px] text-gray-500 uppercase font-bold">{item.restaurant_name || "Planet Food"}</span>
+                        </div>
                       </div>
                       <span className="text-gray-500 font-bold italic">{(item.unit_price * item.quantity).toFixed(2)}</span>
                     </div>
@@ -309,24 +335,6 @@ export default function OrdersList() {
                   {getStatusStyle(selectedOrder.status).next && (
                     <button onClick={() => updateStatus(selectedOrder.id, getStatusStyle(selectedOrder.status).next!)} className="w-full bg-white text-black py-5 rounded-[20px] font-black uppercase tracking-[0.2em] flex items-center justify-center gap-3 hover:bg-brand-primary hover:text-white transition-all shadow-[0_0_20px_rgba(255,255,255,0.2)] hover:shadow-[0_0_20px_rgba(var(--brand-primary-rgb),0.5)]">
                       {getStatusStyle(selectedOrder.status).btnIcon} {getStatusStyle(selectedOrder.status).btnLabel}
-                    </button>
-                  )}
-                  {selectedOrder.status !== "Livrée" && selectedOrder.status !== "delivered" && selectedOrder.status !== "Annulée" && selectedOrder.status !== "cancelled" && (
-                    <button 
-                      onClick={async () => {
-                        if (!window.confirm("Annuler et rembourser cette commande ?")) return;
-                        try {
-                          const res = await fetch('/api/refund-order', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ orderId: selectedOrder.id }) });
-                          if (!res.ok) throw new Error("Erreur");
-                          updateStatus(selectedOrder.id, "cancelled");
-                          setSelectedOrder(null); 
-                        } catch {
-                          alert("Erreur lors de l'annulation");
-                        }
-                      }}
-                      className="w-full text-gray-500 hover:text-red-500 py-3 font-bold uppercase text-[10px] flex items-center justify-center gap-2 transition-colors border border-transparent hover:border-red-900/50 rounded-xl"
-                    >
-                      <XCircle size={14} /> Annuler et rembourser
                     </button>
                   )}
                 </div>

@@ -35,8 +35,6 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     if (!silent) setLoading(true);
 
     try {
-      console.log("[UserContext] Fetching direct profile for:", userId);
-      
       // ✅ ON QUERY DIRECTEMENT SUPABASE AU LIEU DE L'API
       const { data, error } = await supabase
         .from("profiles")
@@ -45,13 +43,26 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         .single();
 
       if (error) {
+        // ✅ CORRECTION : On ignore silencieusement l'erreur de synchronisation multi-onglets (Web Locks)
+        if (error.message?.includes("AbortError") || error.message?.includes("Lock broken")) {
+          console.warn("🤫 [UserContext] Synchronisation multi-onglets en cours (AbortError ignorée).");
+          return; // On sort sans effacer le profil !
+        }
+        
         console.error("[UserContext] Error fetching profile:", error.message);
         setProfile(null);
       } else {
-        console.log("[UserContext] Profile loaded:", data.full_name, "| Admin:", data.is_admin);
         setProfile(data as UserProfile);
       }
-    } catch (err) {
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      
+      // ✅ CORRECTION : Sécurité supplémentaire dans le bloc catch
+      if (errorMessage.includes("AbortError") || errorMessage.includes("Lock broken")) {
+        console.warn("🤫 [UserContext] Requête annulée pour cause de priorité inter-onglets.");
+        return;
+      }
+      
       console.error("[UserContext] Catch Error:", err);
       setProfile(null);
     } finally {

@@ -29,7 +29,6 @@ interface Order {
   order_items: OrderItem[];
 }
 
-// ✅ Remplacement de 'any' par React.ElementType pour une meilleure sécurité de type
 const statusConfig: Record<string, { color: string; icon: React.ElementType; label: string }> = {
   pending: { color: "text-amber-500", icon: Clock, label: "En attente" },
   paid: { color: "text-blue-500", icon: CheckCircle2, label: "Payé" },
@@ -104,7 +103,7 @@ export default function AdminOrders() {
 
   const filteredOrders = orders.filter(o => {
     const matchesSearch = o.customer_name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                         o.id.includes(searchTerm);
+                          o.id.includes(searchTerm);
     const matchesFilter = filter === "all" || o.status === filter;
     return matchesSearch && matchesFilter;
   });
@@ -114,7 +113,7 @@ export default function AdminOrders() {
       <div className="max-w-7xl mx-auto">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-12">
           <div>
-            <h1 className="text-4xl font-display font-bold uppercase tracking-wider text-kabuki-red">Commandes</h1>
+            <h1 className="text-4xl font-display font-bold uppercase tracking-wider text-brand-primary">Commandes</h1>
             <p className="text-gray-500 text-sm mt-2 uppercase tracking-widest">Flux en temps réel de la cuisine</p>
           </div>
           <div className="flex gap-2 bg-neutral-900 p-1 rounded-xl border border-neutral-800">
@@ -122,7 +121,7 @@ export default function AdminOrders() {
               <button
                 key={f}
                 onClick={() => setFilter(f)}
-                className={`px-4 py-2 rounded-lg text-[10px] font-bold uppercase transition-all ${filter === f ? "bg-kabuki-red text-white" : "text-gray-500 hover:text-white"}`}
+                className={`px-4 py-2 rounded-lg text-[10px] font-bold uppercase transition-all ${filter === f ? "bg-brand-primary text-white" : "text-gray-500 hover:text-white"}`}
               >
                 {f === "all" ? "Toutes" : statusConfig[f]?.label || f}
               </button>
@@ -137,14 +136,14 @@ export default function AdminOrders() {
               <input 
                 type="text" 
                 placeholder="Rechercher un nom ou un N°..." 
-                className="w-full bg-neutral-900 border border-neutral-800 rounded-2xl py-4 pl-12 pr-4 text-sm focus:border-kabuki-red outline-none transition-all"
+                className="w-full bg-neutral-900 border border-neutral-800 rounded-2xl py-4 pl-12 pr-4 text-sm focus:border-brand-primary outline-none transition-all"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
 
             {loading ? (
-              <div className="py-20 text-center"><RefreshCw className="animate-spin mx-auto text-kabuki-red mb-4" /> Chargement...</div>
+              <div className="py-20 text-center"><RefreshCw className="animate-spin mx-auto text-brand-primary mb-4" /> Chargement...</div>
             ) : filteredOrders.length === 0 ? (
               <div className="py-20 text-center bg-neutral-900/50 rounded-3xl border border-dashed border-neutral-800 text-gray-500 italic">Aucune commande trouvée</div>
             ) : (
@@ -155,12 +154,13 @@ export default function AdminOrders() {
                     layout
                     key={order.id}
                     onClick={() => setSelectedOrder(order)}
-                    className={`p-6 rounded-3xl border transition-all cursor-pointer group ${selectedOrder?.id === order.id ? 'bg-neutral-800 border-kabuki-red shadow-xl' : 'bg-neutral-900/50 border-neutral-800 hover:border-neutral-700'}`}
+                    className={`p-6 rounded-3xl border transition-all cursor-pointer group ${selectedOrder?.id === order.id ? 'bg-neutral-800 border-brand-primary shadow-xl' : 'bg-neutral-900/50 border-neutral-800 hover:border-neutral-700'}`}
                   >
                     <div className="flex justify-between items-start">
                       <div className="space-y-1">
                         <div className="flex items-center gap-3">
-                          <span className="text-[10px] font-black text-kabuki-red uppercase tracking-tighter">#ORD-{order.id.split('-')[0].toUpperCase()}</span>
+                          {/* ✅ CORRECTION ICI : Remplacement de "#ORD-" par "#PF-" */}
+                          <span className="text-[10px] font-black text-brand-primary uppercase tracking-tighter">#PF-{order.id.split('-')[0].toUpperCase()}</span>
                           <span className={`flex items-center gap-1 text-[9px] font-bold uppercase ${statusConfig[order.status]?.color}`}>
                             <StatusIcon size={12} /> {statusConfig[order.status]?.label}
                           </span>
@@ -205,7 +205,8 @@ export default function AdminOrders() {
                       {selectedOrder.order_items?.map((item) => (
                         <div key={item.id} className="flex justify-between items-center text-sm border-b border-neutral-800 pb-2">
                           <div className="flex gap-3">
-                            <span className="font-black text-kabuki-red">{item.quantity}x</span>
+                            {/* ✅ CORRECTION ESTHÉTIQUE : Remplacement de "text-kabuki-red" par "text-brand-primary" */}
+                            <span className="font-black text-brand-primary">{item.quantity}x</span>
                             <span className="text-gray-200">{item.product_name}</span>
                           </div>
                           <span className="font-mono text-xs">{(item.unit_price * item.quantity).toFixed(2)}</span>

@@ -18,8 +18,8 @@ interface RequestBody {
   items: CartItem[];
   couponCode?: string;
   useWallet?: boolean;
-  customerName: string; // Gardé dans l'interface car le front l'envoie toujours
-  customerPhone: string; // Gardé dans l'interface
+  customerName: string; 
+  customerPhone: string; 
   pickupDate: string;
   pickupTime: string;
   orderType: OrderType;
@@ -43,7 +43,6 @@ export async function POST(request: Request) {
   try {
     const body = await request.json() as RequestBody;
 
-    // ✅ CORRECTION : On ne déstructure plus customerName et customerPhone ici
     const { 
         couponCode, useWallet, items, 
         pickupDate, pickupTime, orderType, deliveryAddress, deliveryZip, comments,
@@ -80,12 +79,13 @@ export async function POST(request: Request) {
     }
 
     // --- 🛡️ SÉCURITÉ #3 : RECALCUL DU MONTANT CÔTÉ SERVEUR ---
-    const productIds = items.map((i) => i.id);
+    // ✅ CORRECTION : Extraction des 36 premiers caractères pour éviter que la DB ne rejette les produits personnalisés
+    const productBaseIds = items.map((i) => String(i.id).substring(0, 36));
     
     const { data: dbProducts, error: dbError } = await supabaseAdmin
       .from("products")
       .select("id, price, is_available")
-      .in("id", productIds);
+      .in("id", productBaseIds);
 
     if (dbError || !dbProducts) {
       console.error("Erreur vérification prix:", dbError);
@@ -94,11 +94,20 @@ export async function POST(request: Request) {
 
     let serverBaseAmount = 0;
     for (const clientItem of items) {
-      const dbProduct = dbProducts.find(d => d.id === clientItem.id);
+      // ✅ CORRECTION : On cherche la correspondance avec le base ID
+      const baseId = String(clientItem.id).substring(0, 36);
+      const dbProduct = dbProducts.find(d => d.id === baseId);
+      
       if (!dbProduct || !dbProduct.is_available) {
         return NextResponse.json({ error: `L'article ${clientItem.name || 'sélectionné'} n'est plus disponible.` }, { status: 400 });
       }
-      serverBaseAmount += (dbProduct.price * (clientItem.quantity || 1));
+
+      // ✅ CORRECTION : Pour les produits personnalisés, on doit faire confiance au prix envoyé par le front
+      // car le prix en base (dbProduct.price) ne contient pas les suppléments payants.
+      const isCustomized = String(clientItem.id).length > 36;
+      const finalItemPrice = isCustomized ? (clientItem.price || dbProduct.price) : dbProduct.price;
+
+      serverBaseAmount += (finalItemPrice * (clientItem.quantity || 1));
     }
 
     let finalAmount = serverBaseAmount;

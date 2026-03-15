@@ -25,11 +25,11 @@ interface Order {
   pickup_time?: string;
   order_type: string;
   total_amount: number;
-  order_items: OrderItem[]; // ✅ CORRECTION : Remplacement de "items" par "order_items"
+  order_items: OrderItem[]; 
   status: string;
   delivery_address?: string;
   delivery_zip?: string;
-  special_instructions?: string; // ✅ CORRECTION : Remplacement de "comments"
+  special_instructions?: string; 
 }
 
 export default function OrdersList() {
@@ -66,7 +66,6 @@ export default function OrdersList() {
   const fetchOrders = useCallback(async (isManualRefresh = false) => {
     if (isManualRefresh) setLoading(true);
     try {
-      // ✅ CORRECTION : On requête aussi la table jointe order_items
       const { data, error } = await supabase
         .from("orders")
         .select(`*, order_items(*)`)
@@ -98,13 +97,13 @@ export default function OrdersList() {
     const subscription = supabase
       .channel("kitchen-monitor")
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "orders" }, (payload) => {
-        const isNowPaid = payload.new?.status === "paid" || payload.new?.status === "Payé";
-        const wasNotPaid = !payload.old || (payload.old.status !== "paid" && payload.old.status !== "Payé");
+        const isNowPaid = payload.new?.status === "paid" || payload.new?.status === "Payé" || payload.new?.status === "pending";
+        const wasNotPaid = !payload.old || (payload.old.status !== "paid" && payload.old.status !== "Payé" && payload.old.status !== "pending");
         if (isNowPaid && wasNotPaid) playNotification();
         fetchOrders();
       })
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "orders" }, (payload) => {
-        if (payload.new?.status === "paid" || payload.new?.status === "Payé") playNotification();
+        if (payload.new?.status === "paid" || payload.new?.status === "Payé" || payload.new?.status === "pending") playNotification();
         fetchOrders();
       })
       .subscribe();
@@ -112,9 +111,8 @@ export default function OrdersList() {
   }, [fetchOrders, playNotification, supabase]);
 
   const getStatusStyle = (status: string) => {
-    // Normalisation du statut car les deux syntaxes (anglaises et françaises) existent
     const s = status?.toLowerCase() || "";
-    if (s === "payé" || s === "paid") return { bg: "bg-blue-500/10", text: "text-blue-400", border: "border-blue-500/20", icon: <AlertCircle size={10} />, next: "preparing", btnLabel: "Accepter", btnIcon: <ChefHat size={14} /> };
+    if (s === "payé" || s === "paid" || s === "pending") return { bg: "bg-blue-500/10", text: "text-blue-400", border: "border-blue-500/20", icon: <AlertCircle size={10} />, next: "preparing", btnLabel: "Accepter", btnIcon: <ChefHat size={14} /> };
     if (s === "en préparation" || s === "preparing") return { bg: "bg-orange-500/10", text: "text-orange-400", border: "border-orange-500/20", icon: <ChefHat size={10} />, next: "ready", btnLabel: "Prête", btnIcon: <CheckCircle2 size={14} /> };
     if (s === "prête" || s === "ready") return { bg: "bg-green-500/10", text: "text-green-400", border: "border-green-500/20", icon: <Truck size={10} />, next: "delivered", btnLabel: "Livrée", btnIcon: <Package size={14} /> };
     if (s === "livrée" || s === "delivered") return { bg: "bg-neutral-800/50", text: "text-gray-500", border: "border-neutral-800", icon: <CheckCircle2 size={10} />, next: null, btnLabel: "", btnIcon: null };
@@ -122,14 +120,15 @@ export default function OrdersList() {
     return { bg: "bg-gray-500/10", text: "text-gray-400", border: "border-gray-500/20", icon: <Clock size={10} />, next: null, btnLabel: "", btnIcon: null };
   };
 
-  // ✅ Helper pour extraire l'heure des instructions
-  const extractTime = (order: Order) => {
-    if (order.pickup_time) return order.pickup_time;
-    if (order.special_instructions) {
-      const match = order.special_instructions.match(/Date:\s*[\d-]+\s+(\d{2}:\d{2})/);
-      return match ? match[1] : "Dès que possible";
-    }
-    return "Dès que possible";
+  const parseInstructions = (text?: string) => {
+    if (!text) return { type: "", date: "", address: "", comments: "" };
+    const parts = text.split('|').map(p => p.trim());
+    return {
+      type: parts[0] || "",
+      date: parts.find(p => p.startsWith('Date:'))?.replace('Date:', '').trim() || "",
+      address: parts.find(p => p.startsWith('Addresse:'))?.replace('Addresse:', '').trim() || "",
+      comments: parts.find(p => p.startsWith('Commentaire:'))?.replace('Commentaire:', '').trim() || ""
+    };
   };
 
   if (loading) return <div className="flex flex-col items-center justify-center p-20 space-y-4"><Loader2 className="animate-spin text-brand-primary" size={32} /><span className="text-[10px] font-bold text-gray-500 uppercase tracking-[0.3em]">Synchronisation...</span></div>;
@@ -155,8 +154,10 @@ export default function OrdersList() {
         <AnimatePresence mode="popLayout">
           {orders.map((order) => {
             const style = getStatusStyle(order.status);
-            const isDelivery = order.order_type === "Livraison";
-            // ✅ Formatage de l'UUID pour affichage court
+            const parsedInfo = parseInstructions(order.special_instructions);
+            
+            const isDelivery = order.order_type === "Livraison" || parsedInfo.type === "Livraison";
+            const displayDate = parsedInfo.date || order.pickup_time || "Dès que possible";
             const shortId = typeof order.id === 'string' ? order.id.split('-')[0].toUpperCase() : order.id;
 
             return (
@@ -177,7 +178,7 @@ export default function OrdersList() {
                       isDelivery ? 'bg-blue-500/10 border-blue-500/20 text-blue-400' : 'bg-amber-500/10 border-amber-500/20 text-amber-400'
                     }`}>
                       {isDelivery ? <Truck size={12} /> : <ShoppingBag size={12} />}
-                      {order.order_type}
+                      {isDelivery ? "Livraison" : "À Emporter"}
                     </div>
                   </div>
                   <div>
@@ -192,7 +193,7 @@ export default function OrdersList() {
                 {isDelivery && (
                   <div className="flex-1 min-w-[200px] max-w-xs bg-blue-500/5 px-4 py-3 rounded-xl border border-blue-500/10">
                     <span className="text-[8px] text-blue-400/60 font-black uppercase tracking-widest mb-1 block">Destination</span>
-                    <p className="text-white text-xs font-bold leading-tight">{order.delivery_address || "Non spécifiée"}</p>
+                    <p className="text-white text-xs font-bold leading-tight">{parsedInfo.address || order.delivery_address || "Non spécifiée"}</p>
                     <p className="text-blue-400 text-[10px] font-black mt-1 font-mono tracking-tighter">{order.delivery_zip}</p>
                   </div>
                 )}
@@ -200,16 +201,16 @@ export default function OrdersList() {
                 {/* CRÉNEAU HORAIRE */}
                 <div className="flex flex-col bg-black/40 px-4 py-2 rounded-xl border border-neutral-800/50">
                   <span className="text-[8px] text-gray-500 font-black uppercase tracking-[0.2em] mb-1">Prévu pour</span>
-                  <div className="flex items-center gap-2 text-white font-black text-base">
+                  <div className="flex items-center gap-2 text-white font-black text-sm">
                     <Clock size={16} className="text-brand-primary" />
-                    {extractTime(order)}
+                    {displayDate}
                   </div>
                 </div>
 
                 {/* STATUT ET ACTIONS */}
                 <div className="flex items-center gap-4">
                   <div className={`text-[10px] font-black px-4 py-2 rounded-xl uppercase flex items-center gap-2 border shadow-inner ${style.bg} ${style.text} ${style.border}`}>
-                    {style.icon} {order.status}
+                    {style.icon} {order.status === 'pending' ? 'Payé' : order.status}
                   </div>
                   {style.next && (
                     <button onClick={() => updateStatus(order.id, style.next!)} className="bg-white text-black hover:bg-brand-primary hover:text-white px-5 py-2 rounded-xl text-[10px] font-black uppercase transition-all shadow-[0_0_20px_rgba(255,255,255,0.2)] hover:shadow-[0_0_20px_rgba(var(--brand-primary-rgb),0.4)] active:scale-95 flex items-center gap-2">
@@ -241,17 +242,17 @@ export default function OrdersList() {
             <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="relative bg-neutral-900 border border-neutral-800 w-full max-w-xl rounded-[40px] shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
               <div className="p-8 border-b border-neutral-800 flex justify-between items-center bg-white/5">
                 <div className="flex items-center gap-4">
-                    {/* ✅ CORRECTION : ID Planet Food court */}
                     <span className="bg-brand-primary text-white text-lg font-black px-4 py-1 rounded-lg italic shadow-[0_0_15px_rgba(var(--brand-primary-rgb),0.3)]">
                       #PF-{typeof selectedOrder.id === 'string' ? selectedOrder.id.split('-')[0].toUpperCase() : selectedOrder.id}
                     </span>
-                    <div className={`flex items-center gap-2 px-3 py-1 rounded-lg text-xs font-black uppercase border ${selectedOrder.order_type === "Livraison" ? 'bg-blue-500/10 border-blue-500/20 text-blue-400' : 'bg-amber-500/10 border-amber-500/20 text-amber-400'}`}>
-                        {selectedOrder.order_type}
+                    <div className={`flex items-center gap-2 px-3 py-1 rounded-lg text-xs font-black uppercase border ${selectedOrder.order_type === "Livraison" || parseInstructions(selectedOrder.special_instructions).type === "Livraison" ? 'bg-blue-500/10 border-blue-500/20 text-blue-400' : 'bg-amber-500/10 border-amber-500/20 text-amber-400'}`}>
+                        {parseInstructions(selectedOrder.special_instructions).type || selectedOrder.order_type}
                     </div>
                 </div>
                 <button onClick={() => setSelectedOrder(null)} className="bg-neutral-800 p-3 rounded-full text-gray-500 hover:text-white transition"><XCircle size={24}/></button>
               </div>
               <div className="p-8 space-y-8 overflow-y-auto custom-scrollbar">
+                
                 <div className="grid grid-cols-2 gap-8">
                   <div>
                     <span className="text-[10px] text-gray-500 uppercase font-bold flex items-center gap-2"><User size={12}/> Client</span>
@@ -260,28 +261,32 @@ export default function OrdersList() {
                   </div>
                   <div>
                     <span className="text-[10px] text-gray-500 uppercase font-bold flex items-center gap-2"><Calendar size={12}/> Créneau</span>
-                    <p className="text-white text-lg font-bold">{extractTime(selectedOrder)}</p>
+                    <p className="text-white text-lg font-bold">{parseInstructions(selectedOrder.special_instructions).date || selectedOrder.pickup_time || "Dès que possible"}</p>
                   </div>
                 </div>
-                {selectedOrder.order_type === "Livraison" && (
-                  <div className="bg-blue-500/5 p-5 rounded-3xl border border-blue-500/10 text-white">
-                    <span className="text-[10px] text-blue-400 uppercase font-bold flex items-center gap-2 mb-2"><MapPin size={12}/> Destination</span>
-                    <p className="text-base font-bold leading-relaxed">{selectedOrder.delivery_address || "Non spécifiée"}, {selectedOrder.delivery_zip}</p>
-                  </div>
-                )}
-                {selectedOrder.special_instructions && (
-                  <div className="bg-amber-500/5 p-5 rounded-3xl border border-amber-500/10">
-                    <span className="text-[10px] text-amber-500 uppercase font-bold flex items-center gap-2 mb-2"><MessageSquare size={12}/> Instructions & Allergies</span>
-                    <p className="text-white text-sm italic leading-relaxed">{"\""}{selectedOrder.special_instructions}{"\""}</p>
-                  </div>
-                )}
+
+                <div className="grid grid-cols-1 gap-4">
+                  {parseInstructions(selectedOrder.special_instructions).address && (
+                    <div className="bg-blue-500/5 p-5 rounded-3xl border border-blue-500/10 text-white">
+                      <span className="text-[10px] text-blue-400 uppercase font-bold flex items-center gap-2 mb-2"><MapPin size={12}/> Destination de livraison</span>
+                      <p className="text-base font-bold leading-relaxed">{parseInstructions(selectedOrder.special_instructions).address}</p>
+                    </div>
+                  )}
+                  
+                  {parseInstructions(selectedOrder.special_instructions).comments && (
+                    <div className="bg-amber-500/5 p-5 rounded-3xl border border-amber-500/10">
+                      <span className="text-[10px] text-amber-500 uppercase font-bold flex items-center gap-2 mb-2"><MessageSquare size={12}/> Instructions & Allergies</span>
+                      {/* ✅ CORRECTION ESLINT : Utilisation de &quot; au lieu de " */}
+                      <p className="text-white text-sm italic leading-relaxed">&quot;{parseInstructions(selectedOrder.special_instructions).comments}&quot;</p>
+                    </div>
+                  )}
+                </div>
+
                 <div className="space-y-4">
                   <div className="flex items-center justify-between border-b border-neutral-800 pb-2 text-[10px] text-gray-500 uppercase font-bold">
                     <span className="flex items-center gap-2"><Package size={12}/> Contenu</span>
-                    {/* ✅ Sécurisation du calcul de longueur (au cas où order_items est vide) */}
                     <span>{selectedOrder.order_items?.length || 0} articles</span>
                   </div>
-                  {/* ✅ Affichage depuis order_items avec sécurité */}
                   {selectedOrder.order_items?.map((item, idx) => (
                     <div key={item.id || idx} className="flex justify-between items-center bg-black/40 p-4 rounded-2xl border border-white/5 text-sm">
                       <div className="flex items-center gap-4">
@@ -295,6 +300,7 @@ export default function OrdersList() {
                      <div className="text-center text-gray-500 text-xs italic py-4">Aucun article chargé.</div>
                   )}
                 </div>
+                
                 <div className="pt-6 border-t border-neutral-800 flex flex-col gap-4 mt-auto">
                   <div className="flex justify-between items-center px-2">
                     <span className="text-gray-500 font-bold uppercase text-[10px]">Total</span>

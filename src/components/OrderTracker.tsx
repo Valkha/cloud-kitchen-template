@@ -17,7 +17,7 @@ const DeliveryMap = dynamic(() => import("@/components/DeliveryMap"), {
   ssr: false,
   loading: () => (
     <div className="h-64 bg-neutral-900 animate-pulse rounded-[2rem] flex items-center justify-center text-gray-500 text-[10px] font-black uppercase tracking-widest border border-neutral-800">
-      Initialisation GPS...
+      Recherche du signal GPS...
     </div>
   )
 });
@@ -30,11 +30,11 @@ interface OrderItem {
 
 interface OrderData {
   id: string;
-  special_instructions?: string; // ✅ CORRECTION : Remplacement de pickup_time
+  special_instructions?: string;
   status: string;
   type: string;
-  driver_lat: number | null;
-  driver_lng: number | null;
+  driver_lat?: number | null;
+  driver_lng?: number | null;
   order_items: OrderItem[];
 }
 
@@ -59,9 +59,8 @@ export default function OrderTracker({ orderId }: OrderTrackerProps) {
     try {
       const { data, error } = await supabase
         .from("orders")
-        // ✅ CORRECTION : On demande special_instructions au lieu de pickup_time
         .select(`
-          id, special_instructions, status, type, driver_lat, driver_lng,
+          id, special_instructions, status, type,
           order_items (
             id,
             product_name,
@@ -120,7 +119,6 @@ export default function OrderTracker({ orderId }: OrderTrackerProps) {
     }, {} as Record<string, OrderItem[]>);
   }, [order]);
 
-  // ✅ NOUVEAU : Extraction intelligente de l'heure depuis les instructions spéciales
   const targetTime = useMemo(() => {
     if (!order?.special_instructions) return "Dès que possible";
     const match = order.special_instructions.match(/Date:\s*[\d-]+\s+(\d{2}:\d{2})/);
@@ -176,7 +174,8 @@ export default function OrderTracker({ orderId }: OrderTrackerProps) {
   const activeIndex = currentStepIndex === -1 ? 0 : currentStepIndex;
   const isDelivered = order.status === "delivered";
   const isCancelled = order.status === "cancelled"; 
-  const showMap = isDelivery && (order.status === "shipped" || (order.driver_lat && order.driver_lng));
+  
+  const showMap = isDelivery && order.status === "shipped";
 
   return (
     <div className="space-y-6 max-w-lg mx-auto pb-10">
@@ -236,7 +235,6 @@ export default function OrderTracker({ orderId }: OrderTrackerProps) {
           <h2 className="text-white font-display font-black uppercase text-3xl tracking-tighter mt-2">
             #ORD-{order.id.split('-')[0].toUpperCase()}
           </h2>
-          {/* ✅ CORRECTION : Utilisation de la nouvelle variable targetTime */}
           <p className="text-gray-500 text-[10px] font-black uppercase tracking-widest mt-2">
             {isDelivered ? "Service terminé" : isCancelled ? "Annulée" : `Objectif : ${targetTime}`}
           </p>
@@ -272,7 +270,8 @@ export default function OrderTracker({ orderId }: OrderTrackerProps) {
               exit={{ height: 0, opacity: 0 }} 
               className="mb-10 overflow-hidden rounded-[2rem] border border-white/5"
             >
-              <DeliveryMap driverLat={order.driver_lat} driverLng={order.driver_lng} />
+              {/* ✅ CORRECTION : Le fameux "?? null" pour contenter TypeScript */}
+              <DeliveryMap driverLat={order.driver_lat ?? null} driverLng={order.driver_lng ?? null} />
             </motion.div>
           )}
         </AnimatePresence>

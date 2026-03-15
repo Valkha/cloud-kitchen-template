@@ -103,6 +103,7 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
   const [isPayment, setIsPayment] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [checkoutError, setCheckoutError] = useState(""); // ✅ NOUVEAU: État pour l'erreur de commande
   const [orderId, setOrderId] = useState<string | null>(null);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
 
@@ -203,7 +204,10 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
   const handleFinalSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isFormReady) return;
+    
     setIsSubmitting(true);
+    setCheckoutError(""); // ✅ Réinitialisation de l'erreur à chaque nouvelle tentative
+
     try {
       const orderResult = await submitOrder(
         siteConfig.restaurantSlug,
@@ -217,7 +221,15 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
         finalPrice
       );
 
-      if (!orderResult.success || !orderResult.orderId) throw new Error("Erreur DB");
+      // ✅ Utilisation du vrai message d'erreur si la création échoue
+      if (!orderResult.success || !orderResult.orderId) {
+        throw new Error(
+          orderResult.error instanceof Error 
+            ? orderResult.error.message 
+            : "Impossible de communiquer avec la base de données."
+        );
+      }
+      
       const supabaseOrderId = orderResult.orderId;
 
       const res = await fetch("/api/create-payment-intent", { 
@@ -239,20 +251,26 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
       
       const payData = await res.json();
       if (payData.error) throw new Error(payData.error);
+      
       setOrderId(supabaseOrderId);
       setClientSecret(payData.clientSecret);
       setIsPayment(true);
+
     } catch (err: unknown) {
-      const errorMsg = err instanceof Error ? err.message : "Une erreur est survenue";
-      alert(`Erreur : ${errorMsg}`);
-    } finally { setIsSubmitting(false); }
+      // ✅ On remplace l'alert() bloquant par une mise à jour d'état locale
+      const errorMsg = err instanceof Error ? err.message : "Une erreur est survenue lors de la création de votre commande.";
+      setCheckoutError(errorMsg);
+      console.error("Échec de la validation :", errorMsg);
+    } finally { 
+      setIsSubmitting(false); // ✅ Ceci s'exécutera toujours maintenant, arrêtant le spinner !
+    }
   };
 
   return (
     <AnimatePresence>
       {isOpen && (
         <>
-          {/* ✅ OVERLAY Z-INDEX ULTRA HAUT */}
+          {/* OVERLAY */}
           <motion.div 
             initial={{ opacity: 0 }} 
             animate={{ opacity: 1 }} 
@@ -262,7 +280,7 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
             aria-hidden="true" 
           />
           
-          {/* ✅ DRAWER Z-INDEX MAXIMAL */}
+          {/* DRAWER */}
           <motion.div 
             initial={{ x: "100%" }} 
             animate={{ x: 0 }} 
@@ -468,6 +486,13 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
                       )}
                     </div>
                     
+                    {/* ✅ NOUVEAU: Affichage de l'erreur juste au-dessus du bouton */}
+                    {checkoutError && (
+                      <div className="bg-red-900/20 border border-red-500/30 text-red-500 text-[10px] font-bold p-4 rounded-xl mb-4 text-center uppercase tracking-widest leading-relaxed">
+                        ⚠️ {checkoutError}
+                      </div>
+                    )}
+
                     {!isCheckout ? (
                       <button onClick={() => setIsCheckout(true)} className="w-full bg-brand-primary text-white font-black py-5 rounded-[1.5rem] uppercase tracking-[0.2em] text-[11px] flex items-center justify-center gap-3 hover:scale-[1.02] active:scale-[0.98] transition-transform shadow-[0_0_20px_rgba(var(--brand-primary-rgb),0.3)] cursor-pointer">
                         {t.btnValidate} <ArrowRight size={18} />

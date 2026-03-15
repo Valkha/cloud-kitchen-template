@@ -1,4 +1,4 @@
-import { createClient } from "@/utils/supabase/client"; // Ajuste le chemin si besoin
+import { createClient } from "@/utils/supabase/client"; 
 import { CartItem } from "@/context/CartContext";
 
 const supabase = createClient();
@@ -16,28 +16,28 @@ export interface CustomerDetails {
  * 2. Insertion des lignes de plats 'order_items'
  */
 export const submitOrder = async (
-  restaurantSlug: string,
+  restaurantSlug: string, // On garde ce paramètre pour ne pas casser le typage de CartDrawer
   customer: CustomerDetails,
   cartItems: CartItem[],
   totalAmount: number
 ) => {
   try {
-    // 1. Récupérer l'ID UUID du restaurant grâce au slug de ta config
-    const { data: restaurant, error: restoError } = await supabase
-      .from('restaurants')
-      .select('id')
-      .eq('slug', restaurantSlug)
-      .single();
-      
-    if (restoError || !restaurant) {
-      throw new Error("Restaurant introuvable ou inactif.");
+    if (!cartItems || cartItems.length === 0) {
+      throw new Error("Le panier est vide.");
+    }
+
+    // 1. Plus besoin du slug ! On récupère l'UUID exact du restaurant depuis le premier plat du panier
+    const restaurantId = cartItems[0].restaurant_id;
+    
+    if (!restaurantId) {
+      throw new Error("Restaurant introuvable pour cette commande.");
     }
     
     // 2. Créer la commande principale
     const { data: order, error: orderError } = await supabase
       .from('orders')
       .insert({
-        restaurant_id: restaurant.id,
+        restaurant_id: restaurantId,
         customer_name: customer.name,
         customer_email: customer.email,
         customer_phone: customer.phone,
@@ -49,17 +49,24 @@ export const submitOrder = async (
       .single();
       
     if (orderError || !order) {
+      console.error("Erreur de création de commande :", orderError);
       throw new Error("Échec de la création de la commande globale.");
     }
     
     // 3. Préparer le tableau des plats à insérer
-    const orderItemsToInsert = cartItems.map(item => ({
-      order_id: order.id,
-      product_id: item.id, // C'est maintenant un UUID (string)
-      quantity: item.quantity,
-      unit_price: item.price,
-      product_name: item.name
-    }));
+    const orderItemsToInsert = cartItems.map(item => {
+      // ✅ SÉCURITÉ : On extrait uniquement les 36 premiers caractères pour récupérer le vrai UUID du produit
+      // Cela enlève le timestamp "-171243567-0" qu'on avait ajouté dans ProductModal pour les personnalisations
+      const realProductId = String(item.id).substring(0, 36);
+
+      return {
+        order_id: order.id,
+        product_id: realProductId,
+        quantity: item.quantity,
+        unit_price: item.price,
+        product_name: item.name
+      };
+    });
     
     // 4. Insérer toutes les lignes d'un seul coup (Bulk insert)
     const { error: itemsError } = await supabase
@@ -67,8 +74,7 @@ export const submitOrder = async (
       .insert(orderItemsToInsert);
       
     if (itemsError) {
-      // Dans un système de prod ultra-strict, on annulerait la commande ici (Rollback), 
-      // mais pour l'instant on se contente de lever l'erreur.
+      console.error("Erreur d'insertion des items :", itemsError);
       throw new Error("Échec de l'enregistrement des plats de la commande.");
     }
     

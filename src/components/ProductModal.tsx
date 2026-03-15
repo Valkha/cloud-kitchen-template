@@ -17,6 +17,7 @@ export interface MenuItem extends ContextMenuItem {
   description_fr?: string; 
   description_en?: string;
   description_es?: string;
+  // ✅ On a retiré restaurant_id?: string; car il est hérité obligatoirement de ContextMenuItem
 }
 
 interface ConfigOption {
@@ -30,16 +31,16 @@ interface ConfigCategory {
   options: ConfigOption[];
 }
 
-// Type pour nos objets de configuration (Tacos/Pizza)
 type ProductConfig = Record<string, ConfigCategory>;
-
-// Type pour l'état des sélections
 type Selections = Record<string, string[]>;
 
 interface ProductModalProps {
   item: MenuItem;
   onClose: () => void;
 }
+
+const UUID_LYONNAISE = process.env.NEXT_PUBLIC_RESTAURANT_LYONNAISE_ID;
+const UUID_PIZZA_STATION = process.env.NEXT_PUBLIC_RESTAURANT_PIZZA_STATION_ID;
 
 // --- CONFIGURATIONS TYPÉES ---
 const TACOS_CONFIG: ProductConfig = {
@@ -64,8 +65,11 @@ export default function ProductModal({ item, onClose }: ProductModalProps) {
   const [isAdded, setIsAdded] = useState(false);
   const [mounted, setMounted] = useState(false);
 
-  const isCustomTacos = item.name_fr?.toLowerCase().includes("tacos") && item.restaurant_name?.toLowerCase().includes("lyonnaise");
-  const isCustomPizza = item.restaurant_name?.toLowerCase().includes("pizza station");
+  const isCustomTacos = Boolean(
+    item.restaurant_id === UUID_LYONNAISE && 
+    (item.name_fr?.toLowerCase().includes("tacos") || item.name?.toLowerCase().includes("tacos"))
+  );
+  const isCustomPizza = item.restaurant_id === UUID_PIZZA_STATION;
 
   const [tacosSelections, setTacosSelections] = useState<Selections>({
     format: ["Standard"], sauces: [], crudites: [], viandes: [], extraViandes: ["Aucune"], gratinage: ["Aucun"]
@@ -111,7 +115,6 @@ export default function ProductModal({ item, onClose }: ProductModalProps) {
     return item.price + extraCost;
   }, [item.price, isCustomTacos, isCustomPizza, tacosSelections, pizzaSelections]);
 
-  // ✅ Suppression du 'any' dans la fonction de toggle
   const handleOptionToggle = (
     selections: Selections,
     setSelections: React.Dispatch<React.SetStateAction<Selections>>,

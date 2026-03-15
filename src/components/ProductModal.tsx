@@ -17,7 +17,6 @@ export interface MenuItem extends ContextMenuItem {
   description_fr?: string; 
   description_en?: string;
   description_es?: string;
-  // ✅ On a retiré restaurant_id?: string; car il est hérité obligatoirement de ContextMenuItem
 }
 
 interface ConfigOption {
@@ -52,10 +51,19 @@ const TACOS_CONFIG: ProductConfig = {
   gratinage: { label: "Gratinage (1 max)", max: 1, options: [{ name: "Aucun", price: 0 }, { name: "Cheddar", price: 2.5 }, { name: "Raclette", price: 2.5 }, { name: "Camembert", price: 2.5 }, { name: "Fromage râpé", price: 2.5 }, { name: "Raclette - lardon", price: 5.0 }, { name: "Chèvre - miel", price: 5.0 }]}
 };
 
+// ✅ MISE À JOUR : Nouvelles tailles de pizzas
 const PIZZA_CONFIG: ProductConfig = {
-  taille: { label: "1. Choisissez votre taille", max: 1, options: [{ name: "Junior", price: -5.0 }, { name: "Senior", price: 0 }, { name: "Mega", price: 10.0 }]},
-  base: { label: "2. Base de la pizza", max: 1, options: [{ name: "Tomate", price: 0 }, { name: "Crème Fraîche", price: 0 }, { name: "Sauce BBQ", price: 0 }, { name: "Sauce Curry", price: 0 }]},
-  supplements: { label: "3. Suppléments (Optionnel)", max: 5, options: [{ name: "Mozzarella", price: 2.0 }, { name: "Chèvre", price: 2.0 }, { name: "Oeuf", price: 2.0 }, { name: "Champignons", price: 2.0 }, { name: "Jambon dinde", price: 2.0 }, { name: "Oignons rouges", price: 2.0 }]}
+  taille: { 
+    label: "1. Choisissez votre taille", 
+    max: 1, 
+    options: [
+      { name: "S (20cm)", price: -3.0 }, 
+      { name: "M (30cm)", price: 0 }, 
+      { name: "L (40cm)", price: 4.0 }, 
+      { name: "XL (50cm)", price: 8.0 }
+    ]
+  },
+  supplements: { label: "2. Suppléments (Optionnel)", max: 5, options: [{ name: "Mozzarella", price: 2.0 }, { name: "Chèvre", price: 2.0 }, { name: "Oeuf", price: 2.0 }, { name: "Champignons", price: 2.0 }, { name: "Jambon dinde", price: 2.0 }, { name: "Oignons rouges", price: 2.0 }]}
 };
 
 export default function ProductModal({ item, onClose }: ProductModalProps) {
@@ -75,8 +83,9 @@ export default function ProductModal({ item, onClose }: ProductModalProps) {
     format: ["Standard"], sauces: [], crudites: [], viandes: [], extraViandes: ["Aucune"], gratinage: ["Aucun"]
   });
 
+  // ✅ MISE À JOUR : On met "M (30cm)" comme taille par défaut
   const [pizzaSelections, setPizzaSelections] = useState<Selections>({
-    taille: ["Senior"], base: ["Tomate"], supplements: []
+    taille: ["M (30cm)"], supplements: []
   });
 
   useEffect(() => {
@@ -124,7 +133,7 @@ export default function ProductModal({ item, onClose }: ProductModalProps) {
   ) => {
     const current = selections[category];
     if (current.includes(optionName)) {
-      if (category === 'format' || category === 'taille' || category === 'base') return;
+      if (category === 'format' || category === 'taille') return;
       setSelections({ ...selections, [category]: current.filter((n) => n !== optionName) });
     } else {
       if (max === 1) setSelections({ ...selections, [category]: [optionName] });
@@ -141,7 +150,8 @@ export default function ProductModal({ item, onClose }: ProductModalProps) {
       const xl = tacosSelections.format[0] === "Format XL" ? " XL" : "";
       finalName = `${baseName}${xl} (${extras.join(", ")})`;
     } else if (isCustomPizza) {
-      const extras = Object.values(pizzaSelections).flat().filter(n => !["Senior", "Tomate"].includes(n));
+      // ✅ MISE À JOUR : On filtre la nouvelle taille par défaut pour qu'elle ne s'affiche pas comme un "supplément"
+      const extras = Object.values(pizzaSelections).flat().filter(n => !["M (30cm)"].includes(n));
       finalName = `${baseName} ${pizzaSelections.taille[0]} (${extras.join(", ")})`;
     }
 

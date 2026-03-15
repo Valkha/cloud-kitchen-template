@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import { createClient as createSupabaseAdmin } from "@supabase/supabase-js";
-import { createClient } from "@/utils/supabase/server"; 
 
 interface CartItem {
   id: string; 
@@ -27,6 +26,7 @@ interface RequestBody {
   deliveryZip?: string | number;
   comments?: string;
   databaseOrderId: string; 
+  userId?: string | null; 
 }
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
@@ -46,11 +46,8 @@ export async function POST(request: Request) {
     const { 
         couponCode, useWallet, items, 
         pickupDate, pickupTime, orderType, deliveryAddress, deliveryZip, comments,
-        databaseOrderId 
+        databaseOrderId, userId
     } = body;
-
-    const supabaseServer = await createClient();
-    const { data: { user } } = await supabaseServer.auth.getUser();
 
     // --- 🛡️ SÉCURITÉ #1 : VALIDATION DU TYPE DE COMMANDE ---
     if (!VALID_ORDER_TYPES.includes(orderType)) {
@@ -79,7 +76,6 @@ export async function POST(request: Request) {
     }
 
     // --- 🛡️ SÉCURITÉ #3 : RECALCUL DU MONTANT CÔTÉ SERVEUR ---
-    // ✅ CORRECTION : Extraction des 36 premiers caractères pour éviter que la DB ne rejette les produits personnalisés
     const productBaseIds = items.map((i) => String(i.id).substring(0, 36));
     
     const { data: dbProducts, error: dbError } = await supabaseAdmin
@@ -88,13 +84,11 @@ export async function POST(request: Request) {
       .in("id", productBaseIds);
 
     if (dbError || !dbProducts) {
-      console.error("Erreur vérification prix:", dbError);
-      throw new Error("Impossible de vérifier les prix en base de données.");
+      throw new Error(`Impossible de vérifier les prix en DB: ${dbError?.message}`);
     }
 
     let serverBaseAmount = 0;
     for (const clientItem of items) {
-      // ✅ CORRECTION : On cherche la correspondance avec le base ID
       const baseId = String(clientItem.id).substring(0, 36);
       const dbProduct = dbProducts.find(d => d.id === baseId);
       
@@ -102,8 +96,6 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: `L'article ${clientItem.name || 'sélectionné'} n'est plus disponible.` }, { status: 400 });
       }
 
-      // ✅ CORRECTION : Pour les produits personnalisés, on doit faire confiance au prix envoyé par le front
-      // car le prix en base (dbProduct.price) ne contient pas les suppléments payants.
       const isCustomized = String(clientItem.id).length > 36;
       const finalItemPrice = isCustomized ? (clientItem.price || dbProduct.price) : dbProduct.price;
 
@@ -139,11 +131,11 @@ export async function POST(request: Request) {
 
     // --- Logique Wallet ---
     let walletUsed = 0;
-    if (useWallet && user) {
+    if (useWallet && userId) {
       const { data: profile } = await supabaseAdmin
         .from("profiles")
         .select("wallet_balance")
-        .eq("id", user.id)
+        .eq("id", userId)
         .single();
 
       if (profile && profile.wallet_balance > 0) {
@@ -179,7 +171,7 @@ export async function POST(request: Request) {
       automatic_payment_methods: { enabled: true },
       metadata: {
         orderId: databaseOrderId,
-        userId: user?.id || "guest",
+        userId: userId || "guest",
         couponUsed: couponCode || "none",
         discountAmount: discountApplied.toFixed(2),
         walletUsed: walletUsed.toFixed(2),
@@ -193,8 +185,12 @@ export async function POST(request: Request) {
     });
 
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : "Erreur serveur";
-    console.error("❌ Erreur API Stripe/Supabase:", errorMessage);
-    return NextResponse.json({ error: "Erreur serveur lors de la préparation du paiement." }, { status: 500 });
+    const errorMessage = error instanceof Error ? error.message : "Erreur serveur inconnue";
+    console.error("❌ Détail de l'erreur API Stripe/Supabase:", error);
+    
+    return NextResponse.json(
+      { error: `Erreur Stripe/DB : ${errorMessage}` }, 
+      { status: 500 }
+    );
   }
 }

@@ -26,12 +26,11 @@ interface OrderItem {
   id: string;
   product_name: string;
   quantity: number;
-  // ✅ CORRECTION : On retire restaurant_name qui n'existe pas en base de données
 }
 
 interface OrderData {
   id: string;
-  pickup_time: string;
+  special_instructions?: string; // ✅ CORRECTION : Remplacement de pickup_time
   status: string;
   type: string;
   driver_lat: number | null;
@@ -60,9 +59,9 @@ export default function OrderTracker({ orderId }: OrderTrackerProps) {
     try {
       const { data, error } = await supabase
         .from("orders")
-        // ✅ CORRECTION : On demande uniquement les colonnes qui existent vraiment
+        // ✅ CORRECTION : On demande special_instructions au lieu de pickup_time
         .select(`
-          id, pickup_time, status, type, driver_lat, driver_lng,
+          id, special_instructions, status, type, driver_lat, driver_lng,
           order_items (
             id,
             product_name,
@@ -114,13 +113,19 @@ export default function OrderTracker({ orderId }: OrderTrackerProps) {
   const groupedItems = useMemo(() => {
     if (!order?.order_items) return {};
     return order.order_items.reduce((acc, item) => {
-      // ✅ CORRECTION : On regroupe tout sous le nom du projet au lieu de chercher une donnée absente
       const key = "Planet Food"; 
       if (!acc[key]) acc[key] = [];
       acc[key].push(item);
       return acc;
     }, {} as Record<string, OrderItem[]>);
   }, [order]);
+
+  // ✅ NOUVEAU : Extraction intelligente de l'heure depuis les instructions spéciales
+  const targetTime = useMemo(() => {
+    if (!order?.special_instructions) return "Dès que possible";
+    const match = order.special_instructions.match(/Date:\s*[\d-]+\s+(\d{2}:\d{2})/);
+    return match ? match[1] : "Dès que possible";
+  }, [order?.special_instructions]);
 
   const handleFinish = () => {
     localStorage.removeItem("planetfood_active_order");
@@ -231,8 +236,9 @@ export default function OrderTracker({ orderId }: OrderTrackerProps) {
           <h2 className="text-white font-display font-black uppercase text-3xl tracking-tighter mt-2">
             #ORD-{order.id.split('-')[0].toUpperCase()}
           </h2>
+          {/* ✅ CORRECTION : Utilisation de la nouvelle variable targetTime */}
           <p className="text-gray-500 text-[10px] font-black uppercase tracking-widest mt-2">
-            {isDelivered ? "Service terminé" : isCancelled ? "Annulée" : `Objectif : ${order.pickup_time}`}
+            {isDelivered ? "Service terminé" : isCancelled ? "Annulée" : `Objectif : ${targetTime}`}
           </p>
         </div>
 

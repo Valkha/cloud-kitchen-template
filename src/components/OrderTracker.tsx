@@ -5,13 +5,12 @@ import { createClient } from "@/utils/supabase/client";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Receipt, ChefHat, Package, CheckCircle2, 
-  Loader2, ArrowRight, XCircle, Truck, Store,
+  Loader2, ArrowRight, ArrowLeft, XCircle, Truck, Store,
   Bike, MapPin, AlertCircle 
 } from "lucide-react"; 
 import Link from "next/link";
 import { useTranslation } from "@/context/LanguageContext";
 import dynamic from "next/dynamic";
-// ✅ Import utilisé pour la devise dynamique
 import { siteConfig } from "@/config/site";
 
 const DeliveryMap = dynamic(() => import("@/components/DeliveryMap"), { 
@@ -48,9 +47,16 @@ export default function OrderTracker({ orderId }: OrderTrackerProps) {
   const supabase = useMemo(() => createClient(), []);
   const [order, setOrder] = useState<OrderData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null); 
   const { lang } = useTranslation();
 
   const fetchOrder = useCallback(async () => {
+    if (!orderId) {
+      setFetchError("ID de commande manquant.");
+      setLoading(false);
+      return;
+    }
+
     try {
       const { data, error } = await supabase
         .from("orders")
@@ -66,10 +72,20 @@ export default function OrderTracker({ orderId }: OrderTrackerProps) {
         .eq("id", orderId)
         .single();
 
-      if (error) throw error;
-      if (data) setOrder(data as unknown as OrderData);
+      if (error) {
+        console.error("Erreur Supabase:", error);
+        throw new Error(error.message || "Accès refusé par la base de données (RLS).");
+      }
+      
+      if (data) {
+        setOrder(data as unknown as OrderData);
+      } else {
+        setFetchError("Aucune donnée trouvée pour cette commande.");
+      }
     } catch (err: unknown) {
-      console.error("Erreur chargement commande:", err);
+      const errorMessage = err instanceof Error ? err.message : JSON.stringify(err);
+      console.error("Erreur chargement commande:", errorMessage);
+      setFetchError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -116,10 +132,22 @@ export default function OrderTracker({ orderId }: OrderTrackerProps) {
     </div>
   );
 
-  if (!order) return (
-    <div className="text-center p-20 bg-neutral-900 rounded-[2.5rem] border border-neutral-800 shadow-2xl">
-      <AlertCircle size={48} className="text-gray-700 mx-auto mb-4" />
-      <p className="text-gray-500 font-black uppercase tracking-widest text-xs">Commande introuvable</p>
+  if (fetchError || !order) return (
+    <div className="text-center p-10 md:p-20 bg-neutral-900 rounded-[2.5rem] border border-neutral-800 shadow-2xl max-w-lg mx-auto">
+      <AlertCircle size={48} className="text-red-500/80 mx-auto mb-6" />
+      <p className="text-white font-black uppercase tracking-widest text-lg mb-2">Commande introuvable</p>
+      {fetchError && (
+        <div className="bg-red-900/20 text-red-400 text-[10px] font-mono p-4 rounded-xl border border-red-500/20 mb-6">
+          Erreur: {fetchError}
+        </div>
+      )}
+      <Link 
+        href={`/${lang}/menu`} 
+        onClick={handleFinish}
+        className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] bg-white text-black px-6 py-4 rounded-full hover:bg-brand-primary hover:text-white transition-colors"
+      >
+        <ArrowLeft size={16} /> Retour au menu
+      </Link>
     </div>
   );
 
@@ -308,7 +336,6 @@ export default function OrderTracker({ orderId }: OrderTrackerProps) {
         )}
       </AnimatePresence>
       
-      {/* ✅ Utilisation masquée ou contextuelle si nécessaire, ici pour la monnaie dynamique dans le futur ou logs */}
       <div className="hidden">{siteConfig.currency}</div>
     </div>
   );

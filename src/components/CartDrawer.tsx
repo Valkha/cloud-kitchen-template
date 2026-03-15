@@ -103,7 +103,7 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
   const [isPayment, setIsPayment] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [checkoutError, setCheckoutError] = useState(""); // ✅ NOUVEAU: État pour l'erreur de commande
+  const [checkoutError, setCheckoutError] = useState("");
   const [orderId, setOrderId] = useState<string | null>(null);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
 
@@ -206,7 +206,7 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
     if (!isFormReady) return;
     
     setIsSubmitting(true);
-    setCheckoutError(""); // ✅ Réinitialisation de l'erreur à chaque nouvelle tentative
+    setCheckoutError(""); 
 
     try {
       const orderResult = await submitOrder(
@@ -221,7 +221,6 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
         finalPrice
       );
 
-      // ✅ Utilisation du vrai message d'erreur si la création échoue
       if (!orderResult.success || !orderResult.orderId) {
         throw new Error(
           orderResult.error instanceof Error 
@@ -245,7 +244,11 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
           pickupDate: selectedDate?.toISOString().split('T')[0],
           pickupTime: selectedTime,
           orderType: formData.type,
-          databaseOrderId: supabaseOrderId 
+          databaseOrderId: supabaseOrderId,
+          // ✅ LES CHAMPS MANQUANTS SONT LÀ
+          deliveryAddress: formData.address,
+          deliveryZip: formData.zip,
+          comments: formData.comments
         }) 
       });
       
@@ -257,12 +260,11 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
       setIsPayment(true);
 
     } catch (err: unknown) {
-      // ✅ On remplace l'alert() bloquant par une mise à jour d'état locale
       const errorMsg = err instanceof Error ? err.message : "Une erreur est survenue lors de la création de votre commande.";
       setCheckoutError(errorMsg);
       console.error("Échec de la validation :", errorMsg);
     } finally { 
-      setIsSubmitting(false); // ✅ Ceci s'exécutera toujours maintenant, arrêtant le spinner !
+      setIsSubmitting(false); 
     }
   };
 
@@ -270,7 +272,6 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
     <AnimatePresence>
       {isOpen && (
         <>
-          {/* OVERLAY */}
           <motion.div 
             initial={{ opacity: 0 }} 
             animate={{ opacity: 1 }} 
@@ -280,7 +281,6 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
             aria-hidden="true" 
           />
           
-          {/* DRAWER */}
           <motion.div 
             initial={{ x: "100%" }} 
             animate={{ x: 0 }} 
@@ -331,7 +331,6 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
               <div className="flex-1 flex flex-col overflow-hidden">
                 <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
                   
-                  {/* EMPTY STATE */}
                   {items.length === 0 ? (
                     <div className="flex flex-col items-center justify-center h-full text-center space-y-6 opacity-70">
                       <div className="w-24 h-24 rounded-full bg-brand-primary/10 flex items-center justify-center mb-2">
@@ -486,7 +485,6 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
                       )}
                     </div>
                     
-                    {/* ✅ NOUVEAU: Affichage de l'erreur juste au-dessus du bouton */}
                     {checkoutError && (
                       <div className="bg-red-900/20 border border-red-500/30 text-red-500 text-[10px] font-bold p-4 rounded-xl mb-4 text-center uppercase tracking-widest leading-relaxed">
                         ⚠️ {checkoutError}

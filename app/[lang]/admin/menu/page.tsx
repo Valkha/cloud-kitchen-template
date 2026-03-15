@@ -201,7 +201,6 @@ export default function AdminMenu() {
       
       showToast("Traduction automatique réussie !");
     } catch (error) {
-      // ✅ ESLint fix : Le paramètre 'error' est maintenant utilisé (loggé dans la console)
       console.error("Erreur globale de traduction:", error);
       showToast("Une erreur est survenue lors de la traduction", "error");
     } finally {
@@ -263,13 +262,24 @@ export default function AdminMenu() {
     }
   }
 
+  // ✅ CORRECTION DE LA SUPPRESSION SILENCIEUSE
   async function handleDelete(id: string, name: string) {
     if (confirm(`Supprimer définitivement "${name}" ?`)) {
       try {
-        const { error } = await supabase.from("products").delete().eq("id", id);
+        const { data, error } = await supabase
+          .from("products")
+          .delete()
+          .eq("id", id)
+          .select(); // Force Supabase à retourner la ligne supprimée
+        
         if (error) throw error;
+
+        if (!data || data.length === 0) {
+          throw new Error("Action bloquée (Permissions insuffisantes ou produit lié à une commande).");
+        }
+
         setItems(prev => prev.filter(i => i.id !== id));
-        showToast("Produit supprimé.");
+        showToast("Produit définitivement supprimé.");
       } catch (error: unknown) {
         const err = error instanceof Error ? error.message : "Erreur lors de la suppression";
         showToast(err, 'error');

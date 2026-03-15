@@ -26,7 +26,7 @@ interface OrderItem {
   id: string;
   product_name: string;
   quantity: number;
-  restaurant_name: string;
+  // ✅ CORRECTION : On retire restaurant_name qui n'existe pas en base de données
 }
 
 interface OrderData {
@@ -60,13 +60,13 @@ export default function OrderTracker({ orderId }: OrderTrackerProps) {
     try {
       const { data, error } = await supabase
         .from("orders")
+        // ✅ CORRECTION : On demande uniquement les colonnes qui existent vraiment
         .select(`
           id, pickup_time, status, type, driver_lat, driver_lng,
           order_items (
             id,
             product_name,
-            quantity,
-            restaurant_name
+            quantity
           )
         `)
         .eq("id", orderId)
@@ -114,7 +114,8 @@ export default function OrderTracker({ orderId }: OrderTrackerProps) {
   const groupedItems = useMemo(() => {
     if (!order?.order_items) return {};
     return order.order_items.reduce((acc, item) => {
-      const key = item.restaurant_name || "Restaurant";
+      // ✅ CORRECTION : On regroupe tout sous le nom du projet au lieu de chercher une donnée absente
+      const key = "Planet Food"; 
       if (!acc[key]) acc[key] = [];
       acc[key].push(item);
       return acc;

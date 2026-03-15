@@ -6,7 +6,6 @@ import { useCart } from "@/context/CartContext";
 import ProductModal, { MenuItem as ModalItem } from "./ProductModal";
 import { AnimatePresence } from "framer-motion";
 
-// ✅ On retire 'restaurant_id?: string' pour respecter le typage strict du parent qui l'exige comme 'string'
 export interface WrapperItem extends ModalItem {
   restaurant_name?: string; 
 }
@@ -16,7 +15,6 @@ interface AddToCartWrapperProps {
   lang: string;
 }
 
-// Utilisation sécurisée des variables d'environnement
 const UUID_LYONNAISE = process.env.NEXT_PUBLIC_RESTAURANT_LYONNAISE_ID;
 const UUID_PIZZA_STATION = process.env.NEXT_PUBLIC_RESTAURANT_PIZZA_STATION_ID;
 
@@ -24,12 +22,21 @@ export default function AddToCartWrapper({ item, lang }: AddToCartWrapperProps) 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const { addToCart } = useCart();
 
-  // Logique de détection par UUID (robuste)
+  // ✅ CORRECTION : Détection hybride (UUID prioritaire + Secours textuel)
+  const isLyonnaise = Boolean(
+    (UUID_LYONNAISE && item.restaurant_id === UUID_LYONNAISE) || 
+    item.restaurant_name?.toLowerCase().includes("lyonnaise")
+  );
+  
   const isTacos = Boolean(
-    item.restaurant_id === UUID_LYONNAISE && 
+    isLyonnaise && 
     (item.name?.toLowerCase().includes("tacos") || item.name_fr?.toLowerCase().includes("tacos"))
   );
-  const isPizza = item.restaurant_id === UUID_PIZZA_STATION;
+
+  const isPizza = Boolean(
+    (UUID_PIZZA_STATION && item.restaurant_id === UUID_PIZZA_STATION) || 
+    item.restaurant_name?.toLowerCase().includes("pizza station")
+  );
   
   const needsModal = isTacos || isPizza;
 
@@ -40,7 +47,7 @@ export default function AddToCartWrapper({ item, lang }: AddToCartWrapperProps) 
     if (needsModal) {
       setIsModalOpen(true);
     } else {
-      addToCart(item); // Plus d'erreur ici, le typage correspond parfaitement !
+      addToCart(item);
     }
   };
 

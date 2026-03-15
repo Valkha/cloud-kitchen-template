@@ -17,6 +17,7 @@ export interface MenuItem extends ContextMenuItem {
   description_fr?: string; 
   description_en?: string;
   description_es?: string;
+  restaurant_name?: string; // ✅ Ajouté pour sécuriser la détection hybride
 }
 
 interface ConfigOption {
@@ -51,7 +52,6 @@ const TACOS_CONFIG: ProductConfig = {
   gratinage: { label: "Gratinage (1 max)", max: 1, options: [{ name: "Aucun", price: 0 }, { name: "Cheddar", price: 2.5 }, { name: "Raclette", price: 2.5 }, { name: "Camembert", price: 2.5 }, { name: "Fromage râpé", price: 2.5 }, { name: "Raclette - lardon", price: 5.0 }, { name: "Chèvre - miel", price: 5.0 }]}
 };
 
-// ✅ MISE À JOUR : Nouvelles tailles de pizzas
 const PIZZA_CONFIG: ProductConfig = {
   taille: { 
     label: "1. Choisissez votre taille", 
@@ -73,17 +73,26 @@ export default function ProductModal({ item, onClose }: ProductModalProps) {
   const [isAdded, setIsAdded] = useState(false);
   const [mounted, setMounted] = useState(false);
 
-  const isCustomTacos = Boolean(
-    item.restaurant_id === UUID_LYONNAISE && 
-    (item.name_fr?.toLowerCase().includes("tacos") || item.name?.toLowerCase().includes("tacos"))
+  // ✅ CORRECTION : Détection hybride (UUID prioritaire + Secours textuel)
+  const isLyonnaise = Boolean(
+    (UUID_LYONNAISE && item.restaurant_id === UUID_LYONNAISE) || 
+    item.restaurant_name?.toLowerCase().includes("lyonnaise")
   );
-  const isCustomPizza = item.restaurant_id === UUID_PIZZA_STATION;
+  
+  const isCustomTacos = Boolean(
+    isLyonnaise && 
+    (item.name?.toLowerCase().includes("tacos") || item.name_fr?.toLowerCase().includes("tacos"))
+  );
+
+  const isCustomPizza = Boolean(
+    (UUID_PIZZA_STATION && item.restaurant_id === UUID_PIZZA_STATION) || 
+    item.restaurant_name?.toLowerCase().includes("pizza station")
+  );
 
   const [tacosSelections, setTacosSelections] = useState<Selections>({
     format: ["Standard"], sauces: [], crudites: [], viandes: [], extraViandes: ["Aucune"], gratinage: ["Aucun"]
   });
 
-  // ✅ MISE À JOUR : On met "M (30cm)" comme taille par défaut
   const [pizzaSelections, setPizzaSelections] = useState<Selections>({
     taille: ["M (30cm)"], supplements: []
   });
@@ -150,7 +159,6 @@ export default function ProductModal({ item, onClose }: ProductModalProps) {
       const xl = tacosSelections.format[0] === "Format XL" ? " XL" : "";
       finalName = `${baseName}${xl} (${extras.join(", ")})`;
     } else if (isCustomPizza) {
-      // ✅ MISE À JOUR : On filtre la nouvelle taille par défaut pour qu'elle ne s'affiche pas comme un "supplément"
       const extras = Object.values(pizzaSelections).flat().filter(n => !["M (30cm)"].includes(n));
       finalName = `${baseName} ${pizzaSelections.taille[0]} (${extras.join(", ")})`;
     }
